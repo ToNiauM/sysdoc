@@ -806,6 +806,7 @@ def _call_openai_compatible_json(
             {"role": "user", "content": prompt},
         ],
         "response_format": response_format,
+        "stream": True,
     }
 
     headers = {
@@ -821,7 +822,7 @@ def _call_openai_compatible_json(
         headers=headers,
         method="POST",
     )
-    return execute_llm_request(request, extract_openai_chat_text)
+    return execute_llm_request(request, _read_openai_stream)
 
 
 def call_openrouter_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
@@ -849,11 +850,66 @@ def call_openai_json(api_key: str, model: str, prompt: str, schema: dict) -> dic
     )
 
 
-def extract_openai_chat_text(data: dict) -> str:
+def _read_openai_stream(response) -> str:
+    """Lê SSE do OpenAI/OpenRouter token a token e imprime progresso em tempo real."""
+    accumulated: list[str] = []
+    char_count = 0
+    for raw_line in response:
+        line = raw_line.decode("utf-8", errors="replace").rstrip()
+        if not line.startswith("data: "):
+            continue
+        data_str = line[6:].strip()
+        if data_str == "[DONE]":
+            break
+        try:
+            chunk = json.loads(data_str)
+            delta = ((chunk.get("choices") or [{}])[0].get("delta") or {}).get("content") or ""
+            if delta:
+                accumulated.append(delta)
+                char_count += len(delta)
+                print(f"\r  ✍  Gerando... {char_count} chars", end="", flush=True)
+        except (json.JSONDecodeError, IndexError, TypeError):
+            pass
+    if char_count:
+        print(f"\r  ✅ Gerado: {char_count} chars{'':<20}", flush=True)
+    return "".join(accumulated)
+
+
+def _read_anthropic_stream(response) -> str:
+    """Lê SSE da Anthropic token a token e imprime progresso em tempo real."""
+    accumulated: list[str] = []
+    char_count = 0
+    for raw_line in response:
+        line = raw_line.decode("utf-8", errors="replace").rstrip()
+        if not line.startswith("data: "):
+            continue
+        data_str = line[6:].strip()
+        try:
+            chunk = json.loads(data_str)
+            if chunk.get("type") == "content_block_delta":
+                delta = (chunk.get("delta") or {}).get("text") or ""
+                if delta:
+                    accumulated.append(delta)
+                    char_count += len(delta)
+                    print(f"\r  ✍  Gerando... {char_count} chars", end="", flush=True)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    if char_count:
+        print(f"\r  ✅ Gerado: {char_count} chars{'':<20}", flush=True)
+    return "".join(accumulated)
+
+
+def _read_gemini_response(response) -> str:
+    """Lê resposta completa do Gemini e extrai texto."""
+    raw = response.read().decode("utf-8")
+    data = json.loads(raw)
     try:
-        return data["choices"][0]["message"]["content"]
-    except KeyError:
-        return ""
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError):
+        text = ""
+    if text:
+        print(f"  ✅ Gerado: {len(text)} chars", flush=True)
+    return text
 
 
 def call_gemini_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
@@ -867,24 +923,16 @@ def call_gemini_json(api_key: str, model: str, prompt: str, schema: dict) -> dic
         ],
         "generationConfig": {
             "responseMimeType": "application/json",
-            "responseSchema": schema
-        }
+            "responseSchema": schema,
+        },
     }
-
     request = urllib.request.Request(
         url,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    return execute_llm_request(request, extract_gemini_text)
-
-
-def extract_gemini_text(data: dict) -> str:
-    try:
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError):
-        return ""
+    return execute_llm_request(request, _read_gemini_response)
 
 
 def call_anthropic_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
@@ -892,41 +940,33 @@ def call_anthropic_json(api_key: str, model: str, prompt: str, schema: dict) -> 
     payload = {
         "model": model,
         "max_tokens": 8192,
+        "stream": True,
         "system": f"Você gera análises SysDoc em JSON estrito, sem Markdown e sem texto fora do JSON. Responda exclusivamente com o JSON válido para este schema: {json.dumps(schema)}",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
+        "messages": [{"role": "user", "content": prompt}],
     }
-
     request = urllib.request.Request(
         url,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         headers={
             "x-api-key": api_key,
             "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
+            "content-type": "application/json",
         },
         method="POST",
     )
-    return execute_llm_request(request, extract_anthropic_text)
+    return execute_llm_request(request, _read_anthropic_stream)
 
 
-def extract_anthropic_text(data: dict) -> str:
-    try:
-        return data["content"][0]["text"]
-    except (KeyError, IndexError):
-        return ""
-
-
-def execute_llm_request(request: urllib.request.Request, extractor, max_retries: int = 3) -> dict:
-    """Executa a requisição HTTP com retry + backoff exponencial para erros 429/5xx (B4)."""
+def execute_llm_request(request: urllib.request.Request, response_reader, max_retries: int = 3) -> dict:
+    """Executa a requisição HTTP com retry + backoff exponencial para erros 429/5xx."""
     delay = 5.0
+    text = ""
     for attempt in range(1, max_retries + 1):
         try:
-            print(f"  ⏳ Aguardando resposta da LLM (tentativa {attempt}/{max_retries})...", flush=True)
+            print(f"  ⏳ Conectando... (tentativa {attempt}/{max_retries})", flush=True)
             with urllib.request.urlopen(request, timeout=900) as response:
-                raw = response.read().decode("utf-8")
-            break  # sucesso
+                text = response_reader(response)
+            break
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             if exc.code in (429, 500, 502, 503, 504) and attempt < max_retries:
@@ -942,11 +982,8 @@ def execute_llm_request(request: urllib.request.Request, extractor, max_retries:
                 delay *= 2
                 continue
             raise RuntimeError(f"Falha de rede: {exc}") from exc
-
-    response_data = json.loads(raw)
-    text = extractor(response_data)
     if not text:
-        raise RuntimeError(f"Resposta da LLM sem texto utilizável: {raw[:1000]}")
+        raise RuntimeError("Resposta da LLM sem texto utilizável.")
     return parse_json_object(text)
 
 
