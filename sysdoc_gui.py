@@ -47,8 +47,6 @@ class SysDocGui:
         self.root.title("SysDoc")
         self.root.geometry("980x680")
         self.project_var = StringVar()
-        # Lê modelo do config.json em vez de hardcode (B1)
-        self.model_var = StringVar(value=self._load_default_model())
         self.status_var = StringVar(value="Pronto.")
         self.output_queue: queue.Queue[str] = queue.Queue()
         self.running = False
@@ -59,17 +57,6 @@ class SysDocGui:
         self.refresh_projects()
         self.root.after(100, self._drain_output)
 
-    @staticmethod
-    def _load_default_model() -> str:
-        config_file = Path.home() / ".sysdoc" / "config.json"
-        if config_file.exists():
-            try:
-                cfg = json.loads(config_file.read_text(encoding="utf-8"))
-                return cfg.get("default_model") or ""
-            except Exception:
-                pass
-        return os.environ.get("SYSDOC_OPENAI_MODEL", "")
-
     def _build(self) -> None:
         top = Frame(self.root, padx=10, pady=10)
         top.pack(fill=X)
@@ -79,21 +66,6 @@ class SysDocGui:
         self.project_entry.pack(side=LEFT, fill=X, expand=True, padx=8)
         Button(top, text="Selecionar pasta", command=self.choose_folder).pack(side=LEFT, padx=2)
         Button(top, text="Atualizar", command=self.refresh_projects).pack(side=LEFT, padx=2)
-
-        model_bar = Frame(self.root, padx=10)
-        model_bar.pack(fill=X, pady=(0, 4))
-        Label(model_bar, text="Modelo").pack(side=LEFT)  # Label agnóstico (C4)
-        self.model_entry = Entry(model_bar, textvariable=self.model_var, width=40)
-        self.model_entry.pack(side=LEFT, padx=8)
-        # Botões Conectar API e Modelos (U5)
-        Button(model_bar, text="🔑 Conectar API", command=lambda: self.run_command("connect")).pack(side=LEFT, padx=2)
-        Button(model_bar, text="📝 Modelos", command=lambda: self.run_command("models")).pack(side=LEFT, padx=2)
-
-        instr_bar = Frame(self.root, padx=10)
-        instr_bar.pack(fill=X, pady=(0, 4))
-        Label(instr_bar, text="Instrução extra").pack(side=LEFT)
-        self.instruction_var = StringVar()
-        Entry(instr_bar, textvariable=self.instruction_var, width=60).pack(side=LEFT, padx=8, fill=X, expand=True)
 
         main = Frame(self.root, padx=10)
         main.pack(fill=BOTH, expand=True)
@@ -121,10 +93,10 @@ class SysDocGui:
         for label, command in [
             ("Status", "status"),
             ("Preparar", "prepare"),
-            ("Analisar com LLM", "analyze"),
             ("Validar", "validate"),
             ("Renderizar", "render"),
             ("Publicar", "publish"),
+            ("Deploy", "deploy"),
         ]:
             Button(actions, text=label, command=lambda c=command: self.run_command(c)).pack(side=LEFT, padx=2)
 
@@ -197,26 +169,11 @@ class SysDocGui:
 
         project = self.project_var.get().strip()
         args = [sys.executable, "sysdoc.py", command]
-        # Comandos interativos: abre terminal separado
-        if command in ("connect", "models"):
-            subprocess.Popen(
-                [sys.executable, "sysdoc.py", command],
-                cwd=ROOT,
-                creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0,
-            )
-            return
         if command != "status":
             if not project:
                 messagebox.showwarning("SysDoc", "Selecione ou informe uma pasta de projeto.")
                 return
             args.append(project)
-        if command == "analyze":
-            model = self.model_var.get().strip()
-            if model:
-                args.extend(["--model", model])
-            instruction = self.instruction_var.get().strip()
-            if instruction:
-                args.extend(["--instruction", instruction])
 
         self.running = True
         self.status_var.set(f"Executando: {command}...")

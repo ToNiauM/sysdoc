@@ -8,15 +8,29 @@ Produzir análise comparativa técnica e jurídica de `ETP.pdf` e `TR.pdf`, cons
 
 Prioridades: inteligência, precisão, rastreabilidade, economia de contexto. **Não simule handoffs entre agentes.** Aplique as lentes técnica, jurídica, Delic/modelos e consistência ETP x TR dentro de uma única análise.
 
-## Acionamento
+## Macros de Acionamento (Comandos de Prompt)
 
-```text
-sysdoc [pasta]
-sysdoc [pasta] - [instrução extra]
-sysdoc render [pasta]
-```
+O usuário acionará você (o Agente de IA) através de "Macro Comandos". Quando o usuário digitar um desses comandos, você deve executar as ações associadas usando a CLI determinística local do SysDoc:
 
-CLI determinístico local:
+- **`sysdoc init [pasta]`**:
+  - Crie a pasta e a estrutura base (`mkdir [pasta]`, `mkdir [pasta]/modelos`).
+  - Solicite ao usuário que coloque os PDFs (`ETP.pdf` e `TR.pdf`) na pasta.
+  - Após a confirmação do usuário, rode `sysdoc prepare [pasta]`.
+
+- **`sysdoc all [pasta]`**:
+  - **Fase 1**: Rode `sysdoc prepare [pasta]` via shell.
+  - **Fase 2**: Leia `[pasta]/.sysdoc/cache/contexto_sysdoc.md` e os arquivos de texto extraídos.
+  - **Fase 3**: Use SUA inteligência para gerar a análise respeitando este `SKILL.md` e o `templates/schema_sysdoc.json`. Escreva o resultado em `[pasta]/dados_consolidados.json`.
+  - **Fase 4**: Rode `sysdoc publish [pasta]` via shell (para validar, versionar e gerar HTML). Corrija o JSON se o validador falhar.
+  - **Fase 5**: Rode `sysdoc deploy [pasta]` via shell (para enviar para a VPS).
+
+- **`sysdoc create TR [pasta]`**:
+  - Leia a análise consolidada e o ETP.
+  - Gere um novo arquivo de Termo de Referência baseado nos dados aprovados.
+
+## Ferramentas de CLI (Apenas para o Agente)
+
+Você executará estes comandos via shell para orquestrar o processo:
 
 ```bash
 python sysdoc.py status
@@ -24,9 +38,8 @@ python sysdoc.py prepare [pasta]
 python sysdoc.py validate [pasta]
 python sysdoc.py render [pasta]
 python sysdoc.py publish [pasta]
+python sysdoc.py deploy [pasta]
 ```
-
-- `sysdoc render [pasta]` apenas reexecuta o renderizador sobre `[pasta]/dados_consolidados.json`. Não refaça a análise.
 
 ## Entradas obrigatórias
 
@@ -50,32 +63,28 @@ O campo `modelo_ia` no JSON deve ser **o identificador real do modelo que produz
 
 O renderizador usa esse valor para compor o nome do arquivo. **Nunca** use um valor genérico como `ia`, `modelo`, `default` ou o nome do rodízio — sempre o identificador real. Isso garante rastreabilidade quando múltiplas IAs operam o mesmo fluxo.
 
-## Fluxo
+## Fluxo de Análise (`sysdoc all`)
 
-1. Verificar entradas obrigatórias.
-2. Preparar contexto determinístico, sempre que a ferramenta estiver disponível:
+Quando executando o macro `sysdoc all`, siga rigidamente estes passos:
+
+1. Verificar se `ETP.pdf` e `TR.pdf` existem. Se não, interrompa e peça.
+2. Executar a ferramenta de shell:
    ```bash
    python sysdoc.py prepare [pasta]
    ```
-3. Usar `[pasta]/.sysdoc/cache/contexto_sysdoc.md` como mapa de leitura para economizar tokens. Ele não substitui a conferência dos trechos relevantes nos textos extraídos.
-4. Extrair ou consultar texto de ETP, TR e referências (prefira texto literal a OCR quando o PDF tiver camada de texto).
-5. Montar briefing curto: objeto, órgão, processo, valor, normas aplicáveis, apontamentos Delic/modelos.
-6. Triar achados candidatos pelas lentes obrigatórias.
-7. Selecionar apenas achados relevantes (ver "Critério de seleção").
-8. Gerar `[pasta]/dados_consolidados.json` no schema canônico, preenchendo `modelo_ia` com o identificador real.
-9. Validar:
-   ```bash
-   python templates/validate_sysdoc.py [pasta]/dados_consolidados.json
-   python sysdoc.py validate [pasta]
-   ```
-10. Corrigir o JSON até o validador passar sem erros.
-11. Publicar:
+3. Ler o arquivo gerado: `[pasta]/.sysdoc/cache/contexto_sysdoc.md`. Use-o como mapa. Ele não substitui a conferência dos textos integrais extraídos em `.sysdoc/cache/textos/`.
+4. Triar achados pelas lentes obrigatórias (Técnica, Jurídica, Delic/modelos, Consistência).
+5. Selecionar entre 5 e 10 achados relevantes.
+6. Gerar o JSON da análise usando seu conhecimento, garantindo aderência absoluta ao `templates/schema_sysdoc.json`. Preencha `modelo_ia` com seu slug real (ex: `claude-3-7-sonnet`).
+7. Escrever o JSON em `[pasta]/dados_consolidados.json`.
+8. Executar a publicação (que embutirá validação rigorosa):
    ```bash
    python sysdoc.py publish [pasta]
    ```
-   ou renderizar sem versionar:
+9. Se a etapa 8 falhar (código de erro no validador), LEIA os erros, corrija o arquivo JSON iterativamente e tente publicar novamente.
+10. Com a publicação concluída e o HTML gerado, faça o deploy via SSH para a VPS:
    ```bash
-   python templates/render_analise.py [pasta]/dados_consolidados.json [pasta]
+   python sysdoc.py deploy [pasta]
    ```
 
 ## Preparação determinística

@@ -18,21 +18,33 @@ sysdoc render [pasta]
 
 When triggered, always read `skills/sysdoc/SKILL.md` first — it is the single source of truth for the operational flow.
 
-## CLI Commands
+## CLI Commands (Ferramentas Base)
+
+A CLI do SysDoc é estritamente offline/determinística. Ela **não** faz chamadas de LLM. 
 
 ```bash
 sysdoc status                           # list all projects and their state
-sysdoc connect                          # select active provider (OpenRouter, OpenAI, etc) and set API key
-sysdoc models                           # list models from active provider and set default model
 sysdoc init [pasta]                     # create a new project folder structure
 sysdoc prepare [pasta]                  # extract PDFs/DOCX → .sysdoc/cache/
-sysdoc analyze [pasta] --model MODEL    # prepare + call configured LLM + validate + publish
-sysdoc analyze [pasta] --dry-run        # prepare context and show prompt without calling LLM
 sysdoc validate [pasta]                 # validate dados_consolidados.json
 sysdoc render [pasta]                   # render HTML from dados_consolidados.json
 sysdoc publish [pasta]                  # validate + version JSON + render HTML
-python sysdoc_gui.py                    # launch tkinter GUI
+sysdoc deploy [pasta]                   # find next index via SSH and SCP html to VPS
+sysdoc compare [pasta]                  # compara versoes json geradas
+python sysdoc_gui.py                    # launch tkinter GUI (offline features only)
 ```
+
+## Macros de Prompt (Orquestrados pelo Agente)
+
+O SysDoc delegou a orquestração de LLMs e chamadas de rede para o Agente de IA externo (você). Portanto, os seguintes comandos devem ser interpretados como "Macros" solicitados pelo usuário no chat:
+
+1. **`sysdoc init [pasta]`**: O Agente cria a pasta base, orienta o usuário e aciona `sysdoc prepare`.
+2. **`sysdoc all [pasta]`**: O Agente orquestra as fases:
+   - **Fase 1 (Preparação)**: Roda `sysdoc prepare [projeto]` no bash.
+   - **Fase 2 (Análise)**: Lê os arquivos de cache/textos, gera com a SUA própria LLM o arquivo `dados_consolidados.json` no disco.
+   - **Fase 3 (Publicação)**: Roda `sysdoc publish [projeto]`. (Valida e gera HTML)
+   - **Fase 4 (Deploy)**: Roda `sysdoc deploy [projeto]`. (Envia VPS)
+3. **`sysdoc create TR [pasta]`**: O Agente cria o TR baseado nos dados.
 
 Validate and render directly:
 ```bash
@@ -48,7 +60,8 @@ python templates/render_analise.py [pasta]/dados_consolidados.json [pasta]
 |---------|------|
 | `skills/sysdoc/SKILL.md` | **Canonical operational flow** — IA-agnostic, single source of truth |
 | `.claude/skills/sysdoc-analise/SKILL.md` | Thin Claude Code wrapper; delegates to canonical |
-| `sysdoc.py` | CLI Entrypoint: `status`, `connect`, `models`, `init`, `prepare`, `analyze`, `validate`, `render`, `publish` |
+| `sysdoc.py` | CLI Entrypoint: `status`, `connect`, `models`, `init`, `prepare`, `analyze`, `validate`, `render`, `publish`, `deploy` |
+| `run_sysdoc.sh` | Script wrapper que roda Fases 1, 2 e 4 (Prepare, Analyze, Deploy) sequencialmente |
 | `sysdoc_gui.py` | tkinter GUI wrapping the same CLI subprocesses |
 | `templates/validate_sysdoc.py` | Deterministic JSON validator (schema + coherence + PT-BR accents + traceability) |
 | `templates/render_analise.py` | Deterministic HTML renderer — **immutable** |

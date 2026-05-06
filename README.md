@@ -1,145 +1,65 @@
-# SysDoc
+# SysDoc: Assistente de Inteligência Artificial para Contratações
 
-## Objetivos e Propósito
+O **SysDoc** é uma ferramenta de linha de comando (CLI) que automatiza a conferência técnica e jurídica entre o **Estudo Técnico Preliminar (ETP)** e o **Termo de Referência (TR)** em processos de licitação.
 
-O SysDoc nasceu da necessidade de automatizar e especializar a conferência técnica e jurídica entre o Estudo Técnico Preliminar (ETP) e o Termo de Referência (TR) em processos de contratação. O objetivo principal do projeto é servir como um especialista em comparação de documentos, capaz de:
-- Identificar inconsistências, omissões e contradições entre os arquivos.
-- Sugerir mudanças textuais prontas para copiar e colar.
-- Apontar riscos jurídicos (bloqueantes, relevantes ou informativos) com alta precisão e fundamentação técnica.
+Utilizando Inteligência Artificial (compatível com OpenAI, Claude, Gemini, etc.), ele lê seus documentos em PDF ou Word, identifica omissões, aponta riscos jurídicos (com classificação de gravidade) e gera um relatório HTML amigável detalhando o que precisa ser corrigido.
 
-Sua arquitetura foi construída para ser **IA-agnóstica**, ou seja, qualquer modelo moderno (Claude, GPT, Gemini) pode operá-lo seguindo um fluxo de trabalho (prompt) rigorosamente determinístico.
+---
 
-## Instalação e Configuração
+## 🚀 Instalação Rápida
 
-Para instalar o SysDoc como um comando global no seu terminal, rode na pasta raiz do projeto:
+Abra o seu terminal (na pasta raiz onde baixou o SysDoc) e rode:
 
 ```bash
 pip install -e .
 ```
 
-A partir de agora, você pode chamar `sysdoc` de qualquer diretório do seu terminal.
+A partir de agora, o comando `sysdoc` estará disponível em qualquer pasta do seu computador!
 
-### 1. Conectar a uma API
 
-O SysDoc trabalha com múltiplos provedores, sendo o **OpenRouter** o padrão de fábrica. Use o comando abaixo para escolher seu provedor e configurar a chave de API (OpenRouter, OpenAI, Gemini ou Anthropic):
+---
 
-```bash
-sysdoc connect
-```
+## 📂 Como Analisar um Projeto (Passo a Passo)
 
-### 2. Escolher o Modelo Padrão
+O SysDoc foi construído para ser o "cinto de utilidades" do seu Agente de IA favorito (Claude Code, Gemini CLI, Cursor, etc). 
 
-Após configurar sua chave, você pode consultar a API em tempo real para listar os modelos disponíveis e definir qual você quer usar por padrão em todas as análises:
+Para realizar uma análise, **abra o chat do seu Agente de IA na pasta dos seus documentos** e dê os seguintes comandos:
 
-```bash
-sysdoc models
-```
+### Comando 1: Iniciar o Projeto
+Digite para a IA:
+> **`sysdoc init MeuProjeto`**
 
-*(Opcionalmente, você ainda pode definir variáveis de ambiente como `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` ou `ANTHROPIC_API_KEY`)*.
+Ela criará a pasta correta. Coloque seus arquivos `ETP.pdf` e `TR.pdf` dentro da pasta que foi criada.
 
-## Uso (CLI Global)
+### Comando 2: Fazer Tudo (Análise Completa)
+Com os PDFs na pasta, digite para a IA:
+> **`sysdoc all MeuProjeto`**
 
-```text
-sysdoc [pasta]
-sysdoc [pasta] - [instrução extra]
-sysdoc render [pasta]
-```
+Ao ler esse "Macro", a IA vai magicamente:
+1. Extrair os textos dos PDFs usando a ferramenta do SysDoc.
+2. Usar o próprio cérebro genial dela para ler os contratos e encontrar riscos e inconsistências.
+3. Gerar o JSON da análise e usar o SysDoc para validar e renderizar um HTML lindo.
+4. Fazer o upload automático do seu relatório para a VPS!
 
-CLI determinístico (execute de qualquer lugar):
+---
 
-```bash
-sysdoc status
-sysdoc connect
-sysdoc models
-sysdoc prepare [pasta]
-sysdoc analyze [pasta]
-sysdoc validate [pasta]
-sysdoc render [pasta]
-sysdoc publish [pasta]
-```
+## 🛠️ Comandos Manuais (Offline)
 
-Interface gráfica local:
+Se você for um usuário avançado e quiser rodar as ferramentas do SysDoc no terminal *sem* a IA, estes são os utilitários puramente offline disponíveis:
 
-```bash
-python sysdoc_gui.py
-```
+| Comando | O que faz? |
+|---------|------------|
+| `sysdoc status` | Lista todas as pastas ao seu redor e mostra se falta ETP, TR ou Modelos. |
+| `sysdoc init [pasta]` | Cria uma pasta vazia com a estrutura correta. |
+| `sysdoc prepare [pasta]` | Extrai o texto dos PDFs/DOCXs. |
+| `sysdoc publish [pasta]` | Valida o JSON da análise e gera o relatório final em HTML. |
+| `sysdoc deploy [pasta]` | Pega o último relatório HTML gerado e envia por SSH/SCP para o servidor. |
+| `sysdoc compare [pasta]` | Mostra um comparativo rápido na tela. |
+| `python sysdoc_gui.py` | Abre uma Interface Gráfica simples para rodar esses comandos sem precisar digitar. |
 
-A GUI lista projetos e permite selecionar uma pasta ou criar projetos a partir de `templates/projeto-padrao/`.
+---
 
-Exemplos de uso via terminal:
+## 💡 Dicas Importantes
 
-```text
-sysdoc analyze Complementares
-sysdoc analyze Combustivel --model anthropic/claude-3.7-sonnet --instruction "foco em garantia contratual"
-sysdoc render Leiloeiro
-```
-
-```bash
-sysdoc prepare Combustivel
-sysdoc analyze Combustivel
-sysdoc publish Combustivel
-```
-
-## Estrutura Esperada
-
-```text
-[pasta]/
-├── ETP.pdf
-├── TR.pdf
-├── modelos/ ou Modelos/
-├── .sysdoc/cache/contexto_sysdoc.md
-├── dados_consolidados.json
-├── dados_consolidados_[modelo_ia]_[data].json
-└── analise_[modelo_ia]_[data].html
-```
-
-O nome do HTML inclui o identificador real do modelo de IA que produziu a análise (ex.: `analise_claude-opus-4-7_2026-04-24.html`, `analise_gpt-5_2026-04-24.html`, `analise_gemini-2-5-pro_2026-04-24.html`). Isso evita colisões quando múltiplas IAs analisam a mesma pasta. Histórico do mesmo modelo/data usa `_2`, `_3`, ...
-
-`dados_consolidados.json` é o arquivo ativo. `python sysdoc.py publish [pasta]` valida, preserva uma cópia versionada por modelo/data e renderiza o HTML.
-
-## Fluxo Principal e Compatibilidade com Outras CLIs de IA
-
-O fluxo operacional canônico (neutro a qualquer IA e com prompts determinísticos) fica em:
-
-```text
-skills/sysdoc/SKILL.md
-```
-
-**Integração de Agentes Externos**: O SysDoc foi projetado não só para ter uma CLI nativa (`sysdoc analyze`), mas também para permitir que você utilize **Gemini CLI, Claude Code, ou OpenCode** no mesmo fluxo de trabalho.
-Essas ferramentas podem ler a documentação de prompt determinística e operar o `sysdoc prepare` e interagir com as pastas sem fricção.
-
-Wrappers de harness específicos já inclusos:
-
-- **Claude Code** → `.claude/skills/sysdoc-analise/SKILL.md` (apenas frontmatter + dicas de MCP/Bash; delega ao canônico)
-
-A versão anterior (v3 com orchestrator + revisores em `agents/`) está preservada em `backup/sysdoc_20260424_125157/`.
-
-## Preparação
-
-Antes da análise por LLM, rode:
-
-```bash
-python sysdoc.py prepare [pasta]
-```
-
-Esse comando extrai textos para `[pasta]/.sysdoc/cache/textos/`, gera `[pasta]/.sysdoc/cache/manifest.json` e cria `[pasta]/.sysdoc/cache/contexto_sysdoc.md`.
-
-O `contexto_sysdoc.md` é um mapa determinístico para economizar tokens: briefing provável, mapa de seções e extratos por tema. Ele não substitui a conferência dos trechos relevantes nos textos extraídos.
-
-## Validação
-
-```bash
-python templates/validate_sysdoc.py [pasta]/dados_consolidados.json
-sysdoc validate [pasta]
-```
-
-A validação reforça schema, coerência, `modelo_ia`, acentuação em norma culta do português brasileiro nos campos gerados e, quando houver cache preparado, rastreabilidade dos trechos `de`.
-
-## Renderização
-
-```bash
-python templates/render_analise.py [pasta]/dados_consolidados.json [pasta]
-sysdoc render [pasta]
-```
-
-Template (`templates/analise_template.html`) e renderizador (`templates/render_analise.py`) são **imutáveis** — mesmo JSON validado produz exatamente o mesmo HTML.
+- Se o seu PDF for um **documento escaneado** (imagem), a IA não conseguirá ler. O SysDoc te avisará sobre isso durante a etapa de `prepare`.
+- O SysDoc não sobrescreve análises antigas. Cada vez que você roda, ele cria um arquivo HTML novo, com a data e o nome da IA, garantindo um histórico completo das suas revisões!

@@ -431,20 +431,6 @@ def validate(project: str) -> int:
     return run_python_script(["templates/validate_sysdoc.py", str(json_path), str(paths.root)])
 
 
-def run_validate_and_capture(project: str) -> list[str]:
-    """Retorna linhas de erro do validador para uso no retry automático (M2-A)."""
-    paths = project_paths(project)
-    json_path = paths.root / "dados_consolidados.json"
-    result = subprocess.run(
-        [sys.executable, str(TEMPLATES / "validate_sysdoc.py"), str(json_path), str(paths.root)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
-
 
 def render(project: str) -> int:
     paths = project_paths(project)
@@ -452,560 +438,6 @@ def render(project: str) -> int:
     if not json_path.is_file():
         raise SystemExit(f"JSON não encontrado: {rel(json_path)}")
     return run_python_script(["templates/render_analise.py", str(json_path), str(paths.root)])
-
-
-def load_config() -> dict:
-    if not CONFIG_FILE.exists():
-        return {}
-    try:
-        return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-
-def save_config(config: dict) -> None:
-    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_FILE.write_text(json.dumps(config, indent=2), encoding="utf-8")
-
-
-def connect_command() -> int:
-    config = load_config()
-    print("--- Configuração de Provedor de IA (SysDoc) ---")
-    print("Selecione o provedor que deseja utilizar:")
-    print("1. OpenRouter (Recomendado/Padrão)")
-    print("2. OpenAI")
-    print("3. Google Gemini")
-    print("4. Anthropic")
-    print("---------------------------------------------")
-    
-    choice = input("Digite o número da sua escolha [1]: ").strip()
-    
-    provider_map = {
-        "1": "openrouter",
-        "2": "openai",
-        "3": "gemini",
-        "4": "anthropic"
-    }
-    
-    provider = provider_map.get(choice, "openrouter")
-    config["active_provider"] = provider
-    print(f"\nProvedor selecionado: {provider.upper()}")
-    
-    current_key = config.get(f"{provider}_api_key")
-    mask = "***" if current_key else "nenhuma"
-    new_key = input(f"Insira sua API Key para {provider.upper()} (atual: {mask}): ").strip()
-    
-    if new_key:
-        # Validação simples da chave antes de salvar (U2)
-        print(f"Validando chave para {provider.upper()}...")
-        config[f"{provider}_api_key"] = new_key
-        try:
-            fetch_models(provider, new_key)
-            print("✅ Chave válida — conexão OK.")
-        except Exception as exc:
-            print(f"⚠️  Não foi possível validar a chave: {exc}")
-            print("Chave salva, mas verifique se está correta antes de usar.")
-    elif current_key:
-        print("Mantendo a chave atual.")
-    else:
-        print("Nenhuma chave inserida. O provedor pode não funcionar até que você configure uma chave.")
-        
-    save_config(config)
-    print(f"\nProvedor ativo atualizado para: {provider.upper()} em {CONFIG_FILE}")
-    print("Dica: Use 'sysdoc models' para ver os modelos disponíveis e escolher um modelo padrão.")
-    return 0
-
-
-def models_command() -> int:
-    config = load_config()
-    provider = config.get("active_provider", "openrouter")
-    api_key = config.get(f"{provider}_api_key")
-
-    if not api_key:
-        print(f"Erro: Chave de API para '{provider}' não encontrada.")
-        print("Use 'sysdoc connect' primeiro para configurar sua chave.")
-        return 1
-
-    print(f"Buscando modelos disponíveis no provedor: {provider.upper()}...")
-    try:
-        models = fetch_models(provider, api_key)
-    except Exception as e:
-        print(f"Erro ao buscar modelos: {e}")
-        return 1
-
-    if not models:
-        print("Nenhum modelo encontrado ou erro na API.")
-        return 1
-
-    # Filtro por termo (U3)
-    filtro = input("Filtrar modelos (ENTER para listar todos): ").strip().lower()
-    filtered = [m for m in models if not filtro or filtro in m.lower()]
-
-    if not filtered:
-        print(f"Nenhum modelo encontrado com o filtro '{filtro}'.")
-        return 1
-
-    # Paginação para listas grandes
-    page_size = 30
-    total = len(filtered)
-    page = 0
-    while True:
-        start = page * page_size
-        end = min(start + page_size, total)
-        print(f"\n--- Modelos Disponíveis ({start + 1}-{end} de {total}) ---")
-        for i, model in enumerate(filtered[start:end], start=start + 1):
-            current = " ← atual" if model == config.get("default_model") else ""
-            print(f"[{i}] {model}{current}")
-        print("---")
-        nav = []
-        if end < total:
-            nav.append("[P]róxima página")
-        if page > 0:
-            nav.append("[V]oltar")
-        nav.append("[Núomero] selecionar")
-        nav.append("[ENTER] sair")
-        print(" | ".join(nav))
-        choice = input("> ").strip()
-        if choice.upper() == "P" and end < total:
-            page += 1
-        elif choice.upper() == "V" and page > 0:
-            page -= 1
-        elif choice.isdigit() and 1 <= int(choice) <= total:
-            selected = filtered[int(choice) - 1]
-            config["default_model"] = selected
-            save_config(config)
-            print(f"\nModelo '{selected}' definido como padrão com sucesso!")
-            break
-        else:
-            print("\nNenhuma alteração realizada.")
-            break
-    return 0
-
-
-def fetch_models(provider: str, api_key: str) -> list[str]:
-    if provider == "openrouter":
-        url = "https://openrouter.ai/api/v1/models"
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
-    elif provider == "openai":
-        url = "https://api.openai.com/v1/models"
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
-    elif provider == "anthropic":
-        url = "https://api.anthropic.com/v1/models"
-        req = urllib.request.Request(url, headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"})
-    elif provider == "gemini":
-        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
-        req = urllib.request.Request(url)
-    else:
-        raise ValueError("Provedor inválido.")
-        
-    with urllib.request.urlopen(req, timeout=30) as response:
-        data = json.loads(response.read().decode("utf-8"))
-        
-    models = []
-    if provider in ("openrouter", "openai"):
-        # Ambos retornam lista em data["data"]
-        for item in data.get("data", []):
-            models.append(item.get("id"))
-    elif provider == "anthropic":
-        # Anthropic retorna em data["data"]
-        for item in data.get("data", []):
-            models.append(item.get("id"))
-    elif provider == "gemini":
-        # Gemini retorna em data["models"], formato "models/nome"
-        for item in data.get("models", []):
-            name = item.get("name", "").replace("models/", "")
-            models.append(name)
-            
-    # Filtro básico para OpenAI
-    if provider == "openai":
-        models = [m for m in models if "gpt" in m or "o1" in m or "o3" in m]
-        
-    return sorted(models)
-
-
-def analyze(project: str, model: str | None = None, extra_instruction: str | None = None, dry_run: bool = False) -> int:
-    config = load_config()
-    provider = config.get("active_provider", "openrouter")
-
-    # Se não passou flag, tenta usar o default configurado. Se não, fallback.
-    model = model or config.get("default_model") or os.environ.get("SYSDOC_OPENAI_MODEL") or DEFAULT_LLM_MODEL
-
-    if not dry_run:
-        api_key = config.get(f"{provider}_api_key") or os.environ.get(f"{provider.upper()}_API_KEY")
-        if not api_key:
-            raise SystemExit(
-                f"Chave de API para o provedor '{provider}' não encontrada.\n"
-                f"Configure usando: sysdoc connect\n"
-                f"Ou defina a variável de ambiente: {provider.upper()}_API_KEY"
-            )
-    else:
-        api_key = None
-
-    print(f"Preparando contexto do projeto {project}...")
-    prepare(project)
-
-    paths = project_paths(project)
-    schema = json.loads((TEMPLATES / "schema_sysdoc.json").read_text(encoding="utf-8"))
-
-    if dry_run:
-        prompt = build_llm_prompt(paths, model, extra_instruction)
-        print("\n" + "=" * 60)
-        print("[DRY-RUN] Prompt que seria enviado à LLM:")
-        print("=" * 60)
-        print(prompt[:4000])
-        if len(prompt) > 4000:
-            print(f"\n... [truncado — {len(prompt)} chars no total]")
-        print("=" * 60)
-        print(f"\nModelo: {model} | Provedor: {provider}")
-        print("Nenhuma chamada de API foi realizada (--dry-run).")
-        return 0
-
-    out_path = paths.root / "dados_consolidados.json"
-    current_instruction = extra_instruction
-    validation = 1
-
-    for attempt in range(1, 3):
-        attempt_label = f" [tentativa {attempt}/2]" if attempt > 1 else ""
-        print(f"Chamando modelo: {model} (Provedor: {provider})...{attempt_label}")
-        prompt = build_llm_prompt(paths, model, current_instruction)
-        data = call_llm_json(provider=provider, api_key=api_key, model=model, prompt=prompt, schema=schema)
-        data["modelo_ia"] = slug(model)
-        out_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print(f"JSON gravado: {rel(out_path)}")
-
-        validation = validate(project)
-        if validation == 0:
-            break
-        if attempt < 2:
-            errors = run_validate_and_capture(project)
-            if errors:
-                err_summary = "; ".join(errors[:10])
-                print(f"⚠️  Validação falhou ({len(errors)} erro(s)). Tentativa de correção automática...")
-                current_instruction = f"Corrija os seguintes erros de validação: {err_summary}"
-            else:
-                print("A validação falhou. Ajuste o JSON ou rode novamente com uma instrução mais específica.")
-                return validation
-
-    if validation != 0:
-        print("A validação falhou mesmo após correção automática. Ajuste o JSON manualmente.")
-        return validation
-    return publish(project)
-
-
-def build_llm_prompt(paths: ProjectPaths, model: str, extra_instruction: str | None) -> str:
-    context = paths.context.read_text(encoding="utf-8", errors="replace")
-    skill = (ROOT / "skills" / "sysdoc" / "SKILL.md").read_text(encoding="utf-8", errors="replace")
-    schema_text = (TEMPLATES / "schema_sysdoc.json").read_text(encoding="utf-8", errors="replace")
-    texts = load_llm_texts(paths)
-    text_block = trim_llm_texts(texts)
-
-    extra = extra_instruction.strip() if extra_instruction else "Nenhuma."
-    return textwrap.dedent(
-        f"""
-        Voce e o motor de analise do SysDoc. Produza exclusivamente JSON valido no schema fornecido.
-
-        Modelo real em uso: {model}
-        Campo modelo_ia obrigatorio: {slug(model)}
-        Projeto: {rel(paths.root)}
-        Instrucao extra do usuario: {extra}
-
-        Regras criticas:
-        - Siga o fluxo canonico abaixo.
-        - Gere entre 5 e 10 itens relevantes, salvo se a base for insuficiente.
-        - Preserve o campo "de" como trecho literal do ETP ou TR; se houver omissao, use o marcador previsto na skill.
-        - Nao invente artigo, acordao, numero SEI, valor, data ou clausula.
-        - Preencha parecer_executivo com pelo menos 450 palavras.
-        - Preencha parecer_documento de ETP e TR com pelo menos 120 palavras cada.
-        - Use portugues brasileiro culto nos campos gerados.
-        - Responda apenas com o objeto JSON final.
-
-        # Fluxo canonico
-        {skill}
-
-        # Schema canonico
-        {schema_text}
-
-        # Contexto deterministico
-        {context}
-
-        # Textos extraidos para rastreabilidade
-        {text_block}
-        """
-    ).strip()
-
-
-def load_llm_texts(paths: ProjectPaths) -> list[tuple[str, str]]:
-    items = []
-    for path in sorted(paths.source_cache.glob("*.txt"), key=lambda p: p.name.lower()):
-        items.append((path.name, path.read_text(encoding="utf-8", errors="replace")))
-    return items
-
-
-def trim_llm_texts(texts: list[tuple[str, str]]) -> str:
-    if not texts:
-        return "[sem textos extraidos]"
-
-    remaining = MAX_LLM_CONTEXT_CHARS
-    blocks = []
-    for name, text in texts:
-        if remaining <= 0:
-            blocks.append(f"\n## {name}\n[omitido por limite de contexto]")
-            continue
-        piece = text[:remaining]
-        remaining -= len(piece)
-        suffix = "\n[TRUNCADO POR LIMITE DE CONTEXTO]" if len(piece) < len(text) else ""
-        blocks.append(f"\n## {name}\n{piece}{suffix}")
-    return "\n".join(blocks)
-
-
-
-def call_llm_json(provider: str, api_key: str, model: str, prompt: str, schema: dict) -> dict:
-    if provider == "openrouter":
-        return call_openrouter_json(api_key, model, prompt, schema)
-    elif provider == "openai":
-        return call_openai_json(api_key, model, prompt, schema)
-    elif provider == "gemini":
-        return call_gemini_json(api_key, model, prompt, schema)
-    elif provider == "anthropic":
-        return call_anthropic_json(api_key, model, prompt, schema)
-    else:
-        raise RuntimeError(f"Provedor desconhecido: {provider}")
-
-
-def _call_openai_compatible_json(
-    api_key: str,
-    model: str,
-    prompt: str,
-    schema: dict,
-    base_url: str,
-    extra_headers: dict | None = None,
-    use_json_schema: bool = True,
-) -> dict:
-    """Base compartilhada para OpenAI e OpenRouter (C1)."""
-    system_msg = "Voce gera analises SysDoc em JSON estrito, sem Markdown e sem texto fora do JSON."
-    if not use_json_schema:
-        system_msg += f"\nSchema obrigatorio: {json.dumps(schema)}"
-
-    response_format: dict
-    if use_json_schema:
-        response_format = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "sysdoc_consolidated_analysis",
-                "schema": schema,
-                "strict": False,
-            },
-        }
-    else:
-        response_format = {"type": "json_object"}
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": prompt},
-        ],
-        "response_format": response_format,
-        "stream": True,
-    }
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    if extra_headers:
-        headers.update(extra_headers)
-
-    request = urllib.request.Request(
-        base_url,
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
-    return execute_llm_request(request, _read_openai_stream)
-
-
-def call_openrouter_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
-    # OpenAI e Google via OpenRouter suportam json_schema formal; demais usam json_object (M2-B)
-    use_schema = model.startswith("openai/") or model.startswith("google/")
-    return _call_openai_compatible_json(
-        api_key=api_key,
-        model=model,
-        prompt=prompt,
-        schema=schema,
-        base_url="https://openrouter.ai/api/v1/chat/completions",
-        extra_headers={"HTTP-Referer": "https://sysdoc.local", "X-Title": "SysDoc CLI"},
-        use_json_schema=use_schema,
-    )
-
-
-def call_openai_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
-    return _call_openai_compatible_json(
-        api_key=api_key,
-        model=model,
-        prompt=prompt,
-        schema=schema,
-        base_url="https://api.openai.com/v1/chat/completions",
-        use_json_schema=True,
-    )
-
-
-def _read_openai_stream(response) -> str:
-    """Lê SSE do OpenAI/OpenRouter token a token e imprime progresso em tempo real."""
-    accumulated: list[str] = []
-    char_count = 0
-    for raw_line in response:
-        line = raw_line.decode("utf-8", errors="replace").rstrip()
-        if not line.startswith("data: "):
-            continue
-        data_str = line[6:].strip()
-        if data_str == "[DONE]":
-            break
-        try:
-            chunk = json.loads(data_str)
-            delta = ((chunk.get("choices") or [{}])[0].get("delta") or {}).get("content") or ""
-            if delta:
-                accumulated.append(delta)
-                char_count += len(delta)
-                print(f"\r  ✍  Gerando... {char_count} chars", end="", flush=True)
-        except (json.JSONDecodeError, IndexError, TypeError):
-            pass
-    if char_count:
-        print(f"\r  ✅ Gerado: {char_count} chars{'':<20}", flush=True)
-    return "".join(accumulated)
-
-
-def _read_anthropic_stream(response) -> str:
-    """Lê SSE da Anthropic token a token e imprime progresso em tempo real."""
-    accumulated: list[str] = []
-    char_count = 0
-    for raw_line in response:
-        line = raw_line.decode("utf-8", errors="replace").rstrip()
-        if not line.startswith("data: "):
-            continue
-        data_str = line[6:].strip()
-        try:
-            chunk = json.loads(data_str)
-            if chunk.get("type") == "content_block_delta":
-                delta = (chunk.get("delta") or {}).get("text") or ""
-                if delta:
-                    accumulated.append(delta)
-                    char_count += len(delta)
-                    print(f"\r  ✍  Gerando... {char_count} chars", end="", flush=True)
-        except (json.JSONDecodeError, TypeError):
-            pass
-    if char_count:
-        print(f"\r  ✅ Gerado: {char_count} chars{'':<20}", flush=True)
-    return "".join(accumulated)
-
-
-def _read_gemini_response(response) -> str:
-    """Lê resposta completa do Gemini e extrai texto."""
-    raw = response.read().decode("utf-8")
-    data = json.loads(raw)
-    try:
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError):
-        text = ""
-    if text:
-        print(f"  ✅ Gerado: {len(text)} chars", flush=True)
-    return text
-
-
-def call_gemini_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-    payload = {
-        "systemInstruction": {
-            "parts": [{"text": "Você gera análises SysDoc em JSON estrito, sem Markdown e sem texto fora do JSON."}]
-        },
-        "contents": [
-            {"role": "user", "parts": [{"text": prompt}]}
-        ],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "responseSchema": schema,
-        },
-    }
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    return execute_llm_request(request, _read_gemini_response)
-
-
-def call_anthropic_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
-    url = "https://api.anthropic.com/v1/messages"
-    payload = {
-        "model": model,
-        "max_tokens": 8192,
-        "stream": True,
-        "system": f"Você gera análises SysDoc em JSON estrito, sem Markdown e sem texto fora do JSON. Responda exclusivamente com o JSON válido para este schema: {json.dumps(schema)}",
-        "messages": [{"role": "user", "content": prompt}],
-    }
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        method="POST",
-    )
-    return execute_llm_request(request, _read_anthropic_stream)
-
-
-def execute_llm_request(request: urllib.request.Request, response_reader, max_retries: int = 3) -> dict:
-    """Executa a requisição HTTP com retry + backoff exponencial para erros 429/5xx."""
-    delay = 5.0
-    text = ""
-    for attempt in range(1, max_retries + 1):
-        try:
-            print(f"  ⏳ Conectando... (tentativa {attempt}/{max_retries})", flush=True)
-            with urllib.request.urlopen(request, timeout=900) as response:
-                text = response_reader(response)
-            break
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            if exc.code in (429, 500, 502, 503, 504) and attempt < max_retries:
-                print(f"  ⚠️  Erro {exc.code} — aguardando {delay:.0f}s antes de tentar novamente...")
-                time.sleep(delay)
-                delay *= 2
-                continue
-            raise RuntimeError(f"Erro da API ({exc.code}): {detail}") from exc
-        except urllib.error.URLError as exc:
-            if attempt < max_retries:
-                print(f"  ⚠️  Falha de rede — aguardando {delay:.0f}s...")
-                time.sleep(delay)
-                delay *= 2
-                continue
-            raise RuntimeError(f"Falha de rede: {exc}") from exc
-    if not text:
-        raise RuntimeError("Resposta da LLM sem texto utilizável.")
-    return parse_json_object(text)
-
-
-
-
-
-def parse_json_object(text: str) -> dict:
-    clean = text.strip()
-    if clean.startswith("```"):
-        clean = re.sub(r"^```(?:json)?\s*", "", clean)
-        clean = re.sub(r"\s*```$", "", clean)
-    try:
-        data = json.loads(clean)
-    except json.JSONDecodeError:
-        start = clean.find("{")
-        end = clean.rfind("}")
-        if start < 0 or end <= start:
-            raise
-        data = json.loads(clean[start : end + 1])
-    if not isinstance(data, dict):
-        raise RuntimeError("A LLM retornou JSON, mas nao retornou um objeto no topo.")
-    return data
 
 
 def publish(project: str) -> int:
@@ -1028,6 +460,46 @@ def publish(project: str) -> int:
         archive.write_text(payload, encoding="utf-8")
         print(f"JSON versionado: {rel(archive)}")
     return render(project)
+
+
+def deploy(project: str) -> int:
+    """Envia o último HTML gerado para a VPS garantindo índice único (index{X}.html)."""
+    paths = project_paths(project)
+    htmls = sorted(paths.root.glob("analise_*.html"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not htmls:
+        print(f"Nenhum HTML encontrado em {rel(paths.root)}. Rode 'sysdoc publish' primeiro.")
+        return 1
+
+    latest_html = htmls[0]
+    print(f"Iniciando deploy do arquivo: {rel(latest_html)}")
+
+    print("Consultando servidor SSH para encontrar próximo índice disponível...")
+    ssh_cmd = [
+        "ssh", "root@76.13.170.15",
+        "idx=1; while [ -f /opt/web/cfc-analise/html/index${idx}.html ]; do idx=$((idx+1)); done; echo $idx"
+    ]
+    try:
+        result = subprocess.run(ssh_cmd, capture_output=True, text=True, check=True)
+        next_idx = result.stdout.strip()
+        if not next_idx.isdigit():
+            print(f"Falha ao interpretar retorno do servidor: {next_idx}")
+            return 1
+    except subprocess.CalledProcessError as exc:
+        print(f"Erro na conexão SSH: {exc.stderr}")
+        return 1
+
+    target_name = f"index{next_idx}.html"
+    target_path = f"root@76.13.170.15:/opt/web/cfc-analise/html/{target_name}"
+
+    print(f"Enviando para {target_path} ...")
+    scp_cmd = ["scp", str(latest_html), target_path]
+    try:
+        subprocess.run(scp_cmd, check=True)
+        print("✅ Deploy concluído com sucesso!")
+        return 0
+    except subprocess.CalledProcessError:
+        print("❌ Erro durante o envio SCP.")
+        return 1
 
 
 def resolve_next_json_archive(project_dir: Path, model: str, date: str, payload: str) -> Path:
@@ -1135,18 +607,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status", help="Lista projetos e estado operacional.")
-    sub.add_parser("connect", help="Configura o provedor ativo (OpenRouter, OpenAI, Gemini, Anthropic) e a chave de API.")
-    sub.add_parser("models", help="Lista os modelos do provedor conectado e permite definir um padrão.")
     init_parser = sub.add_parser("init", help="Cria a estrutura de um novo projeto SysDoc.")
     init_parser.add_argument("project", help="Nome da pasta do novo projeto.")
-    analyze_parser = sub.add_parser("analyze", help="Prepara, chama a LLM configurada, valida e publica.")
-    analyze_parser.add_argument("project", help="Pasta do projeto SysDoc.")
-    analyze_parser.add_argument("--model", default=None, help="Modelo a usar (ex: anthropic/claude-3.7-sonnet, openai/gpt-4o). Padrão: lido do config.")
-    analyze_parser.add_argument("--instruction", default=None, help="Instrucao extra para a analise.")
-    analyze_parser.add_argument("--dry-run", action="store_true", help="Prepara o contexto e exibe o prompt sem chamar a LLM.")
 
     compare_parser = sub.add_parser("compare", help="Compara versões de análise de um projeto.")
     compare_parser.add_argument("project", help="Pasta do projeto SysDoc.")
+
+    deploy_parser = sub.add_parser("deploy", help="Envia o último HTML gerado para a VPS por SSH.")
+    deploy_parser.add_argument("project", help="Pasta do projeto SysDoc.")
 
     for command in ("prepare", "validate", "render", "publish"):
         item = sub.add_parser(command, help=f"Executa {command} em um projeto.")
@@ -1158,10 +626,6 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    if args.command == "connect":
-        return connect_command()
-    if args.command == "models":
-        return models_command()
     if args.command == "init":
         return init_command(args.project)
     if args.command == "status":
@@ -1172,10 +636,10 @@ def main(argv: list[str] | None = None) -> int:
         return validate(args.project)
     if args.command == "render":
         return render(args.project)
-    if args.command == "analyze":
-        return analyze(args.project, model=args.model, extra_instruction=args.instruction, dry_run=getattr(args, 'dry_run', False))
     if args.command == "publish":
         return publish(args.project)
+    if args.command == "deploy":
+        return deploy(args.project)
     if args.command == "compare":
         return compare(args.project)
     parser.error("comando inválido")
