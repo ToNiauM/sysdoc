@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SysDoc consolidated analysis",
+  "type": "object",
+  "required": [
+    "titulo",
+    "subtitulo",
+    "modelo_ia",
+    "data_análise",
+    "projeto",
+    "metadados",
+    "documentos_analisados",
+    "parecer_executivo",
+    "secao_etp",
+    "secao_tr",
+    "itens",
+    "nota_integridade"
+  ],
+  "properties": {
+    "titulo": { "type": "string" },
+    "subtitulo": { "type": "string" },
+    "modelo_ia": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "data_análise": { "type": "string" },
+    "projeto": {
+      "type": "object",
+      "required": ["órgão", "processo", "valor_estimado", "objeto"],
+      "properties": {
+        "órgão": { "type": "string" },
+        "processo": { "type": "string" },
+        "valor_estimado": { "type": "string" },
+        "objeto": { "type": "string" }
+      }
+    },
+    "metadados": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["label", "valor"],
+        "properties": {
+          "label": { "type": "string" },
+          "valor": { "type": "string" }
+        }
+      }
+    },
+    "documentos_analisados": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "parecer_executivo": { "type": "string" },
+    "secao_etp": { "$ref": "#/$defs/secao_documento" },
+    "secao_tr": { "$ref": "#/$defs/secao_documento" },
+    "itens": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/item" }
+    },
+    "nota_integridade": { "type": "string" }
+  },
+  "$defs": {
+    "secao_documento": {
+      "type": "object",
+      "required": ["classificação_documento", "parecer_documento", "numero"],
+      "properties": {
+        "classificação_documento": {
+          "enum": ["aprovado", "aprovado_com_ressalvas", "reprovado", "pendente_de_complementação"]
+        },
+        "parecer_documento": { "type": "string" },
+        "numero": { "type": "string" }
+      }
+    },
+    "item": {
+      "type": "object",
+      "required": [
+        "id",
+        "número",
+        "item",
+        "documento",
+        "seção",
+        "de",
+        "para",
+        "parecer",
+        "fundamento",
+        "classificação",
+        "severidade",
+        "risco_jurídico",
+        "status_delic",
+        "alterado_pelo_jurídico"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "número": { "type": "integer" },
+        "item": { "type": "string" },
+        "documento": { "enum": ["ETP", "TR"] },
+        "seção": { "type": "string" },
+        "de": { "type": "string" },
+        "para": { "type": "string" },
+        "parecer": { "type": "string" },
+        "fundamento": { "type": "string" },
+        "classificação": { "enum": ["conforme", "ajuste_necessário", "risco", "pendente"] },
+        "severidade": { "enum": ["crítica", "alta", "média", "baixa", "informativa"] },
+        "risco_jurídico": { "enum": ["bloqueante", "relevante", "menor", "informativo"] },
+        "status_delic": { "enum": ["confirmado", "novo", "divergente", null] },
+        "alterado_pelo_jurídico": { "type": "boolean" }
+      }
+    }
+  }
+}

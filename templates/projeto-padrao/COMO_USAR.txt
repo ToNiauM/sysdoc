@@ -1,0 +1,27 @@
+Crie uma cópia desta pasta para cada novo projeto SysDoc.
+
+Exemplo:
+- /SysDoc/Combustivel/
+- /SysDoc/Limpeza/
+- /SysDoc/Medicamentos/
+
+Coloque na raiz:
+- ETP.pdf
+- TR.pdf
+- edital
+- anexos principais
+
+Coloque em /modelos/:
+- base legal
+- modelos de ETP/TR
+- documentos complementares
+
+Fluxo recomendado:
+- python sysdoc.py prepare [pasta]
+- gerar ou revisar [pasta]/dados_consolidados.json
+- python sysdoc.py publish [pasta]
+
+O resultado esperado será:
+- dados_consolidados.json
+- dados_consolidados_[modelo_ia]_[data].json
+- analise_[modelo_ia]_[data].html

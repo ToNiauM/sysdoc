@@ -1,0 +1,7 @@
+node_modules/
+.git/
+*.lock
+__pycache__/
+*.pyc
+.sysdoc/cache/
+*.pdf.txt

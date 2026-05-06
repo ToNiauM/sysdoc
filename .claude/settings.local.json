@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__PDF_Tools_-_Fill__Analyze__Extract__View__read_pdf_content",
+      "Bash(python templates/validate_sysdoc.py:*)",
+      "Bash(python templates/render_analise.py:*)",
+      "Bash(pdftotext:*)",
+      "Bash(pandoc:*)",
+      "Bash(pip install:*)",
+      "Bash(python -c \":*)",
+      "PowerShell(officecli view *)",
+      "PowerShell(officecli *)"
+    ]
+  }
+}
