@@ -8,6 +8,7 @@ deterministicos em subprocessos, exibindo a saida em uma janela.
 
 from __future__ import annotations
 
+import json
 import queue
 import shutil
 import subprocess
@@ -33,6 +34,7 @@ from tkinter import (
     filedialog,
     messagebox,
 )
+import webbrowser
 
 
 ROOT = Path(__file__).resolve().parent
@@ -43,16 +45,30 @@ class SysDocGui:
     def __init__(self, root: Tk) -> None:
         self.root = root
         self.root.title("SysDoc")
-        self.root.geometry("980x640")
+        self.root.geometry("980x680")
         self.project_var = StringVar()
-        self.model_var = StringVar(value=os.environ.get("SYSDOC_OPENAI_MODEL", "gpt-5.4-mini"))
+        # Lê modelo do config.json em vez de hardcode (B1)
+        self.model_var = StringVar(value=self._load_default_model())
         self.status_var = StringVar(value="Pronto.")
         self.output_queue: queue.Queue[str] = queue.Queue()
         self.running = False
+        self._last_html: Path | None = None
+        self._dot_count = 0
 
         self._build()
         self.refresh_projects()
         self.root.after(100, self._drain_output)
+
+    @staticmethod
+    def _load_default_model() -> str:
+        config_file = Path.home() / ".sysdoc" / "config.json"
+        if config_file.exists():
+            try:
+                cfg = json.loads(config_file.read_text(encoding="utf-8"))
+                return cfg.get("default_model") or ""
+            except Exception:
+                pass
+        return os.environ.get("SYSDOC_OPENAI_MODEL", "")
 
     def _build(self) -> None:
         top = Frame(self.root, padx=10, pady=10)
@@ -65,10 +81,19 @@ class SysDocGui:
         Button(top, text="Atualizar", command=self.refresh_projects).pack(side=LEFT, padx=2)
 
         model_bar = Frame(self.root, padx=10)
-        model_bar.pack(fill=X, pady=(0, 8))
-        Label(model_bar, text="Modelo OpenAI").pack(side=LEFT)
-        self.model_entry = Entry(model_bar, textvariable=self.model_var, width=28)
+        model_bar.pack(fill=X, pady=(0, 4))
+        Label(model_bar, text="Modelo").pack(side=LEFT)  # Label agnóstico (C4)
+        self.model_entry = Entry(model_bar, textvariable=self.model_var, width=40)
         self.model_entry.pack(side=LEFT, padx=8)
+        # Botões Conectar API e Modelos (U5)
+        Button(model_bar, text="🔑 Conectar API", command=lambda: self.run_command("connect")).pack(side=LEFT, padx=2)
+        Button(model_bar, text="📝 Modelos", command=lambda: self.run_command("models")).pack(side=LEFT, padx=2)
+
+        instr_bar = Frame(self.root, padx=10)
+        instr_bar.pack(fill=X, pady=(0, 4))
+        Label(instr_bar, text="Instrução extra").pack(side=LEFT)
+        self.instruction_var = StringVar()
+        Entry(instr_bar, textvariable=self.instruction_var, width=60).pack(side=LEFT, padx=8, fill=X, expand=True)
 
         main = Frame(self.root, padx=10)
         main.pack(fill=BOTH, expand=True)
@@ -109,6 +134,9 @@ class SysDocGui:
         bottom = Frame(self.root, padx=10, pady=8)
         bottom.pack(fill=X)
         Label(bottom, textvariable=self.status_var).pack(side=LEFT)
+        # Botão Abrir HTML (F4)
+        self.open_html_btn = Button(bottom, text="📄 Abrir HTML", command=self.open_last_html, state="disabled")
+        self.open_html_btn.pack(side=RIGHT, padx=(4, 0))
         Button(bottom, text="Limpar log", command=lambda: self.log.delete("1.0", END)).pack(side=RIGHT)
 
     def refresh_projects(self) -> None:
@@ -147,11 +175,18 @@ class SysDocGui:
             messagebox.showerror("SysDoc", "Modelo templates/projeto-padrao nao encontrado.")
             return
         destination = Path(target)
-        if any(destination.iterdir()):
+        # Verifica se a pasta não está vazia (B5 — evita crash com iterdir())
+        is_empty = not destination.exists() or not any(destination.iterdir())
+        if not is_empty:
             if not messagebox.askyesno("SysDoc", f"A pasta {name} nao esta vazia. Copiar o modelo mesmo assim?"):
                 return
+        destination.mkdir(parents=True, exist_ok=True)
         shutil.copytree(template, destination, dirs_exist_ok=True)
-        self.project_var.set(str(destination.resolve().relative_to(ROOT)) if ROOT in destination.resolve().parents else str(destination))
+        try:
+            rel_path = str(destination.resolve().relative_to(ROOT))
+        except ValueError:
+            rel_path = str(destination)
+        self.project_var.set(rel_path)
         self.refresh_projects()
         self._append(f"Projeto preparado em: {destination}\n")
 
@@ -162,6 +197,14 @@ class SysDocGui:
 
         project = self.project_var.get().strip()
         args = [sys.executable, "sysdoc.py", command]
+        # Comandos interativos: abre terminal separado
+        if command in ("connect", "models"):
+            subprocess.Popen(
+                [sys.executable, "sysdoc.py", command],
+                cwd=ROOT,
+                creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0,
+            )
+            return
         if command != "status":
             if not project:
                 messagebox.showwarning("SysDoc", "Selecione ou informe uma pasta de projeto.")
@@ -171,10 +214,15 @@ class SysDocGui:
             model = self.model_var.get().strip()
             if model:
                 args.extend(["--model", model])
+            instruction = self.instruction_var.get().strip()
+            if instruction:
+                args.extend(["--instruction", instruction])
 
         self.running = True
-        self.status_var.set(f"Executando: {' '.join(args)}")
+        self.status_var.set(f"Executando: {command}...")
+        self._dot_count = 0
         self._append(f"\n$ {' '.join(args)}\n")
+        self._animate_status(command)
         threading.Thread(target=self._worker, args=(args,), daemon=True).start()
 
     def _worker(self, args: list[str]) -> None:
@@ -206,11 +254,40 @@ class SysDocGui:
                     self.running = False
                     self.status_var.set("Pronto.")
                     self.refresh_projects()
+                    # Detecta HTML gerado e habilita botão (F4)
+                    self._detect_last_html()
                 else:
                     self._append(item)
         except queue.Empty:
             pass
         self.root.after(100, self._drain_output)
+
+    def _animate_status(self, command: str) -> None:
+        """Indicador de progresso pulsante (U6)."""
+        if not self.running:
+            return
+        self._dot_count = (self._dot_count + 1) % 4
+        dots = "." * self._dot_count
+        self.status_var.set(f"Executando {command}{dots}")
+        self.root.after(500, lambda: self._animate_status(command))
+
+    def _detect_last_html(self) -> None:
+        """Procura o HTML mais recente do projeto atual para habilitar o botão (F4)."""
+        project = self.project_var.get().strip()
+        if not project:
+            return
+        project_path = (ROOT / project) if not Path(project).is_absolute() else Path(project)
+        htmls = sorted(project_path.glob("analise_*.html"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if htmls:
+            self._last_html = htmls[0]
+            self.open_html_btn.config(state="normal")
+
+    def open_last_html(self) -> None:
+        """Abre o último HTML gerado no navegador padrão (F4)."""
+        if self._last_html and self._last_html.exists():
+            webbrowser.open(self._last_html.as_uri())
+        else:
+            messagebox.showinfo("SysDoc", "Nenhum HTML encontrado. Rode Publicar ou Renderizar primeiro.")
 
     def _append(self, text: str) -> None:
         self.log.insert(END, text)

@@ -226,7 +226,6 @@ PT_BR_ACCENT_TERMS = {
     "obrigacao": "obrigação",
     "conteudo": "conteúdo",
     "responsabilizacao": "responsabilização",
-    "orgao": "órgão",
 }
 
 TRACE_STOPWORDS = {
@@ -513,16 +512,28 @@ def validate(path, project_dir=None):
 
 
 def main():
-    if len(sys.argv) not in {2, 3}:
-        print("Uso: python templates/validate_sysdoc.py <dados_consolidados.json> [pasta_projeto]", file=sys.stderr)
-        return 2
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Validador determinístico do JSON consolidado SysDoc."
+    )
+    parser.add_argument("json_path", help="Caminho para dados_consolidados.json")
+    parser.add_argument("project_dir", nargs="?", default=None, help="Pasta do projeto (opcional)")
+    parser.add_argument("--json", action="store_true", dest="json_output", help="Output estruturado em JSON (para integrações)")
+    args = parser.parse_args()
 
     try:
-        project_dir = sys.argv[2] if len(sys.argv) == 3 else None
-        errors = validate(sys.argv[1], project_dir)
+        project_dir = args.project_dir
+        errors = validate(args.json_path, project_dir)
     except Exception as exc:
-        print(f"ERRO: falha ao ler/validar JSON: {exc}", file=sys.stderr)
+        if args.json_output:
+            print(json.dumps({"valid": False, "errors": [str(exc)]}))
+        else:
+            print(f"ERRO: falha ao ler/validar JSON: {exc}", file=sys.stderr)
         return 2
+
+    if args.json_output:
+        print(json.dumps({"valid": len(errors) == 0, "errors": errors}))
+        return 0 if not errors else 1
 
     if errors:
         print("SysDoc JSON inválido:")

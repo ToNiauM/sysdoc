@@ -13,9 +13,11 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -31,8 +33,10 @@ TEMPLATES = ROOT / "templates"
 IGNORED_DIRS = {".git", ".claude", "backup", "skills", "templates"}
 TEXT_SUFFIXES = {".txt", ".md"}
 SUPPORTED_REFERENCE_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
-DEFAULT_LLM_MODEL = "gpt-4o-mini"
+DEFAULT_LLM_MODEL = "openai/gpt-4o-mini"
 MAX_LLM_CONTEXT_CHARS = int(os.environ.get("SYSDOC_MAX_LLM_CONTEXT_CHARS", "700000"))
+
+VERSION = "1.1.0"
 
 CONFIG_FILE = Path.home() / ".sysdoc" / "config.json"
 
@@ -98,11 +102,20 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _find_file_case_insensitive(directory: Path, name: str) -> Path | None:
+    """Encontra um arquivo no diretório ignorando capitalização (D4)."""
+    name_lower = name.lower()
+    for entry in directory.iterdir():
+        if entry.is_file() and entry.name.lower() == name_lower:
+            return entry
+    return None
+
+
 def ensure_project_inputs(paths: ProjectPaths) -> None:
     missing = []
-    if not (paths.root / "ETP.pdf").is_file():
+    if _find_file_case_insensitive(paths.root, "ETP.pdf") is None:
         missing.append("ETP.pdf")
-    if not (paths.root / "TR.pdf").is_file():
+    if _find_file_case_insensitive(paths.root, "TR.pdf") is None:
         missing.append("TR.pdf")
     if paths.modelos is None:
         missing.append("modelos/ ou Modelos/")
@@ -117,16 +130,21 @@ def sanitize_filename(name: str) -> str:
 
 def extract_pdf(path: Path) -> str:
     try:
-        import PyPDF2
+        import pypdf
     except ImportError as exc:
-        raise RuntimeError("PyPDF2 não está instalado; instale ou use uma referência .txt") from exc
+        raise RuntimeError("pypdf não está instalado; instale com: pip install pypdf") from exc
 
-    reader = PyPDF2.PdfReader(str(path))
+    reader = pypdf.PdfReader(str(path))
     pages = []
     for index, page in enumerate(reader.pages, start=1):
         text = page.extract_text() or ""
         pages.append(f"\n\n--- Página {index} ---\n{text.strip()}")
-    return "\n".join(pages).strip()
+    text = "\n".join(pages).strip()
+    if len(text) < 100:
+        print(f"⚠️  {path.name}: texto extraído muito curto ({len(text)} chars).")
+        print("   Este PDF pode ser escaneado (sem camada de texto).")
+        print("   Tente converter com: pdftotext -layout arquivo.pdf saida.txt")
+    return text
 
 
 def extract_docx(path: Path) -> str:
@@ -139,6 +157,14 @@ def extract_docx(path: Path) -> str:
         parts = [node.text for node in para.findall(".//w:t", ns) if node.text]
         if parts:
             paragraphs.append("".join(parts))
+    for table in root.findall(".//w:tbl", ns):
+        for row in table.findall(".//w:tr", ns):
+            cells = []
+            for cell in row.findall(".//w:tc", ns):
+                parts = [n.text for n in cell.findall(".//w:t", ns) if n.text]
+                cells.append("".join(parts))
+            if cells:
+                paragraphs.append(" | ".join(cells))
     return "\n".join(paragraphs).strip()
 
 
@@ -193,11 +219,15 @@ def iter_lines(text: str) -> Iterable[tuple[int, str]]:
 
 
 def detect_process(texts: dict[str, str]) -> str:
-    pattern = re.compile(r"\b\d{10,20}\.\d{6}/\d{4}-\d{2}\b")
+    # Tenta formato SEI: NNNNN.NNNNNN/AAAA-NN
+    sei_pattern = re.compile(r"\b\d{5,6}\.\d{6}/\d{4}-\d{2}\b")
+    # Tenta formato CNPJ-like: NN.NNN.NNN/NNNN-NN
+    cnpj_pattern = re.compile(r"\b\d{2,3}\.\d{3}\.\d{3}/\d{4}-\d{2}\b")
     for text in texts.values():
-        match = pattern.search(text)
-        if match:
-            return match.group(0)
+        for pattern in (sei_pattern, cnpj_pattern):
+            match = pattern.search(text)
+            if match:
+                return match.group(0)
     return "não identificado"
 
 
@@ -327,16 +357,23 @@ def prepare(project: str) -> int:
     }
     texts: dict[str, str] = {}
 
-    for label, source in (("ETP", paths.root / "ETP.pdf"), ("TR", paths.root / "TR.pdf")):
+    for label, file_name in (("ETP", "ETP.pdf"), ("TR", "TR.pdf")):
+        source = _find_file_case_insensitive(paths.root, file_name) or (paths.root / file_name)
         item = write_extracted_text(paths, source, label)
         manifest["files"].append(item)
-        texts[label] = Path(item["cache"]).read_text(encoding="utf-8") if Path(item["cache"]).is_absolute() else (Path.cwd() / item["cache"]).read_text(encoding="utf-8")
+        cache_path = Path(item["cache"])
+        if not cache_path.is_absolute():
+            cache_path = paths.source_cache / cache_path.name
+        texts[label] = cache_path.read_text(encoding="utf-8")
 
     for index, source in enumerate(list_reference_files(paths), start=1):
         label = f"REF-{index:02d}_{source.stem}"
         item = write_extracted_text(paths, source, label)
         manifest["files"].append(item)
-        texts[label] = Path(item["cache"]).read_text(encoding="utf-8") if Path(item["cache"]).is_absolute() else (Path.cwd() / item["cache"]).read_text(encoding="utf-8")
+        cache_path = Path(item["cache"])
+        if not cache_path.is_absolute():
+            cache_path = paths.source_cache / cache_path.name
+        texts[label] = cache_path.read_text(encoding="utf-8")
 
     paths.manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     paths.context.write_text(render_context(paths, manifest, texts), encoding="utf-8")
@@ -347,28 +384,37 @@ def prepare(project: str) -> int:
 
 
 def status() -> int:
-    print("Projetos SysDoc:")
+    COL = 30
+    header = f"{'PROJETO':<{COL}} {'ETP':>5} {'TR':>5} {'MODELOS':>8} {'JSON':>5} {'HTML':>5} {'PREP':>5}"
+    rows = []
     for directory in sorted([p for p in Path.cwd().iterdir() if p.is_dir()], key=lambda p: p.name.lower()):
         if directory.name in IGNORED_DIRS or directory.name.startswith("."):
             continue
         paths = project_paths(directory)
-        has_etp = (directory / "ETP.pdf").is_file()
-        has_tr = (directory / "TR.pdf").is_file()
+        has_etp = _find_file_case_insensitive(directory, "ETP.pdf") is not None
+        has_tr = _find_file_case_insensitive(directory, "TR.pdf") is not None
         has_modelos = paths.modelos is not None
         has_json = (directory / "dados_consolidados.json").is_file()
         html_count = len(list(directory.glob("analise_*.html")))
         prepared = paths.context.is_file()
         if not any([has_etp, has_tr, has_modelos, has_json, html_count]):
             continue
-        print(
-            f"- {directory.name}: "
-            f"ETP={'ok' if has_etp else 'faltando'}; "
-            f"TR={'ok' if has_tr else 'faltando'}; "
-            f"modelos={'ok' if has_modelos else 'faltando'}; "
-            f"json={'ok' if has_json else 'não'}; "
-            f"html={html_count}; "
-            f"prepare={'ok' if prepared else 'não'}"
-        )
+        name = directory.name[:COL]
+        etp_s = "ok" if has_etp else "---"
+        tr_s = "ok" if has_tr else "---"
+        mod_s = "ok" if has_modelos else "---"
+        json_s = "ok" if has_json else "---"
+        html_s = str(html_count) if html_count else "---"
+        prep_s = "ok" if prepared else "---"
+        rows.append(f"{name:<{COL}} {etp_s:>5} {tr_s:>5} {mod_s:>8} {json_s:>5} {html_s:>5} {prep_s:>5}")
+    if not rows:
+        print("Nenhum projeto SysDoc encontrado neste diretório.")
+        return 0
+    print(header)
+    print("-" * len(header))
+    for row in rows:
+        print(row)
+    print(f"\n{len(rows)} projeto(s) encontrado(s).")
     return 0
 
 
@@ -383,6 +429,21 @@ def validate(project: str) -> int:
     if not json_path.is_file():
         raise SystemExit(f"JSON não encontrado: {rel(json_path)}")
     return run_python_script(["templates/validate_sysdoc.py", str(json_path), str(paths.root)])
+
+
+def run_validate_and_capture(project: str) -> list[str]:
+    """Retorna linhas de erro do validador para uso no retry automático (M2-A)."""
+    paths = project_paths(project)
+    json_path = paths.root / "dados_consolidados.json"
+    result = subprocess.run(
+        [sys.executable, str(TEMPLATES / "validate_sysdoc.py"), str(json_path), str(paths.root)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
 def render(project: str) -> int:
@@ -435,8 +496,15 @@ def connect_command() -> int:
     new_key = input(f"Insira sua API Key para {provider.upper()} (atual: {mask}): ").strip()
     
     if new_key:
+        # Validação simples da chave antes de salvar (U2)
+        print(f"Validando chave para {provider.upper()}...")
         config[f"{provider}_api_key"] = new_key
-        print("Nova chave configurada com sucesso!")
+        try:
+            fetch_models(provider, new_key)
+            print("✅ Chave válida — conexão OK.")
+        except Exception as exc:
+            print(f"⚠️  Não foi possível validar a chave: {exc}")
+            print("Chave salva, mas verifique se está correta antes de usar.")
     elif current_key:
         print("Mantendo a chave atual.")
     else:
@@ -452,36 +520,65 @@ def models_command() -> int:
     config = load_config()
     provider = config.get("active_provider", "openrouter")
     api_key = config.get(f"{provider}_api_key")
-    
+
     if not api_key:
         print(f"Erro: Chave de API para '{provider}' não encontrada.")
         print("Use 'sysdoc connect' primeiro para configurar sua chave.")
         return 1
-        
+
     print(f"Buscando modelos disponíveis no provedor: {provider.upper()}...")
     try:
         models = fetch_models(provider, api_key)
     except Exception as e:
         print(f"Erro ao buscar modelos: {e}")
         return 1
-        
+
     if not models:
         print("Nenhum modelo encontrado ou erro na API.")
         return 1
-        
-    print("\n--- Modelos Disponíveis ---")
-    for i, model in enumerate(models, start=1):
-        print(f"[{i}] {model}")
-        
-    print("\n---------------------------")
-    choice = input("Digite o número do modelo para definir como PADRÃO (ou ENTER para sair): ").strip()
-    if choice.isdigit() and 1 <= int(choice) <= len(models):
-        selected = models[int(choice) - 1]
-        config["default_model"] = selected
-        save_config(config)
-        print(f"\nModelo '{selected}' definido como padrão com sucesso!")
-    else:
-        print("\nNenhuma alteração realizada.")
+
+    # Filtro por termo (U3)
+    filtro = input("Filtrar modelos (ENTER para listar todos): ").strip().lower()
+    filtered = [m for m in models if not filtro or filtro in m.lower()]
+
+    if not filtered:
+        print(f"Nenhum modelo encontrado com o filtro '{filtro}'.")
+        return 1
+
+    # Paginação para listas grandes
+    page_size = 30
+    total = len(filtered)
+    page = 0
+    while True:
+        start = page * page_size
+        end = min(start + page_size, total)
+        print(f"\n--- Modelos Disponíveis ({start + 1}-{end} de {total}) ---")
+        for i, model in enumerate(filtered[start:end], start=start + 1):
+            current = " ← atual" if model == config.get("default_model") else ""
+            print(f"[{i}] {model}{current}")
+        print("---")
+        nav = []
+        if end < total:
+            nav.append("[P]róxima página")
+        if page > 0:
+            nav.append("[V]oltar")
+        nav.append("[Núomero] selecionar")
+        nav.append("[ENTER] sair")
+        print(" | ".join(nav))
+        choice = input("> ").strip()
+        if choice.upper() == "P" and end < total:
+            page += 1
+        elif choice.upper() == "V" and page > 0:
+            page -= 1
+        elif choice.isdigit() and 1 <= int(choice) <= total:
+            selected = filtered[int(choice) - 1]
+            config["default_model"] = selected
+            save_config(config)
+            print(f"\nModelo '{selected}' definido como padrão com sucesso!")
+            break
+        else:
+            print("\nNenhuma alteração realizada.")
+            break
     return 0
 
 
@@ -526,39 +623,71 @@ def fetch_models(provider: str, api_key: str) -> list[str]:
     return sorted(models)
 
 
-def analyze(project: str, model: str | None = None, extra_instruction: str | None = None) -> int:
+def analyze(project: str, model: str | None = None, extra_instruction: str | None = None, dry_run: bool = False) -> int:
     config = load_config()
     provider = config.get("active_provider", "openrouter")
-    
+
     # Se não passou flag, tenta usar o default configurado. Se não, fallback.
     model = model or config.get("default_model") or os.environ.get("SYSDOC_OPENAI_MODEL") or DEFAULT_LLM_MODEL
-    
-    api_key = config.get(f"{provider}_api_key") or os.environ.get(f"{provider.upper()}_API_KEY")
-    if not api_key:
-        raise SystemExit(
-            f"Chave de API para o provedor '{provider}' não encontrada.\n"
-            f"Configure usando: sysdoc config\n"
-            f"Ou defina a variável de ambiente: {provider.upper()}_API_KEY"
-        )
+
+    if not dry_run:
+        api_key = config.get(f"{provider}_api_key") or os.environ.get(f"{provider.upper()}_API_KEY")
+        if not api_key:
+            raise SystemExit(
+                f"Chave de API para o provedor '{provider}' não encontrada.\n"
+                f"Configure usando: sysdoc connect\n"
+                f"Ou defina a variável de ambiente: {provider.upper()}_API_KEY"
+            )
+    else:
+        api_key = None
 
     print(f"Preparando contexto do projeto {project}...")
     prepare(project)
 
     paths = project_paths(project)
-    prompt = build_llm_prompt(paths, model, extra_instruction)
     schema = json.loads((TEMPLATES / "schema_sysdoc.json").read_text(encoding="utf-8"))
 
-    print(f"Chamando modelo: {model} (Provedor: {provider})")
-    data = call_llm_json(provider=provider, api_key=api_key, model=model, prompt=prompt, schema=schema)
-    data["modelo_ia"] = slug(model)
+    if dry_run:
+        prompt = build_llm_prompt(paths, model, extra_instruction)
+        print("\n" + "=" * 60)
+        print("[DRY-RUN] Prompt que seria enviado à LLM:")
+        print("=" * 60)
+        print(prompt[:4000])
+        if len(prompt) > 4000:
+            print(f"\n... [truncado — {len(prompt)} chars no total]")
+        print("=" * 60)
+        print(f"\nModelo: {model} | Provedor: {provider}")
+        print("Nenhuma chamada de API foi realizada (--dry-run).")
+        return 0
 
     out_path = paths.root / "dados_consolidados.json"
-    out_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"JSON gravado: {rel(out_path)}")
+    current_instruction = extra_instruction
+    validation = 1
 
-    validation = validate(project)
+    for attempt in range(1, 3):
+        attempt_label = f" [tentativa {attempt}/2]" if attempt > 1 else ""
+        print(f"Chamando modelo: {model} (Provedor: {provider})...{attempt_label}")
+        prompt = build_llm_prompt(paths, model, current_instruction)
+        data = call_llm_json(provider=provider, api_key=api_key, model=model, prompt=prompt, schema=schema)
+        data["modelo_ia"] = slug(model)
+        out_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"JSON gravado: {rel(out_path)}")
+
+        validation = validate(project)
+        if validation == 0:
+            break
+        if attempt < 2:
+            errors = run_validate_and_capture(project)
+            if errors:
+                err_summary = "; ".join(errors[:10])
+                print(f"⚠️  Validação falhou ({len(errors)} erro(s)). Tentativa de correção automática...")
+                current_instruction = f"Corrija os seguintes erros de validação: {err_summary}"
+            else:
+                print("A validação falhou. Ajuste o JSON ou rode novamente com uma instrução mais específica.")
+                return validation
+
     if validation != 0:
-        print("A validacao falhou. Ajuste o JSON ou rode novamente com uma instrucao mais especifica.")
+        print("A validação falhou mesmo após correção automática. Ajuste o JSON manualmente.")
         return validation
     return publish(project)
 
@@ -629,14 +758,6 @@ def trim_llm_texts(texts: list[tuple[str, str]]) -> str:
     return "\n".join(blocks)
 
 
-def detect_provider(model: str) -> str:
-    lower = model.lower()
-    if "gemini" in lower:
-        return "gemini"
-    if "claude" in lower:
-        return "anthropic"
-    return "openai"
-
 
 def call_llm_json(provider: str, api_key: str, model: str, prompt: str, schema: dict) -> dict:
     if provider == "openrouter":
@@ -651,65 +772,81 @@ def call_llm_json(provider: str, api_key: str, model: str, prompt: str, schema: 
         raise RuntimeError(f"Provedor desconhecido: {provider}")
 
 
-def call_openrouter_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": "Voce gera analises SysDoc em JSON estrito, sem Markdown e sem texto fora do JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        "response_format": {
-            "type": "json_object" # OpenRouter usa type json_object muitas vezes, ou repassamos json_schema dependendo da LLM
-        },
-    }
-    # OpenRouter suporta json_schema formal em modelos OpenAI/gemini recentes, 
-    # mas json_object é mais universal lá. Vamos injetar o schema no system prompt.
-    payload["messages"][0]["content"] += f"\nSchema obrigatório: {json.dumps(schema)}"
+def _call_openai_compatible_json(
+    api_key: str,
+    model: str,
+    prompt: str,
+    schema: dict,
+    base_url: str,
+    extra_headers: dict | None = None,
+    use_json_schema: bool = True,
+) -> dict:
+    """Base compartilhada para OpenAI e OpenRouter (C1)."""
+    system_msg = "Voce gera analises SysDoc em JSON estrito, sem Markdown e sem texto fora do JSON."
+    if not use_json_schema:
+        system_msg += f"\nSchema obrigatorio: {json.dumps(schema)}"
 
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://sysdoc.local",
-            "X-Title": "SysDoc CLI"
-        },
-        method="POST",
-    )
-    return execute_llm_request(request, extract_openai_chat_text)
-
-
-def call_openai_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
-    # Usamos o endpoint padrão de Chat Completions se não for o "responses" que o SysDoc antigo usava
-    url = "https://api.openai.com/v1/chat/completions"
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": "Voce gera analises SysDoc em JSON estrito, sem Markdown e sem texto fora do JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        "response_format": {
+    response_format: dict
+    if use_json_schema:
+        response_format = {
             "type": "json_schema",
             "json_schema": {
                 "name": "sysdoc_consolidated_analysis",
                 "schema": schema,
                 "strict": False,
-            }
-        },
+            },
+        }
+    else:
+        response_format = {"type": "json_object"}
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": prompt},
+        ],
+        "response_format": response_format,
     }
 
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+
     request = urllib.request.Request(
-        url,
+        base_url,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
+        headers=headers,
         method="POST",
     )
     return execute_llm_request(request, extract_openai_chat_text)
+
+
+def call_openrouter_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
+    # OpenAI e Google via OpenRouter suportam json_schema formal; demais usam json_object (M2-B)
+    use_schema = model.startswith("openai/") or model.startswith("google/")
+    return _call_openai_compatible_json(
+        api_key=api_key,
+        model=model,
+        prompt=prompt,
+        schema=schema,
+        base_url="https://openrouter.ai/api/v1/chat/completions",
+        extra_headers={"HTTP-Referer": "https://sysdoc.local", "X-Title": "SysDoc CLI"},
+        use_json_schema=use_schema,
+    )
+
+
+def call_openai_json(api_key: str, model: str, prompt: str, schema: dict) -> dict:
+    return _call_openai_compatible_json(
+        api_key=api_key,
+        model=model,
+        prompt=prompt,
+        schema=schema,
+        base_url="https://api.openai.com/v1/chat/completions",
+        use_json_schema=True,
+    )
 
 
 def extract_openai_chat_text(data: dict) -> str:
@@ -781,15 +918,30 @@ def extract_anthropic_text(data: dict) -> str:
         return ""
 
 
-def execute_llm_request(request: urllib.request.Request, extractor) -> dict:
-    try:
-        with urllib.request.urlopen(request, timeout=900) as response:
-            raw = response.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Erro da API ({exc.code}): {detail}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Falha de rede: {exc}") from exc
+def execute_llm_request(request: urllib.request.Request, extractor, max_retries: int = 3) -> dict:
+    """Executa a requisição HTTP com retry + backoff exponencial para erros 429/5xx (B4)."""
+    delay = 5.0
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"  ⏳ Aguardando resposta da LLM (tentativa {attempt}/{max_retries})...", flush=True)
+            with urllib.request.urlopen(request, timeout=900) as response:
+                raw = response.read().decode("utf-8")
+            break  # sucesso
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            if exc.code in (429, 500, 502, 503, 504) and attempt < max_retries:
+                print(f"  ⚠️  Erro {exc.code} — aguardando {delay:.0f}s antes de tentar novamente...")
+                time.sleep(delay)
+                delay *= 2
+                continue
+            raise RuntimeError(f"Erro da API ({exc.code}): {detail}") from exc
+        except urllib.error.URLError as exc:
+            if attempt < max_retries:
+                print(f"  ⚠️  Falha de rede — aguardando {delay:.0f}s...")
+                time.sleep(delay)
+                delay *= 2
+                continue
+            raise RuntimeError(f"Falha de rede: {exc}") from exc
 
     response_data = json.loads(raw)
     text = extractor(response_data)
@@ -867,6 +1019,30 @@ def slug(value: str) -> str:
     return re.sub(r"[^a-z0-9._-]+", "-", text).strip("-._") or "modelo"
 
 
+def init_command(project: str) -> int:
+    """Cria a estrutura base de um projeto SysDoc (U7)."""
+    template = ROOT / "templates" / "projeto-padrao"
+    dest = (Path.cwd() / project).resolve()
+    if dest.exists() and any(dest.iterdir()):
+        answer = input(f"A pasta '{project}' já existe e não está vazia. Continuar mesmo assim? [s/N] ").strip().lower()
+        if answer not in ("s", "sim", "y", "yes"):
+            print("Operação cancelada.")
+            return 1
+    if template.exists():
+        shutil.copytree(template, dest, dirs_ok=True)
+        print(f"Projeto criado a partir do template: {dest}")
+    else:
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "modelos").mkdir(exist_ok=True)
+        (dest / "README.md").write_text(
+            f"# {project}\n\nCopie ETP.pdf e TR.pdf para esta pasta, adicione referências em modelos/ e rode:\n\n```bash\nsysdoc analyze {project}\n```\n",
+            encoding="utf-8",
+        )
+        print(f"Estrutura básica criada em: {dest}")
+    print(f"  Próximo passo: copie ETP.pdf e TR.pdf para {dest}")
+    return 0
+
+
 def extract_date(value: str) -> str:
     text = str(value or "")
     match = re.search(r"\d{4}-\d{2}-\d{2}", text)
@@ -876,6 +1052,32 @@ def extract_date(value: str) -> str:
     if match:
         return f"{match.group(3)}-{match.group(2)}-{match.group(1)}"
     return datetime.now().strftime("%Y-%m-%d")
+
+
+def compare(project: str) -> int:
+    """Lista JSONs versionados de um projeto e compara itens, classificações e riscos (M3-C)."""
+    paths = project_paths(project)
+    jsons = sorted(paths.root.glob("dados_consolidados_*.json"))
+    if not jsons:
+        print("Nenhuma versão encontrada. Rode 'sysdoc publish' para versionar.")
+        return 1
+    header = f"{'ARQUIVO':<50} {'MODELO':<28} {'DATA':<12} {'ITENS':>6} {'BLOQ':>6} {'RELEV':>6}"
+    print(header)
+    print("-" * len(header))
+    for json_file in jsons:
+        try:
+            data = json.loads(json_file.read_text(encoding="utf-8"))
+        except Exception as exc:
+            print(f"  {json_file.name}: erro ao ler — {exc}")
+            continue
+        itens = data.get("itens", [])
+        modelo = str(data.get("modelo_ia", "?"))[:28]
+        data_a = str(data.get("data_análise", "?"))[:12]
+        bloq = sum(1 for i in itens if i.get("risco_jurídico") == "bloqueante")
+        relev = sum(1 for i in itens if i.get("risco_jurídico") == "relevante")
+        name = json_file.name[:50]
+        print(f"{name:<50} {modelo:<28} {data_a:<12} {len(itens):>6} {bloq:>6} {relev:>6}")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -898,14 +1100,21 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="Lista projetos e estado operacional.")
     sub.add_parser("connect", help="Configura o provedor ativo (OpenRouter, OpenAI, Gemini, Anthropic) e a chave de API.")
     sub.add_parser("models", help="Lista os modelos do provedor conectado e permite definir um padrão.")
+    init_parser = sub.add_parser("init", help="Cria a estrutura de um novo projeto SysDoc.")
+    init_parser.add_argument("project", help="Nome da pasta do novo projeto.")
     analyze_parser = sub.add_parser("analyze", help="Prepara, chama a LLM configurada, valida e publica.")
     analyze_parser.add_argument("project", help="Pasta do projeto SysDoc.")
-    analyze_parser.add_argument("--model", default=None, help=f"Modelo OpenAI. Padrao: {DEFAULT_LLM_MODEL}.")
+    analyze_parser.add_argument("--model", default=None, help="Modelo a usar (ex: anthropic/claude-3.7-sonnet, openai/gpt-4o). Padrão: lido do config.")
     analyze_parser.add_argument("--instruction", default=None, help="Instrucao extra para a analise.")
+    analyze_parser.add_argument("--dry-run", action="store_true", help="Prepara o contexto e exibe o prompt sem chamar a LLM.")
+
+    compare_parser = sub.add_parser("compare", help="Compara versões de análise de um projeto.")
+    compare_parser.add_argument("project", help="Pasta do projeto SysDoc.")
 
     for command in ("prepare", "validate", "render", "publish"):
         item = sub.add_parser(command, help=f"Executa {command} em um projeto.")
         item.add_argument("project", help="Pasta do projeto SysDoc.")
+    parser.add_argument("--version", action="version", version=f"SysDoc {VERSION}")
     return parser
 
 
@@ -916,6 +1125,8 @@ def main(argv: list[str] | None = None) -> int:
         return connect_command()
     if args.command == "models":
         return models_command()
+    if args.command == "init":
+        return init_command(args.project)
     if args.command == "status":
         return status()
     if args.command == "prepare":
@@ -925,9 +1136,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "render":
         return render(args.project)
     if args.command == "analyze":
-        return analyze(args.project, model=args.model, extra_instruction=args.instruction)
+        return analyze(args.project, model=args.model, extra_instruction=args.instruction, dry_run=getattr(args, 'dry_run', False))
     if args.command == "publish":
         return publish(args.project)
+    if args.command == "compare":
+        return compare(args.project)
     parser.error("comando inválido")
     return 2
 

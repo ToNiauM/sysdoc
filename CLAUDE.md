@@ -24,8 +24,10 @@ When triggered, always read `skills/sysdoc/SKILL.md` first — it is the single 
 sysdoc status                           # list all projects and their state
 sysdoc connect                          # select active provider (OpenRouter, OpenAI, etc) and set API key
 sysdoc models                           # list models from active provider and set default model
+sysdoc init [pasta]                     # create a new project folder structure
 sysdoc prepare [pasta]                  # extract PDFs/DOCX → .sysdoc/cache/
 sysdoc analyze [pasta] --model MODEL    # prepare + call configured LLM + validate + publish
+sysdoc analyze [pasta] --dry-run        # prepare context and show prompt without calling LLM
 sysdoc validate [pasta]                 # validate dados_consolidados.json
 sysdoc render [pasta]                   # render HTML from dados_consolidados.json
 sysdoc publish [pasta]                  # validate + version JSON + render HTML
@@ -43,15 +45,18 @@ python templates/render_analise.py [pasta]/dados_consolidados.json [pasta]
 ### Core files
 
 | File | Role |
-|------|------|
+|---------|------|
 | `skills/sysdoc/SKILL.md` | **Canonical operational flow** — IA-agnostic, single source of truth |
 | `.claude/skills/sysdoc-analise/SKILL.md` | Thin Claude Code wrapper; delegates to canonical |
-| `sysdoc.py` | CLI Entrypoint: `status`, `connect`, `models`, `prepare`, `analyze`, `validate`, `render`, `publish` |
+| `sysdoc.py` | CLI Entrypoint: `status`, `connect`, `models`, `init`, `prepare`, `analyze`, `validate`, `render`, `publish` |
 | `sysdoc_gui.py` | tkinter GUI wrapping the same CLI subprocesses |
 | `templates/validate_sysdoc.py` | Deterministic JSON validator (schema + coherence + PT-BR accents + traceability) |
 | `templates/render_analise.py` | Deterministic HTML renderer — **immutable** |
 | `templates/analise_template.html` | HTML template — **immutable** |
 | `templates/schema_sysdoc.json` | Canonical JSON schema |
+| `tests/test_validate.py` | Automated tests (pytest) — run before and after any change |
+| `ROADMAP.md` | **Planned improvements** — read this before adding new features |
+| `CHANGELOG.md` | Version history — update this after any change |
 
 ### Project folder structure
 
