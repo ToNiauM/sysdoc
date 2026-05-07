@@ -11,7 +11,14 @@
       "PowerShell(officecli view *)",
       "PowerShell(officecli *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(python -c \"import yaml; print\\(yaml.__version__\\)\")",
+      "Bash(python -m pip install \"pyyaml>=6.0\")",
+      "Bash(python sysdoc.py analyze --help)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(python -m pytest tests/test_cli.py -v)",
+      "Bash(python sysdoc.py --version)",
+      "Bash(python sysdoc.py --help)"
     ]
   }
 }
