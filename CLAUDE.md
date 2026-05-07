@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SysDoc is an AI-agnostic workflow for comparative technical and legal analysis of Brazilian public procurement documents (ETP and TR). Any AI (Claude, GPT, Gemini) can operate the same canonical flow.
 
+> **Para outros agentes de IA (OpenCode, Codex, Antigravity, Cline, Gemini CLI, etc.), veja `AGENTS.md` na raiz.** Este arquivo (`CLAUDE.md`) é específico do Claude Code — `AGENTS.md` é o resumo IA-agnóstico, e `skills/sysdoc/SKILL.md` é a fonte única de verdade operacional.
+
 ## Skill Invocation
 
 The `sysdoc-analise` skill is triggered by:
@@ -31,7 +33,7 @@ sysdoc render [pasta]                   # render HTML from dados_consolidados.js
 sysdoc publish [pasta]                  # validate + version JSON + render HTML
 sysdoc deploy [pasta]                   # find next index via SSH and SCP html to VPS
 sysdoc compare [pasta]                  # compara versoes json geradas
-python sysdoc_gui.py                    # launch tkinter GUI (offline features only)
+sysdoc analyze [pasta] [-i instrução]   # prepare + imprime caminhos para o agente
 ```
 
 ## Macros de Prompt (Orquestrados pelo Agente)
@@ -62,7 +64,6 @@ python templates/render_analise.py [pasta]/dados_consolidados.json [pasta]
 | `.claude/skills/sysdoc-analise/SKILL.md` | Thin Claude Code wrapper; delegates to canonical |
 | `sysdoc.py` | CLI Entrypoint: `status`, `connect`, `models`, `init`, `prepare`, `analyze`, `validate`, `render`, `publish`, `deploy` |
 | `run_sysdoc.sh` | Script wrapper que roda Fases 1, 2 e 4 (Prepare, Analyze, Deploy) sequencialmente |
-| `sysdoc_gui.py` | tkinter GUI wrapping the same CLI subprocesses |
 | `templates/validate_sysdoc.py` | Deterministic JSON validator (schema + coherence + PT-BR accents + traceability) |
 | `templates/render_analise.py` | Deterministic HTML renderer — **immutable** |
 | `templates/analise_template.html` | HTML template — **immutable** |

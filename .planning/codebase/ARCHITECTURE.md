@@ -8,11 +8,12 @@
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │                      User Interaction Layer                  │
-├──────────────────┬──────────────────┬───────────────────────┤
-│   CLI (`sysdoc.py`)  │   GUI (`sysdoc_gui.py`)  │  Shell Script (`run_sysdoc.sh`) │
-└────────┬─────────┴────────┬─────────┴──────────┬────────────┘
-         │                  │                     │
-         ▼                  ▼                     ▼
+├──────────────────────────────────┬──────────────────────────┤
+│   CLI (`sysdoc.py`)              │  Shell Script (`run_sysdoc.sh`) │
+│   /sysdoc skill (Claude/OpenCode)│                          │
+└────────┬─────────────────────────┴──────────┬───────────────┘
+         │                                     │
+         ▼                                     ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Core Workflow Layer                       │
 │  `sysdoc.py` (routing) | `templates/validate_sysdoc.py` | `templates/render_analise.py` │
@@ -36,8 +37,8 @@
 | Component | Responsibility | File |
 |-----------|----------------|------|
 | CLI Entrypoint | Route user commands to core workflows | `sysdoc.py` |
-| GUI | tkinter interface wrapping CLI subprocesses | `sysdoc_gui.py` |
 | Shell Script Wrapper | Sequential execution of prepare, analyze, deploy | `run_sysdoc.sh` |
+| AI Harness Skills | Wrappers exposing `/sysdoc` slash command per harness | `.claude/skills/`, `.opencode/skills/` |
 | Canonical Operational Flow | IA-agnostic workflow definition for LLM agents | `skills/sysdoc/SKILL.md` |
 | JSON Validator | Enforce schema, coherence, and PT-BR rules on analysis output | `templates/validate_sysdoc.py` |
 | HTML Renderer | Deterministic HTML generation from validated JSON | `templates/render_analise.py` |
@@ -61,7 +62,7 @@
 **User Interaction Layer:**
 - Purpose: Accept user input and trigger workflows
 - Location: Root directory
-- Contains: CLI script, GUI script, shell wrapper
+- Contains: CLI script, shell wrapper, AI harness skill wrappers
 - Depends on: Core Workflow Layer
 - Used by: End users, LLM agents
 
@@ -124,11 +125,6 @@
 - Triggers: User running `sysdoc [command] [args]` in terminal
 - Responsibilities: Parse commands, route to prepare/validate/render/publish/deploy workflows, manage config
 
-**GUI (`sysdoc_gui.py`):**
-- Location: `sysdoc_gui.py`
-- Triggers: User running `python sysdoc_gui.py`
-- Responsibilities: tkinter interface for offline CLI features, subprocess calls to `sysdoc.py`
-
 **Shell Script (`run_sysdoc.sh`):**
 - Location: `run_sysdoc.sh`
 - Triggers: User running `bash run_sysdoc.sh [pasta]`
@@ -141,7 +137,7 @@
 
 ## Architectural Constraints
 
-- **Threading:** Python GIL applies; core workflows are single-threaded, GUI uses subprocess for non-blocking CLI calls
+- **Threading:** Python GIL applies; core workflows are single-threaded
 - **Global state:** User config loaded from `~/.sysdoc/config.json` at runtime; no module-level singletons in core logic
 - **Circular imports:** None detected; small, modular codebase with clear separation of concerns
 - **Immutable templates:** `templates/analise_template.html` and `templates/render_analise.py` are never modified during analysis — enforced by project rules

@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="sysdoc",
     version="0.1.0",
-    py_modules=["sysdoc", "sysdoc_gui"],
+    py_modules=["sysdoc"],
     packages=find_packages(),
     include_package_data=True,
     install_requires=[

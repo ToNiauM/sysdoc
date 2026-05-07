@@ -363,7 +363,7 @@ Agentes: Ao começar a trabalhar no projeto, copie estas tasks para o seu `task.
 
 ### Milestone 3 — Interface e Experiência do Usuário
 - [x] **M3-A**: Refatorar a saída da função `status()` em `sysdoc.py` para renderizar uma tabela alinhada ao invés de texto simples.
-- [x] **M3-B**: Na GUI (`sysdoc_gui.py`), adicionar um `Entry` para "Instrução extra" e repassar o valor usando a flag `--instruction` ao chamar `analyze`.
+- [~] **M3-B**: ~~Na GUI, adicionar campo Instrução extra~~ — descontinuado em v1.2.0 (GUI removida; SysDoc agora é exclusivamente CLI + slash `/sysdoc` para harnesses de IA).
 - [x] **M3-C**: Criar o comando `sysdoc compare [pasta]` em `sysdoc.py` para iterar sobre múltiplos JSONs versionados e gerar um relatório comparativo na tela.
 
 ### Milestone 4 — Testes e Qualidade de Código

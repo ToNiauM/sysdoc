@@ -111,11 +111,6 @@
 - Impact: If pypdf development stalls, PDF extraction could break
 - Migration plan: The codebase already migrated from PyPDF2 to pypdf (M1-A completed per ROADMAP); monitor project health on PyPI
 
-**tkinter (GUI):**
-- Risk: Standard library GUI but deprecated in Python 3.13+ (PEP 594)
-- Impact: `sysdoc_gui.py` will need migration path
-- Migration plan: Consider `customtkinter`, `PyQt5/6`, or web-based GUI alternative
-
 ## Missing Critical Features
 
 **GitHub Actions CI (M5-A):**
@@ -144,11 +139,10 @@
 - Risk: Text detection and context generation could silently break
 - Priority: High - these functions are critical for LLM context preparation
 
-**GUI Components:**
-- What's not tested: `sysdoc_gui.py` Tkinter interface
-- Files: `sysdoc_gui.py`
-- Risk: GUI could have platform-specific issues
-- Priority: Low - manual testing may suffice for Tkinter apps
+**AI Harness Skill Wrappers:**
+- What's not tested: `.claude/skills/sysdoc-analise/SKILL.md`, `.opencode/skills/sysdoc-analise/SKILL.md`
+- Risk: wrappers may drift from canonical `skills/sysdoc/SKILL.md`
+- Priority: Low — they are thin pointers; manual review on changes is sufficient
 
 **Deploy Functionality:**
 - What's not tested: SSH/SCP deploy operations

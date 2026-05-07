@@ -5,7 +5,7 @@
 ## Naming Patterns
 
 **Files:**
-- Python modules: `snake_case.py` — e.g., `sysdoc.py`, `sysdoc_gui.py`, `validate_sysdoc.py`
+- Python modules: `snake_case.py` — e.g., `sysdoc.py`, `validate_sysdoc.py`
 - Test files: `test_<module>.py` — e.g., `test_validate.py`
 - Templates: `snake_case.py` — e.g., `render_analise.py`, `validate_sysdoc.py`
 
@@ -18,7 +18,7 @@
 - Loop variables: short names — e.g., `i`, `x`, `line`, `index`
 
 **Classes:**
-- `PascalCase` — e.g., `SysDocGui`, `TestRequiredFields`, `TestModeloIA`
+- `PascalCase` — e.g., `ProjectPaths`, `TestRequiredFields`, `TestModeloIA`
 - Inner/private classes: `PascalCase`
 
 **Constants:**
@@ -161,7 +161,7 @@ def is_traceable(excerpt, source):
 - Large functions decomposed (e.g., `validate()` in `validate_sysdoc.py` at ~80 lines)
 
 **Parameters:**
-- Use type hints where appropriate (more in `sysdoc_gui.py` than `sysdoc.py`)
+- Use type hints on dataclasses and public functions in `sysdoc.py`
 - Default values for optional parameters: `def validate(path, project_dir=None):`
 - **kwargs not extensively used
 
@@ -169,11 +169,17 @@ def is_traceable(excerpt, source):
 - Explicit return values: `return errors` (list), `return 0/1/2` (status codes)
 - `None` implicit return for procedures
 
-**Example with type hints (from `sysdoc_gui.py`):**
+**Example with type hints (from `sysdoc.py`):**
 ```python
-def __init__(self, root: Tk) -> None:
-    self.root = root
-    # ...
+@dataclass(frozen=True)
+class ProjectPaths:
+    root: Path
+    modelos: Path | None
+    cache: Path
+    source_cache: Path
+    manifest: Path
+    context: Path
+    config: Path
 ```
 
 ## Module Design

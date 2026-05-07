@@ -31,8 +31,8 @@ SysDoc/
 │   ├── dados_consolidados.json  # Active analysis output
 │   └── analise_*.html      # Rendered report
 ├── sysdoc.py               # CLI entrypoint
-├── sysdoc_gui.py           # tkinter GUI
 ├── run_sysdoc.sh           # Shell script wrapper
+├── AGENTS.md               # Generic instructions for any AI harness
 ├── ROADMAP.md              # Planned improvements
 ├── CHANGELOG.md            # Version history
 ├── CLAUDE.md               # Claude Code instructions
@@ -71,9 +71,9 @@ SysDoc/
 ## Key File Locations
 
 **Entry Points:**
-- `sysdoc.py`: CLI entrypoint for all sysdoc commands
-- `sysdoc_gui.py`: tkinter GUI for offline features
+- `sysdoc.py`: CLI entrypoint for all sysdoc commands (single entry point)
 - `run_sysdoc.sh`: Shell script for sequential workflow execution
+- `/sysdoc` slash command: Available in Claude Code (`.claude/skills/`) and OpenCode (`.opencode/skills/`) harnesses
 
 **Configuration:**
 - `~/.sysdoc/config.json`: User-level config for API keys and provider preferences

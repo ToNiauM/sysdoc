@@ -34,11 +34,11 @@ Análise técnica e jurídica de documentos de licitação via CLI determinísti
 ## Context
 
 **Código existente:**
-- `sysdoc.py` (650 linhas) — CLI principal
-- `sysdoc_gui.py` (250+ linhas) — GUI tkinter (será descontinuada)
+- `sysdoc.py` (~700 linhas) — CLI principal (entry point único)
 - `templates/validate_sysdoc.py` (425 linhas) — Validador
 - `templates/render_analise.py` (340 linhas) — Renderizador HTML
 - `skills/sysdoc/SKILL.md` — Operações canônicas
+- `AGENTS.md` — Instruções genéricas para harnesses de IA
 
 **Stack atual:** Python 3.12+, pypdf, python-docx, jinja2, pytest
 

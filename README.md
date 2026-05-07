@@ -55,7 +55,7 @@ Se você for um usuário avançado e quiser rodar as ferramentas do SysDoc no te
 | `sysdoc publish [pasta]` | Valida o JSON da análise e gera o relatório final em HTML. |
 | `sysdoc deploy [pasta]` | Pega o último relatório HTML gerado e envia por SSH/SCP para o servidor. |
 | `sysdoc compare [pasta]` | Mostra um comparativo rápido na tela. |
-| `python sysdoc_gui.py` | Abre uma Interface Gráfica simples para rodar esses comandos sem precisar digitar. |
+| `sysdoc analyze [pasta] [-i "foco"]` | Prepara o cache e imprime os caminhos para o Agente de IA gerar a análise. |
 
 ---
 

@@ -5,7 +5,7 @@
 ## Languages
 
 **Primary:**
-- Python 3.x - Core CLI logic (`sysdoc.py`), GUI (`sysdoc_gui.py`), validation (`templates/validate_sysdoc.py`), rendering (`templates/render_analise.py`)
+- Python 3.x - Core CLI logic (`sysdoc.py`), validation (`templates/validate_sysdoc.py`), rendering (`templates/render_analise.py`)
 
 **Secondary:**
 - HTML - HTML template (`templates/analise_template.html`), rendered reports (`analise_*.html`)
@@ -23,7 +23,7 @@
 ## Frameworks
 
 **Core:**
-- Standard Library (argparse for CLI, tkinter for GUI, json, os, subprocess for core logic)
+- Standard Library (argparse for CLI, json, os, subprocess for core logic)
 
 **Testing:**
 - pytest - Test runner for `tests/test_validate.py`
