@@ -132,3 +132,87 @@ API Keys and provider preferences are centrally managed in `~/.sysdoc/config.jso
 4. `pandoc` for `.docx` references
 
 Do not use image-based PDF tools on PDFs that have a text layer.
+
+---
+
+## Phase 1 — CLI-style GSD (Tarefas Pendentes)
+
+O objetivo desta fase é transformar o SysDoc num sistema estilo GSD, invocável via `/sysdoc [comando]` em agentes de IA (OpenCode, Claude Code, Codex, Antigravity).
+
+### Tarefa 1: Adicionar comando `analyze` ao CLI
+
+Em `sysdoc.py`:
+
+- No `build_parser()`, adicionar subcomando `analyze` com argumento `project` e flag `--instruction` / `-i`
+- No `main()`, adicionar handler para `analyze`
+- Criar função `analyze(project: str, instruction: str = "") -> int`:
+  - Roda `prepare(project)` automaticamente se cache não existe
+  - Imprime caminho do contexto (`paths.context`)
+  - Imprime caminho dos textos (`paths.source_cache`)
+  - Se `instruction` fornecida, imprime como dica
+  - Retorna 0
+- O comando é deliberadamente mínimo — prepara e informa onde está o cache. A análise real é feita pelo harness (agente IA).
+
+### Tarefa 2: Adicionar suporte a `.sysdoc/config.yaml`
+
+- Adicionar `pyyaml>=6.0` às dependências em `pyproject.toml`
+- Adicionar campo `config: Path` à dataclass `ProjectPaths` (`.sysdoc/config.yaml`)
+- Criar função `init_config(project: str) -> int` que cria `.sysdoc/config.yaml` com:
+  ```yaml
+  projeto: [nome da pasta]
+  vps_host: ""
+  vps_path: ""
+  modelo_ia_padrao: ""
+  ```
+  Não sobrescreve se já existe.
+- Atualizar `init_command()` para chamar `init_config()`
+- Atualizar `deploy()` para ler `vps_host` e `vps_path` do config.yaml (fallback para hardcoded atual)
+
+### Tarefa 3: Atualizar `skills/sysdoc/SKILL.md`
+
+- Seção "Macros de Acionamento" — adicionar comando `/sysdoc analyze [pasta] [prompt]`
+- Seção "Ferramentas de CLI" — adicionar `sysdoc analyze [pasta] [-i instrução]`
+- Atualizar fluxo `sysdoc all` para usar `sysdoc analyze` como ponto de entrada
+- Adicionar placeholder para `sysdoc create` (Phase 2)
+
+### Tarefa 4: Atualizar `.claude/skills/sysdoc-analise/SKILL.md`
+
+- Atualizar `description` no frontmatter para incluir novos triggers: `/sysdoc`, `sysdoc analyze`
+- Prefira `sysdoc analyze [pasta]` em vez de `python sysdoc.py prepare`
+- Exemplos usam `sysdoc` diretamente (não `python sysdoc.py`)
+
+### Tarefa 5: Criar `.opencode/skills/sysdoc-analise/SKILL.md`
+
+- Mesma estrutura do wrapper Claude Code
+- Sem referências a MCP `PDF_Tools` (OpenCode não tem)
+- Prefere `sysdoc prepare` via Bash para extração
+- Trigger patterns: "sysdoc", "/sysdoc", "análise de licitação"
+
+### Tarefa 6: Criar `AGENTS.md` na raiz
+
+Arquivo genérico para todos os harnesses (Codex, Antigravity, etc.) com:
+- O que é o SysDoc (1-2 frases)
+- Lista de comandos (`sysdoc status`, `sysdoc analyze`, `sysdoc render`, etc.)
+- Regras-chave (templates imutáveis, SKILL.md como verdade, modelo_ia como slug real, português culto, campo `de` literal)
+- Instruções: ler `skills/sysdoc/SKILL.md` antes de qualquer edição, rodar `pytest`, atualizar `CHANGELOG.md`
+
+Também atualizar `CLAUDE.md` para referenciar `AGENTS.md`.
+
+### Tarefa 7: Criar `tests/test_cli.py`
+
+Testes com `tmp_path` fixture:
+1. `test_analyze_command_help` — `sysdoc analyze --help` funciona
+2. `test_analyze_runs_prepare` — analyze roda prepare se cache não existe
+3. `test_analyze_with_instruction` — instruction é impressa na saída
+4. `test_init_creates_config` — init cria `.sysdoc/config.yaml`
+5. `test_project_paths_includes_config` — ProjectPaths inclui config
+6. `test_config_yaml_format` — config.yaml tem campos esperados
+
+### Regras para execução
+
+- **NÃO altere** `templates/analise_template.html`, `templates/render_analise.py` ou `templates/validate_sysdoc.py`
+- **NÃO adicione comentários** no código
+- Mantenha compatibilidade com comandos existentes (`status`, `init`, `prepare`, `validate`, `render`, `publish`, `deploy`, `compare`)
+- Rode `python -m pytest tests/ -v` no final e garanta que todos os testes passam
+- Atualize `CHANGELOG.md` com as mudanças
+- Commits atômicos por tarefa
