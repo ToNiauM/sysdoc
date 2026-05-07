@@ -36,7 +36,7 @@ SUPPORTED_REFERENCE_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
 DEFAULT_LLM_MODEL = "openai/gpt-4o-mini"
 MAX_LLM_CONTEXT_CHARS = int(os.environ.get("SYSDOC_MAX_LLM_CONTEXT_CHARS", "700000"))
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 CONFIG_FILE = Path.home() / ".sysdoc" / "config.json"
 
@@ -67,6 +67,7 @@ class ProjectPaths:
     source_cache: Path
     manifest: Path
     context: Path
+    config: Path
 
 
 def rel(path: Path) -> str:
@@ -91,7 +92,37 @@ def project_paths(project: str | Path) -> ProjectPaths:
         source_cache=cache / "textos",
         manifest=cache / "manifest.json",
         context=cache / "contexto_sysdoc.md",
+        config=root / ".sysdoc" / "config.yaml",
     )
+
+
+def load_config(paths: ProjectPaths) -> dict:
+    if not paths.config.is_file():
+        return {}
+    try:
+        import yaml
+    except ImportError:
+        return {}
+    try:
+        data = yaml.safe_load(paths.config.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def init_config(project: str | Path) -> int:
+    paths = project_paths(project)
+    paths.config.parent.mkdir(parents=True, exist_ok=True)
+    if paths.config.is_file():
+        return 0
+    content = (
+        f"projeto: {paths.root.name}\n"
+        f"vps_host: \"\"\n"
+        f"vps_path: \"\"\n"
+        f"modelo_ia_padrao: \"\"\n"
+    )
+    paths.config.write_text(content, encoding="utf-8")
+    return 0
 
 
 def sha256(path: Path) -> str:
@@ -383,6 +414,24 @@ def prepare(project: str) -> int:
     return 0
 
 
+def analyze(project: str, instruction: str = "") -> int:
+    paths = project_paths(project)
+    if not paths.context.is_file():
+        result = prepare(project)
+        if result != 0:
+            return result
+    print(f"Contexto: {rel(paths.context)}")
+    print(f"Textos extraídos: {rel(paths.source_cache)}")
+    if paths.manifest.is_file():
+        print(f"Manifest: {rel(paths.manifest)}")
+    if instruction:
+        print(f"Instrução adicional: {instruction}")
+    print("")
+    print("Próximo passo: o Agente de IA deve ler os arquivos acima,")
+    print("gerar dados_consolidados.json e rodar 'sysdoc publish'.")
+    return 0
+
+
 def status() -> int:
     COL = 30
     header = f"{'PROJETO':<{COL}} {'ETP':>5} {'TR':>5} {'MODELOS':>8} {'JSON':>5} {'HTML':>5} {'PREP':>5}"
@@ -473,10 +522,14 @@ def deploy(project: str) -> int:
     latest_html = htmls[0]
     print(f"Iniciando deploy do arquivo: {rel(latest_html)}")
 
-    print("Consultando servidor SSH para encontrar próximo índice disponível...")
+    config = load_config(paths)
+    vps_host = (config.get("vps_host") or "").strip() or "root@76.13.170.15"
+    vps_path = (config.get("vps_path") or "").strip() or "/opt/web/cfc-analise/html"
+
+    print(f"Consultando {vps_host} via SSH para encontrar próximo índice disponível...")
     ssh_cmd = [
-        "ssh", "root@76.13.170.15",
-        "idx=1; while [ -f /opt/web/cfc-analise/html/index${idx}.html ]; do idx=$((idx+1)); done; echo $idx"
+        "ssh", vps_host,
+        f"idx=1; while [ -f {vps_path}/index${{idx}}.html ]; do idx=$((idx+1)); done; echo $idx"
     ]
     try:
         result = subprocess.run(ssh_cmd, capture_output=True, text=True, check=True)
@@ -489,7 +542,7 @@ def deploy(project: str) -> int:
         return 1
 
     target_name = f"index{next_idx}.html"
-    target_path = f"root@76.13.170.15:/opt/web/cfc-analise/html/{target_name}"
+    target_path = f"{vps_host}:{vps_path}/{target_name}"
 
     print(f"Enviando para {target_path} ...")
     scp_cmd = ["scp", str(latest_html), target_path]
@@ -548,6 +601,8 @@ def init_command(project: str) -> int:
             encoding="utf-8",
         )
         print(f"Estrutura básica criada em: {dest}")
+    init_config(dest)
+    print(f"  Configuração: {rel(project_paths(dest).config)}")
     print(f"  Próximo passo: copie ETP.pdf e TR.pdf para {dest}")
     return 0
 
@@ -616,6 +671,17 @@ def build_parser() -> argparse.ArgumentParser:
     deploy_parser = sub.add_parser("deploy", help="Envia o último HTML gerado para a VPS por SSH.")
     deploy_parser.add_argument("project", help="Pasta do projeto SysDoc.")
 
+    analyze_parser = sub.add_parser(
+        "analyze",
+        help="Prepara contexto e exibe instruções para análise por LLM do harness.",
+    )
+    analyze_parser.add_argument("project", help="Pasta do projeto SysDoc.")
+    analyze_parser.add_argument(
+        "--instruction", "-i",
+        default="",
+        help="Instrução extra para a LLM (foco temático, severidade, etc.).",
+    )
+
     for command in ("prepare", "validate", "render", "publish"):
         item = sub.add_parser(command, help=f"Executa {command} em um projeto.")
         item.add_argument("project", help="Pasta do projeto SysDoc.")
@@ -642,6 +708,8 @@ def main(argv: list[str] | None = None) -> int:
         return deploy(args.project)
     if args.command == "compare":
         return compare(args.project)
+    if args.command == "analyze":
+        return analyze(args.project, instruction=args.instruction)
     parser.error("comando inválido")
     return 2
 
