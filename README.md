@@ -1,212 +1,387 @@
-# SysDoc — Análise comparativa de licitação assistida por IA
+# SysDoc
 
-O **SysDoc** automatiza a conferência técnica e jurídica entre o **Estudo Técnico Preliminar (ETP)** e o **Termo de Referência (TR)** em processos de contratação pública (Lei 14.133/2021).
+Ferramenta de análise comparativa técnica e jurídica entre o Estudo Técnico Preliminar (ETP) e o Termo de Referência (TR) de processos de contratação pública brasileira regidos pela Lei 14.133/2021.
 
-A CLI é **estritamente offline e determinística**: ela extrai os PDFs, prepara o contexto, valida o JSON da análise, renderiza o HTML e faz o deploy. **A análise em si é feita pelo seu agente de IA** (Claude Code, OpenCode, Codex, Antigravity, Cline, Gemini CLI, Cursor, etc.) lendo os artefatos que a CLI gera. Sem amarração a um modelo específico — o mesmo fluxo serve qualquer LLM.
+A análise é executada em duas camadas complementares:
+
+1. **CLI determinística** (`sysdoc`) — extrai PDFs e DOCX, prepara um contexto canônico, valida o JSON consolidado contra schema, versiona o JSON por modelo de IA + data, renderiza HTML imutável e faz o deploy via SSH. Não realiza chamadas a modelos de linguagem.
+2. **Agente de IA** (Claude Code, OpenCode, Codex, Antigravity, Cline, Gemini CLI, Cursor, ou qualquer outro harness) — lê os artefatos da CLI, aplica as lentes de análise definidas em `skills/sysdoc/SKILL.md` e produz `dados_consolidados.json`.
+
+A separação garante reprodutibilidade: o mesmo JSON, validado pelo mesmo validador, gera sempre o mesmo HTML. A análise pode ser repetida com modelos distintos sem retrabalho de extração ou renderização.
+
+---
+
+## Sumário
+
+1. [Requisitos](#requisitos)
+2. [Instalação](#instalação)
+3. [Arquitetura e pipeline](#arquitetura-e-pipeline)
+4. [Exemplo completo: do init ao deploy](#exemplo-completo-do-init-ao-deploy)
+5. [Comandos da CLI](#comandos-da-cli)
+6. [Configuração por projeto (`.sysdoc/config.yaml`)](#configuração-por-projeto-sysdocconfigyaml)
+7. [Suporte multi-harness](#suporte-multi-harness)
+8. [Estrutura de um projeto](#estrutura-de-um-projeto)
+9. [Schema canônico e regras de validação](#schema-canônico-e-regras-de-validação)
+10. [Restrições do projeto](#restrições-do-projeto)
+11. [Documentação adicional](#documentação-adicional)
+
+---
+
+## Requisitos
+
+- Python 3.10 ou superior
+- `pip` para instalação local
+- `ssh` e `scp` no PATH para o deploy (opcional, somente se for usar `sysdoc deploy`)
+- Acesso SSH a um servidor com diretório de publicação (opcional, somente para deploy)
+
+Dependências de runtime: `pypdf>=4.0.0`, `pyyaml>=6.0`. Instaladas automaticamente pelo `pip install -e .`.
 
 ---
 
 ## Instalação
 
 ```bash
-git clone <repo> sysdoc
+git clone <url-do-repo> sysdoc
 cd sysdoc
 pip install -e .
 ```
 
-O entry point `sysdoc` fica disponível em qualquer pasta. Requisitos: Python 3.10+.
-
----
-
-## Pipeline Ideal
-
-```
-                    ┌────────────────────────┐
-   sysdoc init      │  MeuProjeto/           │   ◀── você copia ETP.pdf, TR.pdf
-   ─────────────▶   │  ├─ modelos/           │       e referências em modelos/
-                    │  └─ .sysdoc/           │
-                    │     └─ config.yaml     │
-                    └───────────┬────────────┘
-                                │
-                                │  sysdoc analyze
-                                ▼
-                    ┌────────────────────────┐
-                    │  .sysdoc/cache/        │   ◀── extração determinística
-                    │  ├─ textos/ETP.txt     │       (pypdf + zipfile/DOCX)
-                    │  ├─ textos/TR.txt      │
-                    │  ├─ textos/REF-*.txt   │
-                    │  ├─ contexto_sysdoc.md │
-                    │  └─ manifest.json      │
-                    └───────────┬────────────┘
-                                │
-                                │  Agente de IA lê contexto + textos
-                                │  Aplica lentes (técnica, jurídica,
-                                │  Delic, consistência ETP×TR)
-                                ▼
-                    ┌────────────────────────┐
-                    │ dados_consolidados.json│   ◀── produzido pela IA,
-                    └───────────┬────────────┘       respeitando schema canônico
-                                │
-                                │  sysdoc publish
-                                ▼
-                    ┌────────────────────────┐
-                    │ dados_consolidados_    │
-                    │  [modelo_ia]_[data].   │   ◀── versionamento por modelo+data
-                    │       json             │
-                    │ analise_[modelo_ia]_   │
-                    │  [data].html           │
-                    └───────────┬────────────┘
-                                │
-                                │  sysdoc deploy
-                                ▼
-                    ┌────────────────────────┐
-                    │  VPS: index{N}.html    │   ◀── índice auto-incrementado
-                    │  (vps_host/vps_path    │       lido de .sysdoc/config.yaml
-                    │   em config.yaml)      │
-                    └────────────────────────┘
-```
-
-A CLI nunca chama LLM. Quem analisa é o agente de IA que você está usando — o SysDoc fornece os artefatos determinísticos que tornam essa análise barata, rastreável e reproduzível.
-
----
-
-## Workflow Recomendado (Passo-a-Passo)
-
-### 1. Crie o projeto
+Após a instalação o entry point `sysdoc` fica disponível em qualquer diretório. Para validar:
 
 ```bash
-sysdoc init MeuProjeto
+sysdoc --version
+sysdoc --help
 ```
 
-Isso cria:
+---
+
+## Arquitetura e pipeline
+
+O fluxo padrão de uma análise tem cinco estágios. Cada estágio produz artefatos consumidos pelo seguinte; a CLI nunca consulta um modelo de linguagem.
 
 ```
-MeuProjeto/
-├── modelos/                 # coloque PDF/DOCX/TXT/MD de referência aqui
+                    [1] sysdoc init
+                            |
+                            v
+                    +-----------------------+
+                    | MeuProjeto/           |  <-- usuario copia ETP.pdf,
+                    | +-- modelos/          |      TR.pdf e referencias
+                    | +-- .sysdoc/          |
+                    |     +-- config.yaml   |
+                    +-----------+-----------+
+                                |
+                    [2] sysdoc analyze (ou prepare)
+                                |
+                                v
+                    +-----------------------+
+                    | .sysdoc/cache/        |  <-- extracao deterministica
+                    | +-- textos/ETP.txt    |      (pypdf + ElementTree)
+                    | +-- textos/TR.txt     |
+                    | +-- textos/REF-*.txt  |
+                    | +-- contexto_sysdoc.md|
+                    | +-- manifest.json     |
+                    +-----------+-----------+
+                                |
+                    [3] Agente de IA
+                                |       le contexto + textos extraidos
+                                |       aplica lentes (tecnica, juridica,
+                                |       Delic, consistencia ETP x TR)
+                                v
+                    +-----------------------+
+                    |dados_consolidados.json|  <-- produzido pela IA conforme
+                    +-----------+-----------+      templates/schema_sysdoc.json
+                                |
+                    [4] sysdoc publish
+                                |       valida + versiona JSON +
+                                |       renderiza HTML imutavel
+                                v
+                    +-----------------------+
+                    | dados_consolidados_   |
+                    | [modelo]_[data].json  |
+                    | analise_[modelo]_     |
+                    | [data].html           |
+                    +-----------+-----------+
+                                |
+                    [5] sysdoc deploy
+                                |       le vps_host/vps_path do
+                                |       config.yaml, descobre proximo
+                                v       index{N}.html livre via SSH
+                    +-----------------------+
+                    | VPS: index{N}.html    |
+                    +-----------------------+
+```
+
+### Responsabilidades
+
+| Estágio | Responsável | Entradas | Saídas |
+|---------|-------------|----------|--------|
+| 1. Init | CLI | nome do projeto | estrutura de pastas, `config.yaml` |
+| 2. Prepare/Analyze | CLI | `ETP.pdf`, `TR.pdf`, `modelos/*` | textos extraídos, `contexto_sysdoc.md`, `manifest.json` |
+| 3. Análise | Agente de IA | `contexto_sysdoc.md`, textos extraídos, `SKILL.md`, `schema_sysdoc.json` | `dados_consolidados.json` |
+| 4. Publish | CLI | `dados_consolidados.json` | JSON versionado + HTML versionado |
+| 5. Deploy | CLI | HTML mais recente, `config.yaml` | `index{N}.html` na VPS |
+
+---
+
+## Exemplo completo: do init ao deploy
+
+Cenário hipotético: aquisição de combustível tipo gasolina comum para a frota administrativa, processo SEI 12345.000123/2026-01.
+
+### Passo 1 — Criar o projeto
+
+```bash
+sysdoc init Aquisicao-Combustivel-2026
+```
+
+Saída esperada:
+
+```
+Estrutura básica criada em: J:\COLOG\SEPAT\Diversos\SysDoc\Aquisicao-Combustivel-2026
+  Configuração: Aquisicao-Combustivel-2026\.sysdoc\config.yaml
+  Próximo passo: copie ETP.pdf e TR.pdf para Aquisicao-Combustivel-2026
+```
+
+A pasta criada contém:
+
+```
+Aquisicao-Combustivel-2026/
+├── modelos/
 ├── .sysdoc/
-│   └── config.yaml          # projeto, vps_host, vps_path, modelo_ia_padrao
-└── README.md                # instruções básicas
+│   └── config.yaml
+└── README.md
 ```
 
-Edite `MeuProjeto/.sysdoc/config.yaml` com o `vps_host` e `vps_path` se for fazer deploy.
+`config.yaml` é gerado com valores padrão:
 
-### 2. Coloque os documentos
+```yaml
+projeto: Aquisicao-Combustivel-2026
+vps_host: ""
+vps_path: ""
+modelo_ia_padrao: ""
+```
 
-- `MeuProjeto/ETP.pdf` — Estudo Técnico Preliminar (obrigatório)
-- `MeuProjeto/TR.pdf` — Termo de Referência (obrigatório)
-- `MeuProjeto/modelos/` — Referências (modelos Delic, jurisprudência, etc.) (obrigatório, no mínimo 1 arquivo)
+### Passo 2 — Configurar o deploy (opcional)
 
-### 3. Prepare o contexto
+Edite `Aquisicao-Combustivel-2026/.sysdoc/config.yaml` antes do deploy:
+
+```yaml
+projeto: Aquisicao-Combustivel-2026
+vps_host: "root@76.13.170.15"
+vps_path: "/opt/web/cfc-analise/html"
+modelo_ia_padrao: "claude-sonnet-4-6"
+```
+
+Se os campos `vps_host` e `vps_path` ficarem em branco, o `sysdoc deploy` cai num fallback hardcoded definido em `sysdoc.py`.
+
+### Passo 3 — Copiar os documentos de entrada
+
+Coloque na pasta:
+
+- `Aquisicao-Combustivel-2026/ETP.pdf` — Estudo Técnico Preliminar
+- `Aquisicao-Combustivel-2026/TR.pdf` — Termo de Referência
+- `Aquisicao-Combustivel-2026/modelos/` — pelo menos um arquivo de referência (modelo Delic, jurisprudência, parecer paradigma) em PDF, DOCX, TXT ou MD
+
+Validar que os inputs estão corretos:
 
 ```bash
-sysdoc analyze MeuProjeto
+sysdoc status
+```
+
+Saída esperada:
+
+```
+PROJETO                          ETP    TR  MODELOS  JSON  HTML  PREP
+-----------------------------------------------------------------------------
+Aquisicao-Combustivel-2026        ok    ok       ok   ---   ---   ---
+
+1 projeto(s) encontrado(s).
+```
+
+### Passo 4 — Preparar o contexto
+
+```bash
+sysdoc analyze Aquisicao-Combustivel-2026 -i "foco em garantia contratual e sanções administrativas"
+```
+
+A CLI roda `prepare` automaticamente (porque o cache ainda não existe), extrai o texto dos PDFs e DOCX, gera o mapa determinístico e imprime os caminhos:
+
+```
+Contexto preparado: Aquisicao-Combustivel-2026\.sysdoc\cache\contexto_sysdoc.md
+Textos extraídos: Aquisicao-Combustivel-2026\.sysdoc\cache\textos
+Contexto: Aquisicao-Combustivel-2026\.sysdoc\cache\contexto_sysdoc.md
+Textos extraídos: Aquisicao-Combustivel-2026\.sysdoc\cache\textos
+Manifest: Aquisicao-Combustivel-2026\.sysdoc\cache\manifest.json
+Instrução adicional: foco em garantia contratual e sanções administrativas
+
+Próximo passo: o Agente de IA deve ler os arquivos acima,
+gerar dados_consolidados.json e rodar 'sysdoc publish'.
+```
+
+A pasta `.sysdoc/cache/` agora contém:
+
+```
+.sysdoc/cache/
+├── manifest.json
+├── contexto_sysdoc.md
+└── textos/
+    ├── ETP.txt
+    ├── TR.txt
+    └── REF-01_modelo-tr-servicos-continuados.txt
+```
+
+`contexto_sysdoc.md` é o mapa determinístico que o agente lê em vez de tokenizar os PDFs inteiros: traz briefing detectado (processo, objeto, valores), mapa de seções do ETP e TR, e snippets orientadores agrupados por tema (garantia, sanções, recebimento, pagamento, etc.).
+
+### Passo 5 — Executar a análise pelo agente de IA
+
+Abra o agente de IA na raiz do repositório do SysDoc (não dentro da pasta do projeto). O agente já reconhece o slash `/sysdoc` se a skill correspondente estiver instalada (`.claude/skills/` ou `.opencode/skills/`):
+
+```
+/sysdoc analyze Aquisicao-Combustivel-2026 foco em garantia contratual e sanções administrativas
+```
+
+Para harnesses sem wrapper de skill (Codex, Antigravity, Cline, Gemini CLI, Cursor), o agente lê `AGENTS.md` e segue a mesma instrução textualmente.
+
+O agente:
+
+1. Lê `skills/sysdoc/SKILL.md` (fonte única de verdade do fluxo).
+2. Lê `Aquisicao-Combustivel-2026/.sysdoc/cache/contexto_sysdoc.md` e os arquivos em `textos/`.
+3. Aplica as quatro lentes obrigatórias:
+   - **Técnica** — clareza do objeto, escopo, entregáveis, critérios de aceite, preço, coerência ETP×TR.
+   - **Jurídica** — Lei 14.133/2021, normas vinculantes, competitividade, habilitação, sanções, garantia, fiscalização, recebimento, pagamento.
+   - **Delic/modelos** — confronta os achados contra os modelos de referência em `modelos/`.
+   - **Consistência ETP×TR** — toda decisão técnica do TR precisa ter lastro no ETP, e vice-versa.
+4. Seleciona entre 5 e 10 achados relevantes.
+5. Produz `Aquisicao-Combustivel-2026/dados_consolidados.json` no schema canônico (`templates/schema_sysdoc.json`), preenchendo `modelo_ia` com o slug real do modelo (ex.: `claude-sonnet-4-6`, `gpt-5`, `gemini-2-5-pro`).
+
+### Passo 6 — Validar, versionar e renderizar
+
+```bash
+sysdoc publish Aquisicao-Combustivel-2026
+```
+
+A CLI executa três operações em sequência:
+
+1. **Validate** — roda `templates/validate_sysdoc.py`. Se houver erros, o publish aborta com saída não-zero e o agente deve corrigir o JSON e rodar `publish` novamente.
+2. **Versionamento** — copia `dados_consolidados.json` para `dados_consolidados_[modelo_ia]_[data].json` (ex.: `dados_consolidados_claude-sonnet-4-6_2026-05-07.json`). Se um arquivo idêntico já existir para o mesmo modelo + data, mantém. Se houver conteúdo diferente, auto-incrementa com `_2`, `_3`, etc.
+3. **Render** — gera `analise_[modelo_ia]_[data].html` por `templates/render_analise.py`.
+
+Saída esperada:
+
+```
+SysDoc JSON válido.
+JSON versionado: Aquisicao-Combustivel-2026\dados_consolidados_claude-sonnet-4-6_2026-05-07.json
+HTML gerado: Aquisicao-Combustivel-2026\analise_claude-sonnet-4-6_2026-05-07.html
+```
+
+Se a validação falhar, a CLI lista os erros, por exemplo:
+
+```
+Erros de validação:
+  - itens[3].risco_jurídico='bloqueante' exige severidade in {'crítica','alta'}, encontrado 'média'
+  - parecer_executivo tem 312 palavras (mínimo 450)
+  - itens[5].de não rastreável em ETP.txt
+```
+
+O agente deve ler os erros, corrigir o JSON e rodar `publish` novamente. Esse loop é parte explícita do fluxo `sysdoc all` documentado em `skills/sysdoc/SKILL.md`.
+
+### Passo 7 — Fazer o deploy
+
+```bash
+sysdoc deploy Aquisicao-Combustivel-2026
 ```
 
 A CLI:
-- Roda `prepare` automaticamente se o cache ainda não existe
-- Extrai texto de PDF/DOCX para `.sysdoc/cache/textos/`
-- Gera `contexto_sysdoc.md` (mapa determinístico que economiza tokens da IA)
-- Imprime os caminhos para o agente
 
-Você pode passar uma instrução de foco:
+1. Localiza o HTML mais recente em `Aquisicao-Combustivel-2026/`.
+2. Lê `vps_host` e `vps_path` de `.sysdoc/config.yaml`.
+3. Conecta no servidor por SSH e busca o próximo `index{N}.html` livre.
+4. Envia o HTML por SCP renomeando para o índice descoberto.
+
+Saída esperada:
+
+```
+Iniciando deploy do arquivo: Aquisicao-Combustivel-2026\analise_claude-sonnet-4-6_2026-05-07.html
+Consultando root@76.13.170.15 via SSH para encontrar próximo índice disponível...
+Enviando para root@76.13.170.15:/opt/web/cfc-analise/html/index42.html ...
+Deploy concluído com sucesso!
+```
+
+### Passo 8 — Comparar versões (opcional)
+
+Quando múltiplas IAs analisam o mesmo processo, ou quando o mesmo modelo é executado em datas diferentes:
 
 ```bash
-sysdoc analyze MeuProjeto -i "foco em garantia contratual e sanções"
+sysdoc compare Aquisicao-Combustivel-2026
 ```
 
-### 4. Peça a análise ao seu agente de IA
-
-Abra o chat do seu agente **na pasta do SysDoc**. Os agentes que reconhecem o slash `/sysdoc` (Claude Code, OpenCode, etc.) entendem comandos como:
+Saída esperada:
 
 ```
-/sysdoc analyze MeuProjeto foco em garantia contratual
+ARQUIVO                                                     MODELO                       DATA          ITENS   BLOQ  RELEV
+---------------------------------------------------------------------------------------------------------------------------
+dados_consolidados_claude-sonnet-4-6_2026-05-07.json        claude-sonnet-4-6            2026-05-07        9      2      4
+dados_consolidados_gpt-5_2026-05-07.json                    gpt-5                        2026-05-07        7      1      5
+dados_consolidados_gemini-2-5-pro_2026-05-07.json           gemini-2-5-pro               2026-05-07       10      3      3
 ```
 
-Para harnesses sem skill instalada, o atalho é igual:
+### Macro `sysdoc all`
+
+Para executar do passo 4 ao 7 num único pedido ao agente:
 
 ```
-sysdoc analyze MeuProjeto
+/sysdoc all Aquisicao-Combustivel-2026
 ```
 
-O agente lê `skills/sysdoc/SKILL.md` (fonte única de verdade), o `contexto_sysdoc.md`, os textos extraídos, aplica as **lentes obrigatórias** (técnica, jurídica, Delic/modelos, consistência ETP×TR) e produz `MeuProjeto/dados_consolidados.json` no schema canônico (`templates/schema_sysdoc.json`).
-
-### 5. Valide, versione e renderize
-
-```bash
-sysdoc publish MeuProjeto
-```
-
-Faz três coisas em sequência:
-1. `sysdoc validate` — checa schema, coerência classificação×severidade×risco, acentuação PT-BR, rastreabilidade do `de`.
-2. Versiona o JSON: `dados_consolidados_[modelo_ia]_[data].json`.
-3. Renderiza HTML imutável: `analise_[modelo_ia]_[data].html`.
-
-Se a validação falhar, o agente lê os erros, corrige o JSON e roda `publish` de novo.
-
-### 6. Faça o deploy
-
-```bash
-sysdoc deploy MeuProjeto
-```
-
-Lê `vps_host` / `vps_path` de `.sysdoc/config.yaml`, descobre o próximo `index{N}.html` livre via SSH e envia por SCP. Se o config estiver vazio, usa o fallback hardcoded.
-
-### 7. Compare versões (opcional)
-
-```bash
-sysdoc compare MeuProjeto
-```
-
-Tabela com modelo, data, número de itens, bloqueantes e relevantes — útil quando múltiplas IAs analisaram o mesmo processo.
-
----
-
-## Macro `sysdoc all` (orquestração pelo agente)
-
-Se quiser fazer tudo em um comando, peça ao agente:
-
-```
-/sysdoc all MeuProjeto
-```
-
-O agente orquestra as etapas 3–6 acima:
-
-1. `sysdoc analyze MeuProjeto`
-2. Lê o cache, gera `dados_consolidados.json`
-3. `sysdoc publish MeuProjeto` (valida, versiona, renderiza — corrige iterativamente se a validação falhar)
-4. `sysdoc deploy MeuProjeto`
+O agente orquestra: `analyze` → leitura do cache → geração do JSON → `publish` (com loop de correção se a validação falhar) → `deploy`. O comportamento detalhado do macro está em `skills/sysdoc/SKILL.md`, seção "Fluxo de Análise".
 
 ---
 
 ## Comandos da CLI
 
-| Comando | Determinístico | O que faz |
-|---------|----------------|-----------|
-| `sysdoc status` | sim | Lista projetos na pasta atual com flags ETP/TR/MODELOS/JSON/HTML/PREP. |
-| `sysdoc init [pasta]` | sim | Cria estrutura base + `.sysdoc/config.yaml`. |
-| `sysdoc prepare [pasta]` | sim | Extrai PDFs/DOCX para `.sysdoc/cache/textos/` e gera `contexto_sysdoc.md`. |
-| `sysdoc analyze [pasta] [-i "foco"]` | sim | Roda `prepare` se necessário e imprime os caminhos para o agente. |
-| `sysdoc validate [pasta]` | sim | Valida `dados_consolidados.json` (schema + coerência + PT-BR + rastreabilidade). |
-| `sysdoc render [pasta]` | sim | Renderiza HTML a partir do JSON sem versionar. |
-| `sysdoc publish [pasta]` | sim | Valida + versiona JSON por modelo/data + renderiza HTML. |
-| `sysdoc deploy [pasta]` | sim | Envia o HTML mais recente para a VPS por SSH/SCP. |
-| `sysdoc compare [pasta]` | sim | Compara versões geradas (modelo, data, contagem de riscos). |
+| Comando | O que faz |
+|---------|-----------|
+| `sysdoc status` | Lista projetos no diretório atual e exibe flags de presença para ETP, TR, modelos, JSON, HTML e cache preparado. |
+| `sysdoc init [pasta]` | Cria estrutura base (`modelos/`, `.sysdoc/config.yaml`). Não sobrescreve `config.yaml` se já existir. |
+| `sysdoc prepare [pasta]` | Extrai texto de `ETP.pdf`, `TR.pdf` e arquivos em `modelos/` para `.sysdoc/cache/textos/`. Gera `contexto_sysdoc.md` e `manifest.json`. |
+| `sysdoc analyze [pasta] [-i "instrução"]` | Roda `prepare` se o cache não existir e imprime os caminhos para o agente de IA. Aceita `--instruction`/`-i` para foco temático. |
+| `sysdoc validate [pasta]` | Valida `dados_consolidados.json` contra o schema, regras de coerência, acentuação PT-BR e rastreabilidade do campo `de`. |
+| `sysdoc render [pasta]` | Renderiza HTML a partir do JSON existente, sem versionar. |
+| `sysdoc publish [pasta]` | Executa `validate` + versionamento de JSON por modelo+data + `render`. |
+| `sysdoc deploy [pasta]` | Envia o HTML mais recente para a VPS via SSH/SCP, descobrindo o próximo `index{N}.html` livre. Lê `vps_host`/`vps_path` de `.sysdoc/config.yaml`. |
+| `sysdoc compare [pasta]` | Lista todos os JSONs versionados do projeto com modelo, data, contagem de itens, bloqueantes e relevantes. |
+| `sysdoc --version` | Exibe a versão instalada (1.2.0). |
 
-Todos os comandos são **offline** e **não chamam LLM**. A análise vem do agente de IA que você está usando.
+Todos os comandos retornam código de saída convencional: 0 para sucesso, não-zero para falha. Nenhum comando faz chamadas a modelos de linguagem.
+
+---
+
+## Configuração por projeto (`.sysdoc/config.yaml`)
+
+Criado automaticamente por `sysdoc init`. Schema:
+
+```yaml
+projeto: <nome-da-pasta>
+vps_host: "<usuario>@<host>"      # ex.: "root@76.13.170.15"
+vps_path: "<caminho-absoluto>"    # ex.: "/opt/web/cfc-analise/html"
+modelo_ia_padrao: "<slug>"        # ex.: "claude-sonnet-4-6"
+```
+
+Comportamento:
+
+- `vps_host` e `vps_path` em branco ⇒ `sysdoc deploy` usa o fallback hardcoded.
+- `modelo_ia_padrao` é metadado informativo (não é lido pela CLI atualmente; reservado para Phase 2).
 
 ---
 
 ## Suporte multi-harness
 
-Cada harness tem um wrapper fino que delega ao SKILL canônico:
-
 | Harness | Wrapper | Como acionar |
 |---------|---------|--------------|
-| Claude Code | `.claude/skills/sysdoc-analise/SKILL.md` | `/sysdoc`, `sysdoc analyze`, "análise de licitação" |
-| OpenCode | `.opencode/skills/sysdoc-analise/SKILL.md` | `/sysdoc`, `sysdoc analyze`, "análise de licitação" |
-| Outros (Codex, Antigravity, Cline, Gemini CLI, Cursor) | `AGENTS.md` na raiz | Leia `AGENTS.md` + `skills/sysdoc/SKILL.md`, depois rode `sysdoc analyze` |
+| Claude Code | `.claude/skills/sysdoc-analise/SKILL.md` | `/sysdoc`, `sysdoc analyze`, ou frase contendo "análise de licitação" |
+| OpenCode | `.opencode/skills/sysdoc-analise/SKILL.md` | `/sysdoc`, `sysdoc analyze`, ou frase contendo "análise de licitação" |
+| Codex, Antigravity, Cline, Gemini CLI, Cursor | `AGENTS.md` na raiz | Ler `AGENTS.md` e `skills/sysdoc/SKILL.md`, depois invocar `sysdoc analyze` no shell |
 
-A fonte única de verdade operacional é `skills/sysdoc/SKILL.md` (IA-agnóstica). Os wrappers só adicionam dicas específicas do harness (ex.: MCP `PDF_Tools` no Claude Code, Bash-only no OpenCode).
+A fonte única de verdade operacional é `skills/sysdoc/SKILL.md`. Os wrappers só adicionam ajustes específicos do harness, como o uso do MCP `PDF_Tools` no Claude Code ou a preferência por Bash no OpenCode. Em caso de divergência entre wrapper e canônico, prevalece o canônico.
 
 ---
 
@@ -214,43 +389,85 @@ A fonte única de verdade operacional é `skills/sysdoc/SKILL.md` (IA-agnóstica
 
 ```
 MeuProjeto/
-├── ETP.pdf                                # obrigatório
-├── TR.pdf                                 # obrigatório
-├── modelos/                               # obrigatório (≥ 1 arquivo)
-│   └── ...                                # PDF, DOCX, TXT, MD
+├── ETP.pdf                                   # obrigatório
+├── TR.pdf                                    # obrigatório
+├── modelos/                                  # obrigatório (>= 1 arquivo)
+│   └── ...                                   # PDF, DOCX, TXT ou MD
 ├── .sysdoc/
-│   ├── config.yaml                        # projeto, vps_host, vps_path, modelo_ia_padrao
+│   ├── config.yaml                           # projeto, vps_host, vps_path, modelo_ia_padrao
 │   └── cache/
-│       ├── manifest.json
-│       ├── contexto_sysdoc.md             # mapa determinístico para a IA
+│       ├── manifest.json                     # SHA256, contagens e mapeamentos por arquivo
+│       ├── contexto_sysdoc.md                # mapa determinístico para a IA
 │       └── textos/
 │           ├── ETP.txt
 │           ├── TR.txt
-│           └── REF-*.txt
-├── dados_consolidados.json                # produzido pelo agente de IA
-├── dados_consolidados_[modelo]_[data].json # versionado por publish
-└── analise_[modelo]_[data].html           # relatório final
+│           └── REF-NN_<nome>.txt
+├── dados_consolidados.json                   # produzido pela IA, base para publish
+├── dados_consolidados_[modelo]_[data].json   # versionado por publish
+├── dados_consolidados_[modelo]_[data]_2.json # auto-incrementado se houver divergência
+└── analise_[modelo]_[data].html              # relatório final renderizado
 ```
 
-Pastas reservadas (nunca tratadas como projeto): `.git`, `.claude`, `.opencode`, `backup`, `skills`, `templates`.
+Diretórios reservados, nunca tratados como projeto pelo `sysdoc status`: `.git`, `.claude`, `.opencode`, `backup`, `skills`, `templates`.
 
 ---
 
-## Dicas importantes
+## Schema canônico e regras de validação
 
-- **PDF escaneado:** se o PDF não tiver camada de texto, a extração retorna conteúdo curto. O SysDoc avisa em `prepare`. Use `pdftotext -layout` ou OCR antes.
-- **`modelo_ia` no JSON:** sempre o slug real do modelo que produziu a análise (`claude-sonnet-4-6`, `gpt-5`, `gemini-2-5-pro`). Valores genéricos (`ia`, `modelo`) reprovam na validação.
-- **Português culto:** todos os campos gerados devem estar em norma culta com acentuação correta. Exceção: o campo `de` preserva literalidade do documento original.
-- **Templates imutáveis:** `templates/analise_template.html`, `templates/render_analise.py` e `templates/validate_sysdoc.py` **não** podem ser editados durante uma análise. O HTML é sempre produto do renderizador determinístico.
-- **Histórico:** cada `publish` cria um novo `analise_*.html` com modelo + data; o anterior fica intacto. Múltiplas IAs operam o mesmo projeto sem sobrescrever.
-- **Configuração de deploy:** edite `MeuProjeto/.sysdoc/config.yaml` — se `vps_host` / `vps_path` ficarem em branco, `deploy` cai no fallback hardcoded.
+`dados_consolidados.json` deve respeitar `templates/schema_sysdoc.json`. Campos de topo obrigatórios:
+
+`titulo`, `subtitulo`, `modelo_ia`, `data_análise`, `projeto`, `metadados`, `documentos_analisados`, `parecer_executivo`, `secao_etp`, `secao_tr`, `itens`, `nota_integridade`.
+
+Cada item de `itens[]` exige: `id`, `número`, `item`, `documento`, `seção`, `de`, `para`, `parecer`, `fundamento`, `classificação`, `severidade`, `risco_jurídico`, `status_delic`, `alterado_pelo_jurídico`.
+
+### Enums
+
+- `documento`: `ETP` ou `TR`
+- `classificação`: `conforme`, `ajuste_necessário`, `risco`, `pendente`
+- `severidade`: `crítica`, `alta`, `média`, `baixa`, `informativa`
+- `risco_jurídico`: `bloqueante`, `relevante`, `menor`, `informativo`
+- `status_delic`: `confirmado`, `novo`, `divergente`, `null`
+- `classificação_documento`: `aprovado`, `aprovado_com_ressalvas`, `reprovado`, `pendente_de_complementação`
+
+### Regras de coerência (o validador rejeita se violar)
+
+- `classificação=risco` exige `risco_jurídico ∈ {relevante, bloqueante}`
+- `classificação=conforme` exige `risco_jurídico=informativo`
+- `risco_jurídico=bloqueante` exige `severidade ∈ {crítica, alta}`
+- `alterado_pelo_jurídico=true` exige `de ≠ para`
+- `modelo_ia` deve ser slug real (`claude-sonnet-4-6`, `gpt-5`, etc.) — valores genéricos como `ia`, `modelo` ou `default` reprovam
+- `parecer_executivo` exige no mínimo 450 palavras
+- `parecer_documento` (em `secao_etp` e `secao_tr`) exige no mínimo 120 palavras
+- Quando o cache estiver presente, o campo `de` de cada item deve ser rastreável no texto extraído do documento indicado
+
+### Rastreabilidade e campo `de`
+
+O campo `de` deve preservar literalmente o trecho do documento original — inclusive erros de digitação, falta de acento ou quebras estranhas de extração. É o único campo isento da norma culta.
+
+Para documentar a ausência de uma cláusula esperada, use o marcador `[OMISSÃO] seção onde deveria constar`.
+
+---
+
+## Restrições do projeto
+
+- `templates/analise_template.html`, `templates/render_analise.py` e `templates/validate_sysdoc.py` são imutáveis durante uma análise. Qualquer modificação compromete a reprodutibilidade.
+- HTML nunca é escrito manualmente. Apenas o renderizador determinístico produz arquivos `analise_*.html`.
+- Todo campo gerado pela IA usa norma culta do português brasileiro com acentuação correta. Exceção exclusiva: o campo `de`.
+- Não invente artigos de lei, números de acórdão, números SEI, valores monetários, datas ou cláusulas. Quando a base for insuficiente, classifique o item como `pendente`.
+- Hierarquia normativa para fundamentação: lei ou norma aplicável > regulamento vinculante > modelo oficial > referência técnica confiável > texto atual do documento.
 
 ---
 
 ## Documentação adicional
 
-- `skills/sysdoc/SKILL.md` — fluxo canônico IA-agnóstico (lentes, schema, exemplos, checklist)
-- `AGENTS.md` — instruções genéricas para qualquer harness de IA
-- `CLAUDE.md` — notas específicas do Claude Code
-- `CHANGELOG.md` — histórico de versões
-- `.planning/` — artefatos GSD (PROJECT.md, ROADMAP.md, STATE.md, fases)
+| Arquivo | Conteúdo |
+|---------|----------|
+| `skills/sysdoc/SKILL.md` | Fluxo canônico IA-agnóstico: lentes, schema, exemplos comentados, checklist final, hierarquia normativa. |
+| `AGENTS.md` | Instruções genéricas para qualquer harness de IA (Codex, Antigravity, Cline, Gemini CLI, Cursor). |
+| `CLAUDE.md` | Notas específicas do Claude Code, incluindo prioridade de ferramentas de extração de PDF. |
+| `templates/schema_sysdoc.json` | Schema JSON canônico do `dados_consolidados.json`. |
+| `templates/validate_sysdoc.py` | Validador determinístico (schema, coerência, PT-BR, rastreabilidade). Imutável. |
+| `templates/render_analise.py` | Renderizador HTML determinístico. Imutável. |
+| `tests/test_validate.py`, `tests/test_cli.py` | Testes automatizados. Rode `python -m pytest tests/ -v` antes e depois de qualquer mudança. |
+| `CHANGELOG.md` | Histórico de versões. |
+| `.planning/` | Artefatos do workflow GSD: PROJECT.md, ROADMAP.md, STATE.md, fases (`phases/NN-*/`). |
