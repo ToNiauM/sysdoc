@@ -13,6 +13,8 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 ### Adicionado
 
+- **`sysdoc all [pasta]`** (`sysdoc.py`): novo atalho determinístico que inicializa a estrutura do projeto e recria o cache (`prepare`) para deixar `contexto_sysdoc.md`, `manifest.json` e textos extraídos prontos para o agente de IA gerar `dados_consolidados.json`.
+- **`sysdoc config [pasta] --vps-host ... --vps-path ... --modelo-ia-padrao ...`** (`sysdoc.py`): novo comando para mostrar ou atualizar `.sysdoc/config.yaml`, incluindo dados de deploy da VPS e pasta remota do HTML.
 - **Phase 1 / GSD CLI-style** — SysDoc agora é invocável como sistema estilo GSD por agentes de IA via `/sysdoc [comando]`.
 - **`sysdoc analyze [pasta] [-i instrução]`** (`sysdoc.py`): novo subcomando que roda `prepare` automaticamente quando o cache não existe e imprime os caminhos do contexto e dos textos extraídos. Aceita `--instruction` / `-i` para foco temático.
 - **`.sysdoc/config.yaml`** (`sysdoc.py`): novo arquivo de configuração por projeto com `projeto`, `vps_host`, `vps_path` e `modelo_ia_padrao`. Criado automaticamente por `sysdoc init`.
@@ -22,7 +24,11 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 - **`pyyaml>=6.0`** (`pyproject.toml`): adicionado às dependências.
 - **`.opencode/skills/sysdoc-analise/SKILL.md`**: wrapper OpenCode equivalente ao Claude Code, sem MCP, prefere `sysdoc analyze` via Bash.
 - **`AGENTS.md`**: arquivo genérico com instruções, comandos e regras-chave para todos os harnesses (Codex, Antigravity, Cline, Gemini CLI, etc.).
-- **`tests/test_cli.py`**: 10 testes cobrindo `analyze`, `init_config`, `ProjectPaths.config`, formato YAML e `load_config`.
+- **`tests/test_cli.py`**: 14 testes cobrindo `analyze`, `init`, `all`, `config`, `ProjectPaths.config`, formato YAML e `load_config`.
+
+### Corrigido
+
+- **`sysdoc init .` e pastas existentes** (`sysdoc.py`): inicialização agora é idempotente e não interativa; cria apenas `modelos/`, `.sysdoc/config.yaml` e README ausente, sem sobrescrever arquivos do usuário.
 
 ### Atualizado
 

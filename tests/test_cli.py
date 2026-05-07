@@ -109,6 +109,74 @@ class TestInitConfig:
         assert rc == 0
         assert config_file.read_text(encoding="utf-8") == marker
 
+    def test_init_command_existing_nonempty_is_idempotent(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoExistente"
+        project_dir.mkdir()
+        marker = project_dir / "arquivo_usuario.txt"
+        marker.write_text("não sobrescrever\n", encoding="utf-8")
+
+        monkeypatch.chdir(tmp_path)
+        rc = sysdoc.init_command("ProjetoExistente")
+
+        assert rc == 0
+        assert marker.read_text(encoding="utf-8") == "não sobrescrever\n"
+        assert (project_dir / "modelos").is_dir()
+        assert (project_dir / ".sysdoc" / "config.yaml").is_file()
+
+    def test_init_command_current_directory(self, tmp_path, monkeypatch):
+        (tmp_path / "ETP.pdf").write_bytes(b"%PDF-1.4\n")
+
+        monkeypatch.chdir(tmp_path)
+        rc = sysdoc.init_command(".")
+
+        assert rc == 0
+        assert (tmp_path / "modelos").is_dir()
+        assert (tmp_path / ".sysdoc" / "config.yaml").is_file()
+
+
+class TestAllCommand:
+    def test_all_initializes_and_prepares_project(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoAll"
+        called: list[str] = []
+
+        def fake_prepare(project: str) -> int:
+            called.append(project)
+            paths = sysdoc.project_paths(project)
+            paths.source_cache.mkdir(parents=True, exist_ok=True)
+            paths.context.write_text("# contexto fake\n", encoding="utf-8")
+            return 0
+
+        monkeypatch.setattr(sysdoc, "prepare", fake_prepare)
+        monkeypatch.chdir(tmp_path)
+
+        rc = sysdoc.all_command("ProjetoAll", instruction="foco em preço")
+
+        assert rc == 0
+        assert Path(called[0]) == project_dir.resolve()
+        assert (project_dir / "modelos").is_dir()
+        assert (project_dir / ".sysdoc" / "config.yaml").is_file()
+        assert (project_dir / ".sysdoc" / "cache" / "contexto_sysdoc.md").is_file()
+
+
+class TestConfigCommand:
+    def test_config_updates_vps_fields(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoConfigCli"
+
+        monkeypatch.chdir(tmp_path)
+        rc = sysdoc.config_command(
+            "ProjetoConfigCli",
+            vps_host="root@exemplo",
+            vps_path="/var/www/sysdoc",
+            modelo_ia_padrao="gpt-5",
+        )
+
+        assert rc == 0
+        config_file = project_dir / ".sysdoc" / "config.yaml"
+        data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+        assert data["vps_host"] == "root@exemplo"
+        assert data["vps_path"] == "/var/www/sysdoc"
+        assert data["modelo_ia_padrao"] == "gpt-5"
+
 
 class TestProjectPaths:
     def test_project_paths_includes_config(self, tmp_path, monkeypatch):

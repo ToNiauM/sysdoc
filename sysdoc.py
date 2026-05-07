@@ -110,18 +110,31 @@ def load_config(paths: ProjectPaths) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def write_config(paths: ProjectPaths, data: dict) -> None:
+    try:
+        import yaml
+    except ImportError as exc:
+        raise RuntimeError("pyyaml não está instalado; instale com: pip install pyyaml") from exc
+    paths.config.parent.mkdir(parents=True, exist_ok=True)
+    paths.config.write_text(
+        yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 def init_config(project: str | Path) -> int:
     paths = project_paths(project)
-    paths.config.parent.mkdir(parents=True, exist_ok=True)
     if paths.config.is_file():
         return 0
-    content = (
-        f"projeto: {paths.root.name}\n"
-        f"vps_host: \"\"\n"
-        f"vps_path: \"\"\n"
-        f"modelo_ia_padrao: \"\"\n"
+    write_config(
+        paths,
+        {
+            "projeto": paths.root.name,
+            "vps_host": "",
+            "vps_path": "",
+            "modelo_ia_padrao": "",
+        },
     )
-    paths.config.write_text(content, encoding="utf-8")
     return 0
 
 
@@ -420,6 +433,11 @@ def analyze(project: str, instruction: str = "") -> int:
         result = prepare(project)
         if result != 0:
             return result
+    print_analysis_handoff(paths, instruction=instruction)
+    return 0
+
+
+def print_analysis_handoff(paths: ProjectPaths, instruction: str = "") -> None:
     print(f"Contexto: {rel(paths.context)}")
     print(f"Textos extraídos: {rel(paths.source_cache)}")
     if paths.manifest.is_file():
@@ -429,7 +447,6 @@ def analyze(project: str, instruction: str = "") -> int:
     print("")
     print("Próximo passo: o Agente de IA deve ler os arquivos acima,")
     print("gerar dados_consolidados.json e rodar 'sysdoc publish'.")
-    return 0
 
 
 def status() -> int:
@@ -555,6 +572,54 @@ def deploy(project: str) -> int:
         return 1
 
 
+def config_command(
+    project: str,
+    vps_host: str | None = None,
+    vps_path: str | None = None,
+    modelo_ia_padrao: str | None = None,
+) -> int:
+    """Mostra ou atualiza .sysdoc/config.yaml do projeto."""
+    paths = ensure_project_structure(project)
+    config = load_config(paths)
+    changed = False
+    updates = {
+        "vps_host": vps_host,
+        "vps_path": vps_path,
+        "modelo_ia_padrao": modelo_ia_padrao,
+    }
+    for key, value in updates.items():
+        if value is not None:
+            config[key] = value
+            changed = True
+    config.setdefault("projeto", paths.root.name)
+    config.setdefault("vps_host", "")
+    config.setdefault("vps_path", "")
+    config.setdefault("modelo_ia_padrao", "")
+    if changed:
+        write_config(paths, config)
+        print(f"Configuração atualizada: {rel(paths.config)}")
+    else:
+        print(f"Configuração atual: {rel(paths.config)}")
+    print(f"  projeto: {config.get('projeto') or paths.root.name}")
+    print(f"  vps_host: {config.get('vps_host') or '(não configurado)'}")
+    print(f"  vps_path: {config.get('vps_path') or '(não configurado)'}")
+    print(f"  modelo_ia_padrao: {config.get('modelo_ia_padrao') or '(não configurado)'}")
+    return 0
+
+
+def all_command(project: str, instruction: str = "") -> int:
+    """Inicializa o projeto e recria o cache para deixar tudo pronto para a IA."""
+    paths = ensure_project_structure(project)
+    print(f"Estrutura SysDoc pronta em: {paths.root}")
+    print("Preparando cache determinístico...")
+    result = prepare(str(paths.root))
+    if result != 0:
+        return result
+    print("")
+    print_analysis_handoff(project_paths(paths.root), instruction=instruction)
+    return 0
+
+
 def resolve_next_json_archive(project_dir: Path, model: str, date: str, payload: str) -> Path:
     stem = f"dados_consolidados_{model}_{date}"
     first = project_dir / f"{stem}.json"
@@ -581,29 +646,36 @@ def slug(value: str) -> str:
     return re.sub(r"[^a-z0-9._-]+", "-", text).strip("-._") or "modelo"
 
 
-def init_command(project: str) -> int:
-    """Cria a estrutura base de um projeto SysDoc (U7)."""
+def ensure_project_structure(project: str | Path) -> ProjectPaths:
     template = ROOT / "templates" / "projeto-padrao"
-    dest = (Path.cwd() / project).resolve()
-    if dest.exists() and any(dest.iterdir()):
-        answer = input(f"A pasta '{project}' já existe e não está vazia. Continuar mesmo assim? [s/N] ").strip().lower()
-        if answer not in ("s", "sim", "y", "yes"):
-            print("Operação cancelada.")
-            return 1
-    if template.exists():
-        shutil.copytree(template, dest, dirs_ok=True)
-        print(f"Projeto criado a partir do template: {dest}")
+    paths = project_paths(project)
+    dest = paths.root
+    if dest.exists() and not dest.is_dir():
+        raise SystemExit(f"Destino existe, mas não é pasta: {rel(dest)}")
+
+    use_template = template.exists() and not dest.exists()
+    if use_template:
+        shutil.copytree(template, dest)
     else:
         dest.mkdir(parents=True, exist_ok=True)
         (dest / "modelos").mkdir(exist_ok=True)
-        (dest / "README.md").write_text(
-            f"# {project}\n\nCopie ETP.pdf e TR.pdf para esta pasta, adicione referências em modelos/ e rode:\n\n```bash\nsysdoc analyze {project}\n```\n",
-            encoding="utf-8",
-        )
-        print(f"Estrutura básica criada em: {dest}")
+        readme = dest / "README.md"
+        if not readme.exists():
+            readme.write_text(
+                f"# {dest.name}\n\nCopie ETP.pdf e TR.pdf para esta pasta, adicione referências em modelos/ e rode:\n\n```bash\nsysdoc analyze .\n```\n",
+                encoding="utf-8",
+            )
     init_config(dest)
-    print(f"  Configuração: {rel(project_paths(dest).config)}")
-    print(f"  Próximo passo: copie ETP.pdf e TR.pdf para {dest}")
+    return project_paths(dest)
+
+
+def init_command(project: str) -> int:
+    """Cria ou completa a estrutura base de um projeto SysDoc."""
+    paths = ensure_project_structure(project)
+    print(f"Estrutura SysDoc pronta em: {paths.root}")
+    print(f"  Configuração: {rel(paths.config)}")
+    print(f"  Modelos: {rel(paths.root / 'modelos')}")
+    print(f"  Próximo passo: copie ETP.pdf e TR.pdf para {paths.root}")
     return 0
 
 
@@ -653,6 +725,9 @@ def build_parser() -> argparse.ArgumentParser:
             """
             Exemplos:
               python sysdoc.py status
+              python sysdoc.py init .
+              python sysdoc.py all .
+              python sysdoc.py config . --vps-host root@host --vps-path /var/www/html
               python sysdoc.py prepare Combustivel
               python sysdoc.py validate Combustivel
               python sysdoc.py render Combustivel
@@ -664,6 +739,26 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="Lista projetos e estado operacional.")
     init_parser = sub.add_parser("init", help="Cria a estrutura de um novo projeto SysDoc.")
     init_parser.add_argument("project", help="Nome da pasta do novo projeto.")
+
+    all_parser = sub.add_parser(
+        "all",
+        help="Inicializa o projeto e prepara o cache para análise por IA.",
+    )
+    all_parser.add_argument("project", nargs="?", default=".", help="Pasta do projeto SysDoc.")
+    all_parser.add_argument(
+        "--instruction", "-i",
+        default="",
+        help="Instrução extra para a IA (apenas impressa no handoff).",
+    )
+
+    config_parser = sub.add_parser(
+        "config",
+        help="Mostra ou atualiza .sysdoc/config.yaml do projeto.",
+    )
+    config_parser.add_argument("project", nargs="?", default=".", help="Pasta do projeto SysDoc.")
+    config_parser.add_argument("--vps-host", help="Host SSH da VPS, ex.: root@servidor.")
+    config_parser.add_argument("--vps-path", help="Pasta remota onde o HTML será publicado.")
+    config_parser.add_argument("--modelo-ia-padrao", help="Slug do modelo de IA preferido para o projeto.")
 
     compare_parser = sub.add_parser("compare", help="Compara versões de análise de um projeto.")
     compare_parser.add_argument("project", help="Pasta do projeto SysDoc.")
@@ -694,6 +789,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "init":
         return init_command(args.project)
+    if args.command == "all":
+        return all_command(args.project, instruction=args.instruction)
+    if args.command == "config":
+        return config_command(
+            args.project,
+            vps_host=args.vps_host,
+            vps_path=args.vps_path,
+            modelo_ia_padrao=args.modelo_ia_padrao,
+        )
     if args.command == "status":
         return status()
     if args.command == "prepare":
