@@ -12,34 +12,49 @@ Prioridades: inteligência, precisão, rastreabilidade, economia de contexto. **
 
 O usuário acionará você (o Agente de IA) através de "Macro Comandos". Quando o usuário digitar um desses comandos, você deve executar as ações associadas usando a CLI determinística local do SysDoc:
 
-- **`sysdoc init [pasta]`**:
-  - Crie a pasta e a estrutura base (`mkdir [pasta]`, `mkdir [pasta]/modelos`).
-  - Solicite ao usuário que coloque os PDFs (`ETP.pdf` e `TR.pdf`) na pasta.
-  - Após a confirmação do usuário, rode `sysdoc prepare [pasta]`.
+- **`/sysdoc init [pasta]`** (ou `sysdoc init [pasta]`):
+  - Rode `sysdoc init [pasta]` (cria estrutura base + `.sysdoc/config.yaml`).
+  - Solicite ao usuário que coloque os PDFs (`ETP.pdf` e `TR.pdf`) e referências em `modelos/`.
+  - Após a confirmação do usuário, rode `sysdoc analyze [pasta]`.
 
-- **`sysdoc all [pasta]`**:
-  - **Fase 1**: Rode `sysdoc prepare [pasta]` via shell.
-  - **Fase 2**: Leia `[pasta]/.sysdoc/cache/contexto_sysdoc.md` e os arquivos de texto extraídos.
-  - **Fase 3**: Use SUA inteligência para gerar a análise respeitando este `SKILL.md` e o `templates/schema_sysdoc.json`. Escreva o resultado em `[pasta]/dados_consolidados.json`.
-  - **Fase 4**: Rode `sysdoc publish [pasta]` via shell (para validar, versionar e gerar HTML). Corrija o JSON se o validador falhar.
-  - **Fase 5**: Rode `sysdoc deploy [pasta]` via shell (para enviar para a VPS).
+- **`/sysdoc analyze [pasta] [prompt]`** (ou `sysdoc analyze [pasta] -i "prompt"`):
+  - Rode `sysdoc analyze [pasta]` no shell (roda `prepare` automaticamente se ainda não houver cache).
+  - Leia os caminhos impressos: `contexto_sysdoc.md` e `.sysdoc/cache/textos/`.
+  - Aplique a instrução adicional, se fornecida (foco em garantia, sanções, etc.).
+  - Gere `[pasta]/dados_consolidados.json` seguindo este `SKILL.md` + `schema_sysdoc.json`.
 
-- **`sysdoc create TR [pasta]`**:
-  - Leia a análise consolidada e o ETP.
-  - Gere um novo arquivo de Termo de Referência baseado nos dados aprovados.
+- **`/sysdoc all [pasta]`** (orquestração completa):
+  - **Fase 1 (Preparação)**: Rode `sysdoc analyze [pasta]` via shell.
+  - **Fase 2 (Análise)**: Leia `[pasta]/.sysdoc/cache/contexto_sysdoc.md` + arquivos em `.sysdoc/cache/textos/`.
+  - **Fase 3 (Geração)**: Gere `[pasta]/dados_consolidados.json` usando SUA inteligência, respeitando este `SKILL.md` e `templates/schema_sysdoc.json`.
+  - **Fase 4 (Publicação)**: Rode `sysdoc publish [pasta]` via shell (valida, versiona JSON, gera HTML). Corrija se o validador falhar.
+  - **Fase 5 (Deploy)**: Rode `sysdoc deploy [pasta]` via shell (envia HTML para VPS por SSH).
+
+- **`/sysdoc render [pasta]`**: Rode `sysdoc render [pasta]` para gerar HTML a partir do JSON existente (sem validar nem versionar).
+
+- **`/sysdoc deploy [pasta]`**: Rode `sysdoc deploy [pasta]` para enviar o HTML mais recente para a VPS configurada em `.sysdoc/config.yaml`.
+
+- **`/sysdoc create [pasta] [tipo]`** (placeholder, Phase 2):
+  - Reservado para gerar documentos `.docx` (TR, parecer) a partir da análise consolidada e do ETP.
+  - Implementação futura — por enquanto, sinalize que ainda não está disponível.
 
 ## Ferramentas de CLI (Apenas para o Agente)
 
 Você executará estes comandos via shell para orquestrar o processo:
 
 ```bash
-python sysdoc.py status
-python sysdoc.py prepare [pasta]
-python sysdoc.py validate [pasta]
-python sysdoc.py render [pasta]
-python sysdoc.py publish [pasta]
-python sysdoc.py deploy [pasta]
+sysdoc status
+sysdoc init [pasta]
+sysdoc prepare [pasta]
+sysdoc analyze [pasta] [-i "instrução"]
+sysdoc validate [pasta]
+sysdoc render [pasta]
+sysdoc publish [pasta]
+sysdoc deploy [pasta]
+sysdoc compare [pasta]
 ```
+
+Onde `sysdoc` for entry point (instalado via `pip install -e .`), substitua por `python sysdoc.py` se rodar a partir do código fonte.
 
 ## Entradas obrigatórias
 
@@ -70,26 +85,27 @@ Quando executando o macro `sysdoc all`, siga rigidamente estes passos:
 1. Verificar se `ETP.pdf` e `TR.pdf` existem. Se não, interrompa e peça.
 2. Executar a ferramenta de shell:
    ```bash
-   python sysdoc.py prepare [pasta]
+   sysdoc analyze [pasta]
    ```
+   `analyze` roda `prepare` automaticamente se o cache não existir e imprime os caminhos do contexto e dos textos extraídos.
 3. Ler o arquivo gerado: `[pasta]/.sysdoc/cache/contexto_sysdoc.md`. Use-o como mapa. Ele não substitui a conferência dos textos integrais extraídos em `.sysdoc/cache/textos/`.
 4. Triar achados pelas lentes obrigatórias (Técnica, Jurídica, Delic/modelos, Consistência).
 5. Selecionar entre 5 e 10 achados relevantes.
-6. Gerar o JSON da análise usando seu conhecimento, garantindo aderência absoluta ao `templates/schema_sysdoc.json`. Preencha `modelo_ia` com seu slug real (ex: `claude-3-7-sonnet`).
+6. Gerar o JSON da análise usando seu conhecimento, garantindo aderência absoluta ao `templates/schema_sysdoc.json`. Preencha `modelo_ia` com seu slug real (ex: `claude-sonnet-4-6`, `gpt-5`, `gemini-2-5-pro`).
 7. Escrever o JSON em `[pasta]/dados_consolidados.json`.
 8. Executar a publicação (que embutirá validação rigorosa):
    ```bash
-   python sysdoc.py publish [pasta]
+   sysdoc publish [pasta]
    ```
 9. Se a etapa 8 falhar (código de erro no validador), LEIA os erros, corrija o arquivo JSON iterativamente e tente publicar novamente.
 10. Com a publicação concluída e o HTML gerado, faça o deploy via SSH para a VPS:
    ```bash
-   python sysdoc.py deploy [pasta]
+   sysdoc deploy [pasta]
    ```
 
 ## Preparação determinística
 
-`python sysdoc.py prepare [pasta]` gera:
+`sysdoc prepare [pasta]` (ou `sysdoc analyze [pasta]`, que inclui prepare) gera:
 
 - `[pasta]/.sysdoc/cache/textos/ETP.txt`
 - `[pasta]/.sysdoc/cache/textos/TR.txt`

@@ -1,6 +1,6 @@
 ---
 name: sysdoc-analise
-description: Analisa comparativamente ETP.pdf e TR.pdf de licitação contra modelos/referências, gera dados_consolidados.json validado e HTML determinístico nomeado como analise_[modelo_ia]_[data].html. Acione quando o usuário digitar "sysdoc [pasta]", "sysdoc [pasta] - [instrução]" ou "sysdoc render [pasta]", ou pedir análise/comparação de documentos de licitação (ETP, TR, Delic, modelos).
+description: Analisa comparativamente ETP.pdf e TR.pdf de licitação contra modelos/referências, gera dados_consolidados.json validado e HTML determinístico nomeado como analise_[modelo_ia]_[data].html. Acione quando o usuário digitar "/sysdoc", "sysdoc analyze", "sysdoc render", "sysdoc deploy", "sysdoc create", "sysdoc [pasta]", "sysdoc [pasta] - [instrução]", ou pedir análise/comparação de documentos de licitação (ETP, TR, Delic, modelos).
 ---
 
 # SysDoc — Wrapper Claude Code
@@ -18,7 +18,8 @@ skills/sysdoc/SKILL.md
 1. **Identificador do modelo** — preencha `modelo_ia` no JSON com o identificador real do modelo Claude em uso (ex.: `claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5`). O renderizador usa esse valor no nome do arquivo final.
 
 2. **Extração de PDF** — preferência, nesta ordem:
-   - `python sysdoc.py prepare [pasta]` para gerar cache determinístico e `contexto_sysdoc.md`.
+   - `sysdoc analyze [pasta]` — roda `prepare` automaticamente quando o cache não existe e imprime os caminhos do contexto e dos textos extraídos. **Preferido**.
+   - `sysdoc prepare [pasta]` — quando você só quer gerar o cache sem as instruções de análise.
    - MCP `PDF_Tools` (`read_pdf_content`) — já autorizado em `.claude/settings.local.json`.
    - `pdftotext -layout` via Bash, se disponível.
    - `pandoc` para `.docx` das referências.
@@ -28,11 +29,12 @@ skills/sysdoc/SKILL.md
 
 3. **Validação e render** — sempre via Bash, nunca escreva HTML manualmente:
    ```bash
-   python sysdoc.py validate [pasta]
-   python sysdoc.py publish [pasta]
-   python templates/validate_sysdoc.py [pasta]/dados_consolidados.json
-   python templates/render_analise.py [pasta]/dados_consolidados.json [pasta]
+   sysdoc validate [pasta]
+   sysdoc publish [pasta]
+   sysdoc render [pasta]
+   sysdoc deploy [pasta]
    ```
+   (Se o entry point `sysdoc` não estiver instalado, use `python sysdoc.py …`.)
 
 4. **Português brasileiro** — todos os campos gerados devem usar norma culta e acentuação correta. Preserve literalidade apenas no campo `de`.
 
