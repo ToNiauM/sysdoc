@@ -148,7 +148,7 @@ Confirma se ETP, TR e modelos foram encontrados.
 ### Passo 3 — Configurar deploy
 
 ```bash
-sysdoc config -vps root@76.13.170.15 -path /opt/web/cfc-analise/html .
+sysdoc config -vps usuario@servidor -path /caminho/publico/html .
 ```
 
 Grava a VPS e a pasta remota em `.sysdoc/config.yaml`.
@@ -195,7 +195,7 @@ Envia o HTML mais recente para a VPS configurada.
 
 ```bash
 sysdoc init Aquisicao-Combustivel-2026
-sysdoc config -vps root@76.13.170.15 -path /opt/web/cfc-analise/html Aquisicao-Combustivel-2026
+sysdoc config -vps usuario@servidor -path /caminho/publico/html Aquisicao-Combustivel-2026
 sysdoc all Aquisicao-Combustivel-2026
 sysdoc publish Aquisicao-Combustivel-2026
 sysdoc deploy Aquisicao-Combustivel-2026
@@ -235,15 +235,15 @@ Todos os comandos retornam código de saída convencional: 0 para sucesso, não-
 Criado automaticamente por `sysdoc init`. Configure deploy com:
 
 ```bash
-sysdoc config -vps root@76.13.170.15 -path /opt/web/cfc-analise/html .
+sysdoc config -vps usuario@servidor -path /caminho/publico/html .
 ```
 
 O arquivo fica assim:
 
 ```yaml
 projeto: <nome-da-pasta>
-vps_host: "<usuario>@<host>"      # ex.: "root@76.13.170.15"
-vps_path: "<caminho-absoluto>"    # ex.: "/opt/web/cfc-analise/html"
+vps_host: "<usuario>@<host>"      # ex.: "usuario@servidor"
+vps_path: "<caminho-absoluto>"    # ex.: "/caminho/publico/html"
 modelo_ia_padrao: "<slug>"        # ex.: "claude-sonnet-4-6"
 ```
 

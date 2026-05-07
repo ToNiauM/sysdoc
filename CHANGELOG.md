@@ -34,6 +34,7 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 - **`skills/sysdoc/SKILL.md`**: macros de acionamento incluem `/sysdoc analyze` e placeholder `/sysdoc create`. Fluxo `sysdoc all` agora começa por `sysdoc analyze`.
 - **`README.md`**: fluxo principal reescrito em passos curtos do `init` ao `deploy`, com explicações mínimas entre comandos.
+- **`README.md`**: exemplos de configuração de VPS agora usam placeholders genéricos, sem IP ou caminho de produção específico.
 - **`.claude/skills/sysdoc-analise/SKILL.md`**: triggers atualizados para `/sysdoc`, `sysdoc analyze`, `sysdoc deploy`, `sysdoc create`. Exemplos usam `sysdoc` direto em vez de `python sysdoc.py`.
 - **`CLAUDE.md`**: referência a `AGENTS.md` para outros agentes.
 
