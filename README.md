@@ -1,65 +1,256 @@
-# SysDoc: Assistente de Inteligência Artificial para Contratações
+# SysDoc — Análise comparativa de licitação assistida por IA
 
-O **SysDoc** é uma ferramenta de linha de comando (CLI) que automatiza a conferência técnica e jurídica entre o **Estudo Técnico Preliminar (ETP)** e o **Termo de Referência (TR)** em processos de licitação.
+O **SysDoc** automatiza a conferência técnica e jurídica entre o **Estudo Técnico Preliminar (ETP)** e o **Termo de Referência (TR)** em processos de contratação pública (Lei 14.133/2021).
 
-Utilizando Inteligência Artificial (compatível com OpenAI, Claude, Gemini, etc.), ele lê seus documentos em PDF ou Word, identifica omissões, aponta riscos jurídicos (com classificação de gravidade) e gera um relatório HTML amigável detalhando o que precisa ser corrigido.
+A CLI é **estritamente offline e determinística**: ela extrai os PDFs, prepara o contexto, valida o JSON da análise, renderiza o HTML e faz o deploy. **A análise em si é feita pelo seu agente de IA** (Claude Code, OpenCode, Codex, Antigravity, Cline, Gemini CLI, Cursor, etc.) lendo os artefatos que a CLI gera. Sem amarração a um modelo específico — o mesmo fluxo serve qualquer LLM.
 
 ---
 
-## 🚀 Instalação Rápida
-
-Abra o seu terminal (na pasta raiz onde baixou o SysDoc) e rode:
+## Instalação
 
 ```bash
+git clone <repo> sysdoc
+cd sysdoc
 pip install -e .
 ```
 
-A partir de agora, o comando `sysdoc` estará disponível em qualquer pasta do seu computador!
-
-
----
-
-## 📂 Como Analisar um Projeto (Passo a Passo)
-
-O SysDoc foi construído para ser o "cinto de utilidades" do seu Agente de IA favorito (Claude Code, Gemini CLI, Cursor, etc). 
-
-Para realizar uma análise, **abra o chat do seu Agente de IA na pasta dos seus documentos** e dê os seguintes comandos:
-
-### Comando 1: Iniciar o Projeto
-Digite para a IA:
-> **`sysdoc init MeuProjeto`**
-
-Ela criará a pasta correta. Coloque seus arquivos `ETP.pdf` e `TR.pdf` dentro da pasta que foi criada.
-
-### Comando 2: Fazer Tudo (Análise Completa)
-Com os PDFs na pasta, digite para a IA:
-> **`sysdoc all MeuProjeto`**
-
-Ao ler esse "Macro", a IA vai magicamente:
-1. Extrair os textos dos PDFs usando a ferramenta do SysDoc.
-2. Usar o próprio cérebro genial dela para ler os contratos e encontrar riscos e inconsistências.
-3. Gerar o JSON da análise e usar o SysDoc para validar e renderizar um HTML lindo.
-4. Fazer o upload automático do seu relatório para a VPS!
+O entry point `sysdoc` fica disponível em qualquer pasta. Requisitos: Python 3.10+.
 
 ---
 
-## 🛠️ Comandos Manuais (Offline)
+## Pipeline Ideal
 
-Se você for um usuário avançado e quiser rodar as ferramentas do SysDoc no terminal *sem* a IA, estes são os utilitários puramente offline disponíveis:
+```
+                    ┌────────────────────────┐
+   sysdoc init      │  MeuProjeto/           │   ◀── você copia ETP.pdf, TR.pdf
+   ─────────────▶   │  ├─ modelos/           │       e referências em modelos/
+                    │  └─ .sysdoc/           │
+                    │     └─ config.yaml     │
+                    └───────────┬────────────┘
+                                │
+                                │  sysdoc analyze
+                                ▼
+                    ┌────────────────────────┐
+                    │  .sysdoc/cache/        │   ◀── extração determinística
+                    │  ├─ textos/ETP.txt     │       (pypdf + zipfile/DOCX)
+                    │  ├─ textos/TR.txt      │
+                    │  ├─ textos/REF-*.txt   │
+                    │  ├─ contexto_sysdoc.md │
+                    │  └─ manifest.json      │
+                    └───────────┬────────────┘
+                                │
+                                │  Agente de IA lê contexto + textos
+                                │  Aplica lentes (técnica, jurídica,
+                                │  Delic, consistência ETP×TR)
+                                ▼
+                    ┌────────────────────────┐
+                    │ dados_consolidados.json│   ◀── produzido pela IA,
+                    └───────────┬────────────┘       respeitando schema canônico
+                                │
+                                │  sysdoc publish
+                                ▼
+                    ┌────────────────────────┐
+                    │ dados_consolidados_    │
+                    │  [modelo_ia]_[data].   │   ◀── versionamento por modelo+data
+                    │       json             │
+                    │ analise_[modelo_ia]_   │
+                    │  [data].html           │
+                    └───────────┬────────────┘
+                                │
+                                │  sysdoc deploy
+                                ▼
+                    ┌────────────────────────┐
+                    │  VPS: index{N}.html    │   ◀── índice auto-incrementado
+                    │  (vps_host/vps_path    │       lido de .sysdoc/config.yaml
+                    │   em config.yaml)      │
+                    └────────────────────────┘
+```
 
-| Comando | O que faz? |
-|---------|------------|
-| `sysdoc status` | Lista todas as pastas ao seu redor e mostra se falta ETP, TR ou Modelos. |
-| `sysdoc init [pasta]` | Cria uma pasta vazia com a estrutura correta. |
-| `sysdoc prepare [pasta]` | Extrai o texto dos PDFs/DOCXs. |
-| `sysdoc publish [pasta]` | Valida o JSON da análise e gera o relatório final em HTML. |
-| `sysdoc deploy [pasta]` | Pega o último relatório HTML gerado e envia por SSH/SCP para o servidor. |
-| `sysdoc compare [pasta]` | Mostra um comparativo rápido na tela. |
-| `sysdoc analyze [pasta] [-i "foco"]` | Prepara o cache e imprime os caminhos para o Agente de IA gerar a análise. |
+A CLI nunca chama LLM. Quem analisa é o agente de IA que você está usando — o SysDoc fornece os artefatos determinísticos que tornam essa análise barata, rastreável e reproduzível.
 
 ---
 
-## 💡 Dicas Importantes
+## Workflow Recomendado (Passo-a-Passo)
 
-- Se o seu PDF for um **documento escaneado** (imagem), a IA não conseguirá ler. O SysDoc te avisará sobre isso durante a etapa de `prepare`.
-- O SysDoc não sobrescreve análises antigas. Cada vez que você roda, ele cria um arquivo HTML novo, com a data e o nome da IA, garantindo um histórico completo das suas revisões!
+### 1. Crie o projeto
+
+```bash
+sysdoc init MeuProjeto
+```
+
+Isso cria:
+
+```
+MeuProjeto/
+├── modelos/                 # coloque PDF/DOCX/TXT/MD de referência aqui
+├── .sysdoc/
+│   └── config.yaml          # projeto, vps_host, vps_path, modelo_ia_padrao
+└── README.md                # instruções básicas
+```
+
+Edite `MeuProjeto/.sysdoc/config.yaml` com o `vps_host` e `vps_path` se for fazer deploy.
+
+### 2. Coloque os documentos
+
+- `MeuProjeto/ETP.pdf` — Estudo Técnico Preliminar (obrigatório)
+- `MeuProjeto/TR.pdf` — Termo de Referência (obrigatório)
+- `MeuProjeto/modelos/` — Referências (modelos Delic, jurisprudência, etc.) (obrigatório, no mínimo 1 arquivo)
+
+### 3. Prepare o contexto
+
+```bash
+sysdoc analyze MeuProjeto
+```
+
+A CLI:
+- Roda `prepare` automaticamente se o cache ainda não existe
+- Extrai texto de PDF/DOCX para `.sysdoc/cache/textos/`
+- Gera `contexto_sysdoc.md` (mapa determinístico que economiza tokens da IA)
+- Imprime os caminhos para o agente
+
+Você pode passar uma instrução de foco:
+
+```bash
+sysdoc analyze MeuProjeto -i "foco em garantia contratual e sanções"
+```
+
+### 4. Peça a análise ao seu agente de IA
+
+Abra o chat do seu agente **na pasta do SysDoc**. Os agentes que reconhecem o slash `/sysdoc` (Claude Code, OpenCode, etc.) entendem comandos como:
+
+```
+/sysdoc analyze MeuProjeto foco em garantia contratual
+```
+
+Para harnesses sem skill instalada, o atalho é igual:
+
+```
+sysdoc analyze MeuProjeto
+```
+
+O agente lê `skills/sysdoc/SKILL.md` (fonte única de verdade), o `contexto_sysdoc.md`, os textos extraídos, aplica as **lentes obrigatórias** (técnica, jurídica, Delic/modelos, consistência ETP×TR) e produz `MeuProjeto/dados_consolidados.json` no schema canônico (`templates/schema_sysdoc.json`).
+
+### 5. Valide, versione e renderize
+
+```bash
+sysdoc publish MeuProjeto
+```
+
+Faz três coisas em sequência:
+1. `sysdoc validate` — checa schema, coerência classificação×severidade×risco, acentuação PT-BR, rastreabilidade do `de`.
+2. Versiona o JSON: `dados_consolidados_[modelo_ia]_[data].json`.
+3. Renderiza HTML imutável: `analise_[modelo_ia]_[data].html`.
+
+Se a validação falhar, o agente lê os erros, corrige o JSON e roda `publish` de novo.
+
+### 6. Faça o deploy
+
+```bash
+sysdoc deploy MeuProjeto
+```
+
+Lê `vps_host` / `vps_path` de `.sysdoc/config.yaml`, descobre o próximo `index{N}.html` livre via SSH e envia por SCP. Se o config estiver vazio, usa o fallback hardcoded.
+
+### 7. Compare versões (opcional)
+
+```bash
+sysdoc compare MeuProjeto
+```
+
+Tabela com modelo, data, número de itens, bloqueantes e relevantes — útil quando múltiplas IAs analisaram o mesmo processo.
+
+---
+
+## Macro `sysdoc all` (orquestração pelo agente)
+
+Se quiser fazer tudo em um comando, peça ao agente:
+
+```
+/sysdoc all MeuProjeto
+```
+
+O agente orquestra as etapas 3–6 acima:
+
+1. `sysdoc analyze MeuProjeto`
+2. Lê o cache, gera `dados_consolidados.json`
+3. `sysdoc publish MeuProjeto` (valida, versiona, renderiza — corrige iterativamente se a validação falhar)
+4. `sysdoc deploy MeuProjeto`
+
+---
+
+## Comandos da CLI
+
+| Comando | Determinístico | O que faz |
+|---------|----------------|-----------|
+| `sysdoc status` | sim | Lista projetos na pasta atual com flags ETP/TR/MODELOS/JSON/HTML/PREP. |
+| `sysdoc init [pasta]` | sim | Cria estrutura base + `.sysdoc/config.yaml`. |
+| `sysdoc prepare [pasta]` | sim | Extrai PDFs/DOCX para `.sysdoc/cache/textos/` e gera `contexto_sysdoc.md`. |
+| `sysdoc analyze [pasta] [-i "foco"]` | sim | Roda `prepare` se necessário e imprime os caminhos para o agente. |
+| `sysdoc validate [pasta]` | sim | Valida `dados_consolidados.json` (schema + coerência + PT-BR + rastreabilidade). |
+| `sysdoc render [pasta]` | sim | Renderiza HTML a partir do JSON sem versionar. |
+| `sysdoc publish [pasta]` | sim | Valida + versiona JSON por modelo/data + renderiza HTML. |
+| `sysdoc deploy [pasta]` | sim | Envia o HTML mais recente para a VPS por SSH/SCP. |
+| `sysdoc compare [pasta]` | sim | Compara versões geradas (modelo, data, contagem de riscos). |
+
+Todos os comandos são **offline** e **não chamam LLM**. A análise vem do agente de IA que você está usando.
+
+---
+
+## Suporte multi-harness
+
+Cada harness tem um wrapper fino que delega ao SKILL canônico:
+
+| Harness | Wrapper | Como acionar |
+|---------|---------|--------------|
+| Claude Code | `.claude/skills/sysdoc-analise/SKILL.md` | `/sysdoc`, `sysdoc analyze`, "análise de licitação" |
+| OpenCode | `.opencode/skills/sysdoc-analise/SKILL.md` | `/sysdoc`, `sysdoc analyze`, "análise de licitação" |
+| Outros (Codex, Antigravity, Cline, Gemini CLI, Cursor) | `AGENTS.md` na raiz | Leia `AGENTS.md` + `skills/sysdoc/SKILL.md`, depois rode `sysdoc analyze` |
+
+A fonte única de verdade operacional é `skills/sysdoc/SKILL.md` (IA-agnóstica). Os wrappers só adicionam dicas específicas do harness (ex.: MCP `PDF_Tools` no Claude Code, Bash-only no OpenCode).
+
+---
+
+## Estrutura de um projeto
+
+```
+MeuProjeto/
+├── ETP.pdf                                # obrigatório
+├── TR.pdf                                 # obrigatório
+├── modelos/                               # obrigatório (≥ 1 arquivo)
+│   └── ...                                # PDF, DOCX, TXT, MD
+├── .sysdoc/
+│   ├── config.yaml                        # projeto, vps_host, vps_path, modelo_ia_padrao
+│   └── cache/
+│       ├── manifest.json
+│       ├── contexto_sysdoc.md             # mapa determinístico para a IA
+│       └── textos/
+│           ├── ETP.txt
+│           ├── TR.txt
+│           └── REF-*.txt
+├── dados_consolidados.json                # produzido pelo agente de IA
+├── dados_consolidados_[modelo]_[data].json # versionado por publish
+└── analise_[modelo]_[data].html           # relatório final
+```
+
+Pastas reservadas (nunca tratadas como projeto): `.git`, `.claude`, `.opencode`, `backup`, `skills`, `templates`.
+
+---
+
+## Dicas importantes
+
+- **PDF escaneado:** se o PDF não tiver camada de texto, a extração retorna conteúdo curto. O SysDoc avisa em `prepare`. Use `pdftotext -layout` ou OCR antes.
+- **`modelo_ia` no JSON:** sempre o slug real do modelo que produziu a análise (`claude-sonnet-4-6`, `gpt-5`, `gemini-2-5-pro`). Valores genéricos (`ia`, `modelo`) reprovam na validação.
+- **Português culto:** todos os campos gerados devem estar em norma culta com acentuação correta. Exceção: o campo `de` preserva literalidade do documento original.
+- **Templates imutáveis:** `templates/analise_template.html`, `templates/render_analise.py` e `templates/validate_sysdoc.py` **não** podem ser editados durante uma análise. O HTML é sempre produto do renderizador determinístico.
+- **Histórico:** cada `publish` cria um novo `analise_*.html` com modelo + data; o anterior fica intacto. Múltiplas IAs operam o mesmo projeto sem sobrescrever.
+- **Configuração de deploy:** edite `MeuProjeto/.sysdoc/config.yaml` — se `vps_host` / `vps_path` ficarem em branco, `deploy` cai no fallback hardcoded.
+
+---
+
+## Documentação adicional
+
+- `skills/sysdoc/SKILL.md` — fluxo canônico IA-agnóstico (lentes, schema, exemplos, checklist)
+- `AGENTS.md` — instruções genéricas para qualquer harness de IA
+- `CLAUDE.md` — notas específicas do Claude Code
+- `CHANGELOG.md` — histórico de versões
+- `.planning/` — artefatos GSD (PROJECT.md, ROADMAP.md, STATE.md, fases)
