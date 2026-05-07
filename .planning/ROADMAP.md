@@ -22,9 +22,9 @@
 3. Help contextual para cada comando
 
 **Requirements:**
-- [ ] **SYSD-01**: Refatorar argparse para aceitar /sysdoc prefix (mant compat)
-- [ ] **SYSD-02**: Adicionar estrutura de projeto .sysdoc/config.yaml
-- [ ] **SYSD-03**: Documentar formato de invocation em AGENTS.md
+- [x] **SYSD-01**: Refatorar argparse para aceitar /sysdoc prefix (mant compat)
+- [x] **SYSD-02**: Adicionar estrutura de projeto .sysdoc/config.yaml
+- [x] **SYSD-03**: Documentar formato de invocation em AGENTS.md
 
 ---
 

@@ -7,9 +7,9 @@
 
 ### CLI Interface
 
-- [ ] **SYSD-01**: CLI aceita /sysdoc prefix (compatibilidade com agentes)
-- [ ] **SYSD-02**: Estrutura .sysdoc/config.yaml por projeto
-- [ ] **SYSD-03**: Help contextual para cada comando
+- [x] **SYSD-01**: CLI aceita /sysdoc prefix (compatibilidade com agentes)
+- [x] **SYSD-02**: Estrutura .sysdoc/config.yaml por projeto
+- [x] **SYSD-03**: Help contextual para cada comando
 
 ### Document Generation
 
@@ -41,9 +41,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SYSD-01 | Phase 1 | Pending |
-| SYSD-02 | Phase 1 | Pending |
-| SYSD-03 | Phase 1 | Pending |
+| SYSD-01 | Phase 1 | ✅ Complete |
+| SYSD-02 | Phase 1 | ✅ Complete |
+| SYSD-03 | Phase 1 | ✅ Complete |
 | SYSD-04 | Phase 2 | Pending |
 | SYSD-05 | Phase 2 | Pending |
 | SYSD-06 | Phase 3 | Pending |
