@@ -727,7 +727,7 @@ def build_parser() -> argparse.ArgumentParser:
               python sysdoc.py status
               python sysdoc.py init .
               python sysdoc.py all .
-              python sysdoc.py config . --vps-host root@host --vps-path /var/www/html
+              python sysdoc.py config -vps root@host -path /var/www/html .
               python sysdoc.py prepare Combustivel
               python sysdoc.py validate Combustivel
               python sysdoc.py render Combustivel
@@ -756,8 +756,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Mostra ou atualiza .sysdoc/config.yaml do projeto.",
     )
     config_parser.add_argument("project", nargs="?", default=".", help="Pasta do projeto SysDoc.")
-    config_parser.add_argument("--vps-host", help="Host SSH da VPS, ex.: root@servidor.")
-    config_parser.add_argument("--vps-path", help="Pasta remota onde o HTML será publicado.")
+    config_parser.add_argument(
+        "-vps",
+        dest="vps_host",
+        help="Host SSH da VPS, ex.: root@servidor.",
+    )
+    config_parser.add_argument(
+        "--vps-host",
+        dest="vps_host",
+        help=argparse.SUPPRESS,
+    )
+    config_parser.add_argument(
+        "-path",
+        dest="vps_path",
+        help="Pasta remota onde o HTML será publicado.",
+    )
+    config_parser.add_argument(
+        "--vps-path",
+        dest="vps_path",
+        help=argparse.SUPPRESS,
+    )
     config_parser.add_argument("--modelo-ia-padrao", help="Slug do modelo de IA preferido para o projeto.")
 
     compare_parser = sub.add_parser("compare", help="Compara versões de análise de um projeto.")

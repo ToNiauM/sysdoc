@@ -177,6 +177,30 @@ class TestConfigCommand:
         assert data["vps_path"] == "/var/www/sysdoc"
         assert data["modelo_ia_padrao"] == "gpt-5"
 
+    def test_config_cli_accepts_short_vps_and_path_flags(self, tmp_path):
+        project_dir = tmp_path / "ProjetoConfigCurto"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "sysdoc.py"),
+                "config",
+                "-vps",
+                "root@exemplo",
+                "-path",
+                "/var/www/sysdoc",
+                str(project_dir),
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+
+        assert result.returncode == 0
+        data = yaml.safe_load((project_dir / ".sysdoc" / "config.yaml").read_text(encoding="utf-8"))
+        assert data["vps_host"] == "root@exemplo"
+        assert data["vps_path"] == "/var/www/sysdoc"
+
 
 class TestProjectPaths:
     def test_project_paths_includes_config(self, tmp_path, monkeypatch):

@@ -17,6 +17,7 @@ sysdoc status                            # lista projetos e estado operacional
 sysdoc init [pasta]                      # cria estrutura base + .sysdoc/config.yaml
 sysdoc prepare [pasta]                   # extrai PDFs/DOCX para .sysdoc/cache/
 sysdoc analyze [pasta] [-i "instrução"]  # prepare + imprime caminhos para o agente
+sysdoc config -vps <host> -path <dir> [pasta] # configura VPS e pasta remota
 sysdoc validate [pasta]                  # valida dados_consolidados.json
 sysdoc render [pasta]                    # renderiza HTML a partir do JSON
 sysdoc publish [pasta]                   # validate + versionar JSON + render

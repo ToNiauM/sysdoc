@@ -14,7 +14,7 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 ### Adicionado
 
 - **`sysdoc all [pasta]`** (`sysdoc.py`): novo atalho determinístico que inicializa a estrutura do projeto e recria o cache (`prepare`) para deixar `contexto_sysdoc.md`, `manifest.json` e textos extraídos prontos para o agente de IA gerar `dados_consolidados.json`.
-- **`sysdoc config [pasta] --vps-host ... --vps-path ... --modelo-ia-padrao ...`** (`sysdoc.py`): novo comando para mostrar ou atualizar `.sysdoc/config.yaml`, incluindo dados de deploy da VPS e pasta remota do HTML.
+- **`sysdoc config -vps root@ip -path /opt/web/... [pasta]`** (`sysdoc.py`): novo comando para mostrar ou atualizar `.sysdoc/config.yaml`, incluindo dados de deploy da VPS e pasta remota do HTML.
 - **Phase 1 / GSD CLI-style** — SysDoc agora é invocável como sistema estilo GSD por agentes de IA via `/sysdoc [comando]`.
 - **`sysdoc analyze [pasta] [-i instrução]`** (`sysdoc.py`): novo subcomando que roda `prepare` automaticamente quando o cache não existe e imprime os caminhos do contexto e dos textos extraídos. Aceita `--instruction` / `-i` para foco temático.
 - **`.sysdoc/config.yaml`** (`sysdoc.py`): novo arquivo de configuração por projeto com `projeto`, `vps_host`, `vps_path` e `modelo_ia_padrao`. Criado automaticamente por `sysdoc init`.
@@ -24,7 +24,7 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 - **`pyyaml>=6.0`** (`pyproject.toml`): adicionado às dependências.
 - **`.opencode/skills/sysdoc-analise/SKILL.md`**: wrapper OpenCode equivalente ao Claude Code, sem MCP, prefere `sysdoc analyze` via Bash.
 - **`AGENTS.md`**: arquivo genérico com instruções, comandos e regras-chave para todos os harnesses (Codex, Antigravity, Cline, Gemini CLI, etc.).
-- **`tests/test_cli.py`**: 14 testes cobrindo `analyze`, `init`, `all`, `config`, `ProjectPaths.config`, formato YAML e `load_config`.
+- **`tests/test_cli.py`**: 15 testes cobrindo `analyze`, `init`, `all`, `config`, `ProjectPaths.config`, formato YAML e `load_config`.
 
 ### Corrigido
 
@@ -33,6 +33,7 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 ### Atualizado
 
 - **`skills/sysdoc/SKILL.md`**: macros de acionamento incluem `/sysdoc analyze` e placeholder `/sysdoc create`. Fluxo `sysdoc all` agora começa por `sysdoc analyze`.
+- **`README.md`**: fluxo principal reescrito em passos curtos do `init` ao `deploy`, com explicações mínimas entre comandos.
 - **`.claude/skills/sysdoc-analise/SKILL.md`**: triggers atualizados para `/sysdoc`, `sysdoc analyze`, `sysdoc deploy`, `sysdoc create`. Exemplos usam `sysdoc` direto em vez de `python sysdoc.py`.
 - **`CLAUDE.md`**: referência a `AGENTS.md` para outros agentes.
 
