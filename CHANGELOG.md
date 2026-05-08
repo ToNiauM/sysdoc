@@ -8,6 +8,7 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 ### Adicionado
 
+- **`GSD_WORKFLOW_SYSDOC.md`**: guia operacional para usar GSD especificamente no desenvolvimento do SysDoc CLI, separando o fluxo de evolução do produto (`$gsd-*`) do fluxo de análise documental (`/sysdoc ...`).
 - **`sysdoc analyze` com handoff visual** (`sysdoc.py`): saída do comando reformulada como diagrama ASCII em caixa, deixando explícito que a CLI **não** executa análise — análise acontece dentro de um harness de IA. O diagrama lista os harnesses suportados (Claude Code, OpenCode, Codex CLI, Gemini CLI) e mostra o slash command exato (`/sysdoc analyze <pasta>`) para colar no chat do harness.
 - **`sysdoc analyze --dry-run`** (`sysdoc.py`): reimprime o handoff sem reextrair PDFs. Útil para reler instruções quando o cache já existe. Falha com código 1 e mensagem clara se o cache estiver ausente.
 - **`sysdoc guia [pasta]`** (`sysdoc.py`): novo comando de onboarding interativo. Verifica `ETP.pdf`, `TR.pdf` e `modelos/`, oferece configurar VPS no `.sysdoc/config.yaml`, pergunta qual harness o usuário usa e salva `.sysdoc/cache/roteiro.txt` com os comandos exatos para o projeto. Detecta `sys.stdin.isatty() is False` e sai com 1 + dica de `sysdoc analyze --dry-run` (proteção contra travar em pipe ou dentro de harness).
