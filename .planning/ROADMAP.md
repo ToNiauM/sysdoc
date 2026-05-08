@@ -35,6 +35,10 @@
 
 **Mode:** standard
 
+**Planning:** `.planning/phases/02-comando-create-word-pdf/02-01-PLAN.md`
+
+**Wave 1:** Implementa `sysdoc create` para TR `.docx`, incluindo template Word, helpers determinísticos, parser, testes e documentação.
+
 **Success Criteria:**
 1. Gera arquivo .docx a partir de template
 2. Preenche campos de dados_consolidados.json
