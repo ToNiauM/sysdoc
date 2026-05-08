@@ -7,6 +7,7 @@
 | 1 | Preparar CLI para agentes de IA | SYSD-01, SYSD-02, SYSD-03 | 3/3 |
 | 2 | Implementar comando create (Word) | SYSD-04, SYSD-05 | 2/2 |
 | 3 | Documentar integração com agentes | SYSD-06, SYSD-07 | 2/2 |
+| 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 
 ---
 
@@ -62,5 +63,27 @@
 
 ---
 
-*Phases: 3 | Requirements: 7*
+### Phase 4: Clareza de UX
+
+**Goal:** Eliminar a ambiguidade de `sysdoc analyze` deixando explícito que a CLI prepara o cache e a IA faz a análise dentro de um harness. A CLI permanece 100% determinística e nunca chama LLMs — princípio permanente, não TODO futuro.
+
+**Mode:** standard
+
+**Success Criteria:**
+1. `sysdoc analyze` exibe handoff visual em diagrama ASCII com slash command e harnesses suportados
+2. `sysdoc guia` conduz o usuário passo a passo até o harness, com guarda de TTY
+3. `sysdoc analyze --dry-run` reimprime o handoff sem reextrair PDFs
+4. Nenhum texto da CLI menciona `--auto`, OpenRouter, API key ou modo autônomo
+5. Suite de testes cobre handoff, dry-run e guia, com regressão para o princípio offline
+
+**Requirements:**
+- [x] **SYSD-08**: Refatorar `print_analysis_handoff()` em diagrama ASCII com Claude Code, OpenCode, Codex CLI e Gemini CLI
+- [x] **SYSD-09**: Adicionar flag `--dry-run` em `analyze` (reimprime handoff sem reextrair)
+- [x] **SYSD-10**: Implementar `sysdoc guia` com wizard interativo e proteção `isatty()`
+- [x] **SYSD-11**: Cobrir handoff/dry-run/guia em `tests/test_cli.py`, incluindo regressão "no LLM mention"
+- [x] **SYSD-12**: Documentar comandos em README e CHANGELOG sem alterar SKILL.md, AGENTS.md ou wrappers
+
+---
+
+*Phases: 4 | Requirements: 12*
 *Generated: 2026-05-07*

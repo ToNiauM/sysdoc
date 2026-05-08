@@ -4,6 +4,24 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 ---
 
+## [1.3.0] — 2026-05-08
+
+### Adicionado
+
+- **`sysdoc analyze` com handoff visual** (`sysdoc.py`): saída do comando reformulada como diagrama ASCII em caixa, deixando explícito que a CLI **não** executa análise — análise acontece dentro de um harness de IA. O diagrama lista os harnesses suportados (Claude Code, OpenCode, Codex CLI, Gemini CLI) e mostra o slash command exato (`/sysdoc analyze <pasta>`) para colar no chat do harness.
+- **`sysdoc analyze --dry-run`** (`sysdoc.py`): reimprime o handoff sem reextrair PDFs. Útil para reler instruções quando o cache já existe. Falha com código 1 e mensagem clara se o cache estiver ausente.
+- **`sysdoc guia [pasta]`** (`sysdoc.py`): novo comando de onboarding interativo. Verifica `ETP.pdf`, `TR.pdf` e `modelos/`, oferece configurar VPS no `.sysdoc/config.yaml`, pergunta qual harness o usuário usa e salva `.sysdoc/cache/roteiro.txt` com os comandos exatos para o projeto. Detecta `sys.stdin.isatty() is False` e sai com 1 + dica de `sysdoc analyze --dry-run` (proteção contra travar em pipe ou dentro de harness).
+- **UTF-8 em stdout/stderr** (`sysdoc.py`): `main()` reconfigura ambos os streams para UTF-8 com `errors='replace'`, eliminando `UnicodeEncodeError` em consoles Windows que rodam em cp1252.
+- **`tests/test_cli.py`**: 12 novos testes em `TestHandoffBox`, `TestAnalyzeDryRun` e `TestGuia`. Inclui regressão "no LLM mention" que falha se o handoff voltar a citar `--auto`, `OpenRouter`, `API key` ou `autônomo` — princípio permanente de CLI determinística.
+
+### Atualizado
+
+- **`VERSION`** (`sysdoc.py`): 1.2.0 → 1.3.0.
+- **`README.md`**: descrição de `analyze` ajustada para refletir o handoff visual e o novo `--dry-run`; entrada de `sysdoc guia` adicionada à tabela de comandos.
+- **`.planning/ROADMAP.md`**: Phase 4 reescrita alinhada ao princípio "CLI determinística, análise no harness". Os requisitos antigos que previam `--auto`/OpenRouter foram substituídos pelos efetivamente entregues (`SYSD-08` a `SYSD-12`).
+
+---
+
 ## [1.2.0] — 2026-05-07
 
 ### Removido

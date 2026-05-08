@@ -36,7 +36,7 @@ SUPPORTED_REFERENCE_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
 DEFAULT_LLM_MODEL = "openai/gpt-4o-mini"
 MAX_LLM_CONTEXT_CHARS = int(os.environ.get("SYSDOC_MAX_LLM_CONTEXT_CHARS", "700000"))
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 CONFIG_FILE = Path.home() / ".sysdoc" / "config.json"
 

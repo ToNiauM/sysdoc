@@ -218,13 +218,14 @@ sysdoc compare Aquisicao-Combustivel-2026
 | `sysdoc config -vps <usuario@host> -path <caminho> [pasta]` | Atualiza a VPS e a pasta remota em `.sysdoc/config.yaml`. Sem flags, mostra a configuração atual. |
 | `sysdoc prepare [pasta]` | Extrai texto de `ETP.pdf`, `TR.pdf` e arquivos em `modelos/` para `.sysdoc/cache/textos/`. Gera `contexto_sysdoc.md` e `manifest.json`. |
 | `sysdoc all [pasta]` | Inicializa a estrutura e prepara o cache para o agente de IA. |
-| `sysdoc analyze [pasta] [-i "instrução"]` | Roda `prepare` se o cache não existir e imprime os caminhos para o agente de IA. Aceita `--instruction`/`-i` para foco temático. |
+| `sysdoc analyze [pasta] [-i "instrução"] [--dry-run]` | Prepara o cache (se ausente) e exibe um handoff visual com o slash command exato (`/sysdoc analyze <pasta>`) para colar no harness de IA. Aceita `--instruction`/`-i` para foco temático e `--dry-run` para reimprimir o handoff sem reextrair PDFs. |
+| `sysdoc guia [pasta]` | Wizard interativo de onboarding: verifica entradas obrigatórias, oferece configurar a VPS, pergunta qual harness será usado e gera `.sysdoc/cache/roteiro.txt` com os comandos exatos para o projeto. Requer terminal interativo. |
 | `sysdoc validate [pasta]` | Valida `dados_consolidados.json` contra o schema, regras de coerência, acentuação PT-BR e rastreabilidade do campo `de`. |
 | `sysdoc render [pasta]` | Renderiza HTML a partir do JSON existente, sem versionar. |
 | `sysdoc publish [pasta]` | Executa `validate` + versionamento de JSON por modelo+data + `render`. |
 | `sysdoc deploy [pasta]` | Envia o HTML mais recente para a VPS via SSH/SCP, descobrindo o próximo `index{N}.html` livre. Lê `vps_host`/`vps_path` de `.sysdoc/config.yaml`. |
 | `sysdoc compare [pasta]` | Lista todos os JSONs versionados do projeto com modelo, data, contagem de itens, bloqueantes e relevantes. |
-| `sysdoc --version` | Exibe a versão instalada (1.2.0). |
+| `sysdoc --version` | Exibe a versão instalada (1.3.0). |
 
 Todos os comandos retornam código de saída convencional: 0 para sucesso, não-zero para falha. Nenhum comando faz chamadas a modelos de linguagem.
 
