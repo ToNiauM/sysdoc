@@ -437,16 +437,54 @@ def analyze(project: str, instruction: str = "") -> int:
     return 0
 
 
-def print_analysis_handoff(paths: ProjectPaths, instruction: str = "") -> None:
-    print(f"Contexto: {rel(paths.context)}")
-    print(f"Textos extraídos: {rel(paths.source_cache)}")
-    if paths.manifest.is_file():
-        print(f"Manifest: {rel(paths.manifest)}")
+def _render_handoff_box(paths: ProjectPaths, instruction: str = "") -> str:
+    project_name = paths.root.name or "."
+    width = 72
+    inner = width - 4
+
+    def line(text: str = "") -> str:
+        if len(text) > inner:
+            text = text[: inner - 1] + "…"
+        return "║ " + text.ljust(inner) + " ║"
+
+    border_top = "╔" + "═" * (width - 2) + "╗"
+    border_mid = "╠" + "═" * (width - 2) + "╣"
+    border_bot = "╚" + "═" * (width - 2) + "╝"
+
+    rows: list[str] = [border_top, line("CACHE PREPARADO".center(inner)), border_mid, line()]
+    rows.append(line("Os textos de ETP.pdf e TR.pdf foram extraídos e estão prontos."))
+    rows.append(line())
+    rows.append(line("▸ A CLI do SysDoc NÃO executa análise."))
+    rows.append(line("  A análise é feita pela IA dentro de um harness."))
+    rows.append(line())
     if instruction:
-        print(f"Instrução adicional: {instruction}")
-    print("")
-    print("Próximo passo: o Agente de IA deve ler os arquivos acima,")
-    print("gerar dados_consolidados.json e rodar 'sysdoc publish'.")
+        prefix = "Instrução adicional: "
+        avail = max(inner - len(prefix), 8)
+        wrapped = textwrap.wrap(instruction, width=avail) or [""]
+        rows.append(line(f"{prefix}{wrapped[0]}"))
+        for cont in wrapped[1:]:
+            rows.append(line(" " * len(prefix) + cont))
+        rows.append(line())
+    rows.append(line("ANÁLISE — abra um harness de IA na pasta do projeto e digite:"))
+    rows.append(line())
+    rows.append(line(f"    /sysdoc analyze {project_name}"))
+    rows.append(line())
+    rows.append(line("Harnesses suportados:"))
+    rows.append(line("    • Claude Code        • OpenCode"))
+    rows.append(line("    • Codex CLI          • Gemini CLI"))
+    rows.append(line())
+    rows.append(line("Não sabe por onde começar?"))
+    rows.append(line(f"    sysdoc guia {project_name}"))
+    rows.append(line())
+    rows.append(border_bot)
+    rows.append("")
+    rows.append(f"Cache:    {rel(paths.cache)}")
+    rows.append(f"Contexto: {rel(paths.context)}")
+    return "\n".join(rows)
+
+
+def print_analysis_handoff(paths: ProjectPaths, instruction: str = "") -> None:
+    print(_render_handoff_box(paths, instruction=instruction))
 
 
 def status() -> int:
@@ -803,6 +841,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "init":
