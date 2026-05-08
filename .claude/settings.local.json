@@ -18,7 +18,8 @@
       "Bash(python -m pytest tests/ -v)",
       "Bash(python -m pytest tests/test_cli.py -v)",
       "Bash(python sysdoc.py --version)",
-      "Bash(python sysdoc.py --help)"
+      "Bash(python sysdoc.py --help)",
+      "Bash(git push *)"
     ]
   }
 }
