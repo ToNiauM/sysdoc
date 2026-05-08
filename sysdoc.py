@@ -427,6 +427,135 @@ def prepare(project: str) -> int:
     return 0
 
 
+HARNESS_OPTIONS: list[tuple[str, str | None]] = [
+    ("Claude Code", "claude"),
+    ("OpenCode", "opencode"),
+    ("Codex CLI", "codex"),
+    ("Gemini CLI", "gemini"),
+    ("Outro / não tenho certeza", None),
+]
+
+
+def _guia_check_inputs(paths: ProjectPaths) -> list[str]:
+    missing: list[str] = []
+    if _find_file_case_insensitive(paths.root, "ETP.pdf") is None:
+        missing.append("ETP.pdf")
+    if _find_file_case_insensitive(paths.root, "TR.pdf") is None:
+        missing.append("TR.pdf")
+    if paths.modelos is None:
+        missing.append("modelos/ (pasta com referências)")
+    return missing
+
+
+def _guia_offer_vps(paths: ProjectPaths) -> None:
+    config = load_config(paths)
+    if config.get("vps_host") and config.get("vps_path"):
+        return
+    resp = input("VPS de deploy não configurada. Configurar agora? [s/N] ").strip().lower()
+    if resp not in {"s", "sim", "y", "yes"}:
+        return
+    host = input("Host SSH (ex.: usuario@servidor): ").strip()
+    remote = input("Pasta remota (ex.: /var/www/html): ").strip()
+    if not (host and remote):
+        print("Configuração cancelada (host ou pasta remota em branco).")
+        return
+    new_config = dict(config) if config else {}
+    new_config["vps_host"] = host
+    new_config["vps_path"] = remote
+    new_config.setdefault("projeto", paths.root.name)
+    new_config.setdefault("modelo_ia_padrao", "")
+    write_config(paths, new_config)
+    print(f"Configuração salva em {rel(paths.config)}")
+
+
+def _guia_pick_harness() -> int | None:
+    print("")
+    print("Qual harness de IA você vai usar para a análise?")
+    for index, (name, _) in enumerate(HARNESS_OPTIONS, start=1):
+        print(f"  {index}) {name}")
+    for _ in range(3):
+        resp = input("Escolha [1-5]: ").strip()
+        if resp.isdigit() and 1 <= int(resp) <= len(HARNESS_OPTIONS):
+            return int(resp)
+        print("Resposta inválida. Digite o número da opção.")
+    return None
+
+
+def _guia_render_instructions(name: str, binary: str | None, project_arg: str, paths: ProjectPaths) -> str:
+    full_slash = f"/sysdoc analyze {project_arg}"
+    lines = ["", f"Próximos passos para {name}:"]
+    if binary:
+        lines.append(f"  1) Abra um terminal nesta pasta: cd {rel(paths.root)}")
+        lines.append(f"  2) Inicie o harness: {binary}")
+        lines.append(f"  3) No chat do harness, digite: {full_slash}")
+    else:
+        lines.append("  Wrappers disponíveis:")
+        lines.append("    .claude/skills/sysdoc-analise/SKILL.md")
+        lines.append("    .opencode/skills/sysdoc-analise/SKILL.md")
+        lines.append("    AGENTS.md (Codex, Gemini, Cursor, Antigravity, Cline)")
+        lines.append(f"  Em qualquer harness, digite: {full_slash}")
+    lines.append("")
+    lines.append("Depois que a IA gerar dados_consolidados.json:")
+    lines.append(f"  sysdoc validate {project_arg}")
+    lines.append(f"  sysdoc publish {project_arg}")
+    lines.append(f"  sysdoc deploy {project_arg}")
+    return "\n".join(lines)
+
+
+def _guia_write_roteiro(paths: ProjectPaths, name: str, binary: str | None, project_arg: str) -> Path:
+    paths.cache.mkdir(parents=True, exist_ok=True)
+    roteiro_path = paths.cache / "roteiro.txt"
+    full_slash = f"/sysdoc analyze {project_arg}"
+    lines = [
+        f"Projeto: {project_arg}",
+        f"Pasta: {rel(paths.root)}",
+        f"Harness escolhido: {name}",
+    ]
+    if binary:
+        lines.append(f"Comando para abrir o harness: {binary}")
+    lines.append(f"Slash command: {full_slash}")
+    lines.append("")
+    lines.append("Próximos comandos da CLI:")
+    lines.append(f"  sysdoc validate {project_arg}")
+    lines.append(f"  sysdoc publish {project_arg}")
+    lines.append(f"  sysdoc deploy {project_arg}")
+    roteiro_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return roteiro_path
+
+
+def guia(project: str) -> int:
+    if not sys.stdin.isatty():
+        print("guia interativo requer terminal interativo.")
+        print("Para ver o handoff sem interação, use: sysdoc analyze <pasta> --dry-run")
+        return 1
+    paths = project_paths(project)
+    missing = _guia_check_inputs(paths)
+    if missing:
+        print(f"Faltam entradas em {rel(paths.root)}:")
+        for item in missing:
+            print(f"  - {item}")
+        print("")
+        print("Copie esses arquivos para a pasta e rode 'sysdoc guia' novamente.")
+        return 1
+    _guia_offer_vps(paths)
+    choice = _guia_pick_harness()
+    if choice is None:
+        print("Tentativas esgotadas. Rode 'sysdoc guia' novamente.")
+        return 1
+    name, binary = HARNESS_OPTIONS[choice - 1]
+    print("")
+    print("Preparando cache...")
+    rc = prepare(str(paths.root))
+    if rc != 0:
+        return rc
+    project_arg = paths.root.name or "."
+    print(_guia_render_instructions(name, binary, project_arg, paths))
+    roteiro_path = _guia_write_roteiro(paths, name, binary, project_arg)
+    print("")
+    print(f"Roteiro salvo: {rel(roteiro_path)}")
+    return 0
+
+
 def analyze(project: str, instruction: str = "", dry_run: bool = False) -> int:
     paths = project_paths(project)
     if dry_run:
@@ -845,6 +974,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Reimprime o handoff sem reextrair PDFs (exige cache existente).",
     )
 
+    guia_parser = sub.add_parser(
+        "guia",
+        help="Wizard interativo de onboarding para o harness de IA.",
+    )
+    guia_parser.add_argument("project", nargs="?", default=".", help="Pasta do projeto SysDoc.")
+
     for command in ("prepare", "validate", "render", "publish"):
         item = sub.add_parser(command, help=f"Executa {command} em um projeto.")
         item.add_argument("project", help="Pasta do projeto SysDoc.")
@@ -888,6 +1023,8 @@ def main(argv: list[str] | None = None) -> int:
         return compare(args.project)
     if args.command == "analyze":
         return analyze(args.project, instruction=args.instruction, dry_run=args.dry_run)
+    if args.command == "guia":
+        return guia(args.project)
     parser.error("comando inválido")
     return 2
 
