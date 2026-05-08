@@ -427,8 +427,15 @@ def prepare(project: str) -> int:
     return 0
 
 
-def analyze(project: str, instruction: str = "") -> int:
+def analyze(project: str, instruction: str = "", dry_run: bool = False) -> int:
     paths = project_paths(project)
+    if dry_run:
+        if not paths.context.is_file():
+            print(f"Cache ausente em {rel(paths.cache)}.")
+            print("Rode 'sysdoc analyze' (sem --dry-run) ou 'sysdoc prepare' primeiro.")
+            return 1
+        print_analysis_handoff(paths, instruction=instruction)
+        return 0
     if not paths.context.is_file():
         result = prepare(project)
         if result != 0:
@@ -832,6 +839,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Instrução extra para a LLM (foco temático, severidade, etc.).",
     )
+    analyze_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Reimprime o handoff sem reextrair PDFs (exige cache existente).",
+    )
 
     for command in ("prepare", "validate", "render", "publish"):
         item = sub.add_parser(command, help=f"Executa {command} em um projeto.")
@@ -875,7 +887,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "compare":
         return compare(args.project)
     if args.command == "analyze":
-        return analyze(args.project, instruction=args.instruction)
+        return analyze(args.project, instruction=args.instruction, dry_run=args.dry_run)
     parser.error("comando inválido")
     return 2
 
