@@ -250,3 +250,163 @@ class TestConfigYamlFormat:
         paths = sysdoc.project_paths("SemConfig")
         config = sysdoc.load_config(paths)
         assert config == {}
+
+
+class TestHandoffBox:
+    def _make_paths(self, tmp_path: Path) -> sysdoc.ProjectPaths:
+        project_dir = tmp_path / "ProjetoHandoff"
+        project_dir.mkdir()
+        (project_dir / "modelos").mkdir()
+        return sysdoc.project_paths(str(project_dir))
+
+    def test_handoff_box_states_no_analysis(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        paths = self._make_paths(tmp_path)
+        output = sysdoc._render_handoff_box(paths)
+        assert "NÃO executa análise" in output
+
+    def test_handoff_box_lists_harnesses(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        paths = self._make_paths(tmp_path)
+        output = sysdoc._render_handoff_box(paths)
+        for harness in ("Claude Code", "OpenCode", "Codex", "Gemini"):
+            assert harness in output, f"harness {harness!r} ausente do handoff"
+
+    def test_handoff_box_shows_slash_command(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        paths = self._make_paths(tmp_path)
+        output = sysdoc._render_handoff_box(paths)
+        assert "/sysdoc analyze" in output
+
+    def test_handoff_box_contains_paths(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        paths = self._make_paths(tmp_path)
+        output = sysdoc._render_handoff_box(paths)
+        assert sysdoc.rel(paths.cache) in output
+        assert sysdoc.rel(paths.context) in output
+
+    def test_handoff_with_instruction(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        paths = self._make_paths(tmp_path)
+        output = sysdoc._render_handoff_box(paths, instruction="foco em garantia contratual")
+        assert "foco em garantia contratual" in output
+        assert "Instrução adicional" in output
+
+    def test_handoff_box_does_not_mention_auto(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        paths = self._make_paths(tmp_path)
+        output_lower = sysdoc._render_handoff_box(paths).lower()
+        for forbidden in ("--auto", "openrouter", "api key", "autônomo", "autonomo"):
+            assert forbidden not in output_lower, (
+                f"princípio violado: handoff menciona {forbidden!r}"
+            )
+
+
+class TestAnalyzeDryRun:
+    def test_analyze_dry_run_skips_prepare(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjDry"
+        project_dir.mkdir()
+        (project_dir / "modelos").mkdir()
+        cache = project_dir / ".sysdoc" / "cache"
+        cache.mkdir(parents=True)
+        ctx = cache / "contexto_sysdoc.md"
+        ctx.write_text("# original\n", encoding="utf-8")
+        original_mtime = ctx.stat().st_mtime
+
+        called: list[str] = []
+        monkeypatch.setattr(sysdoc, "prepare", lambda p: called.append(p) or 0)
+        monkeypatch.chdir(tmp_path)
+
+        rc = sysdoc.analyze("ProjDry", dry_run=True)
+        assert rc == 0
+        assert called == [], "dry-run não deve chamar prepare"
+        assert ctx.stat().st_mtime == original_mtime
+
+    def test_analyze_dry_run_without_cache_fails(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjNoCache"
+        project_dir.mkdir()
+        monkeypatch.chdir(tmp_path)
+
+        called: list[str] = []
+        monkeypatch.setattr(sysdoc, "prepare", lambda p: called.append(p) or 0)
+
+        rc = sysdoc.analyze("ProjNoCache", dry_run=True)
+        assert rc != 0
+        assert called == [], "dry-run sem cache não deve chamar prepare"
+
+
+class TestGuia:
+    def test_guia_help(self):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "sysdoc.py"), "guia", "--help"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        assert result.returncode == 0
+        assert "guia" in result.stdout.lower() or "project" in result.stdout.lower()
+
+    def test_guia_non_tty_returns_1(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjGNonTty"
+        project_dir.mkdir()
+        monkeypatch.chdir(tmp_path)
+
+        class FakeStdin:
+            def isatty(self) -> bool:
+                return False
+
+        monkeypatch.setattr(sys, "stdin", FakeStdin())
+        input_calls: list = []
+        monkeypatch.setattr("builtins.input", lambda *a, **kw: input_calls.append(a) or "")
+
+        rc = sysdoc.guia("ProjGNonTty")
+        assert rc == 1
+        assert input_calls == [], "guia em não-TTY não deve chamar input"
+
+    def test_guia_creates_roteiro(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjGRoteiro"
+        project_dir.mkdir()
+        (project_dir / "modelos").mkdir()
+        (project_dir / "ETP.pdf").write_bytes(b"%PDF-1.4\n")
+        (project_dir / "TR.pdf").write_bytes(b"%PDF-1.4\n")
+
+        class FakeStdin:
+            def isatty(self) -> bool:
+                return True
+
+        monkeypatch.setattr(sys, "stdin", FakeStdin())
+        responses = iter(["n", "1"])
+        monkeypatch.setattr("builtins.input", lambda *a, **kw: next(responses))
+
+        def fake_prepare(project: str) -> int:
+            paths = sysdoc.project_paths(project)
+            paths.source_cache.mkdir(parents=True, exist_ok=True)
+            paths.context.write_text("# ctx fake\n", encoding="utf-8")
+            return 0
+
+        monkeypatch.setattr(sysdoc, "prepare", fake_prepare)
+        monkeypatch.chdir(tmp_path)
+
+        rc = sysdoc.guia("ProjGRoteiro")
+        assert rc == 0
+        roteiro = project_dir / ".sysdoc" / "cache" / "roteiro.txt"
+        assert roteiro.is_file()
+        content = roteiro.read_text(encoding="utf-8")
+        assert "/sysdoc analyze" in content
+        assert "Claude Code" in content
+
+    def test_guia_missing_inputs(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjGFalta"
+        project_dir.mkdir()
+        monkeypatch.chdir(tmp_path)
+
+        class FakeStdin:
+            def isatty(self) -> bool:
+                return True
+
+        monkeypatch.setattr(sys, "stdin", FakeStdin())
+        monkeypatch.setattr("builtins.input", lambda *a, **kw: "")
+
+        rc = sysdoc.guia("ProjGFalta")
+        assert rc == 1
