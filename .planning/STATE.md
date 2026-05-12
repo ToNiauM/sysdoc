@@ -6,11 +6,11 @@ current_phase: 03
 status: ready_to_discuss
 last_updated: "2026-05-12T20:10:53.624Z"
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 2
   total_plans: 2
   completed_plans: 2
-  percent: 50
+  percent: 40
 ---
 
 # STATE — SysDoc
@@ -33,6 +33,7 @@ See: .planning/PROJECT.md
 | 2 | complete | 1/1 | 100% |
 | 3 | pending | 0/1 | 0% |
 | 4 | pending | 0/1 | 0% |
+| 5 | pending | 0/1 | 0% |
 
 ## Recent Changes
 
@@ -41,6 +42,7 @@ See: .planning/PROJECT.md
 - 2026-05-07: Phase 1 concluída — `sysdoc analyze`, `.sysdoc/config.yaml`, AGENTS.md, wrappers Claude Code/OpenCode e testes CLI.
 - 2026-05-08: Phase 2 planejada — `02-RESEARCH.md`, `02-PATTERNS.md` e `02-01-PLAN.md`.
 - 2026-05-12: Phase 2 concluída — `sysdoc create` gera DOCX determinístico a partir de JSON + templates em `referencias/`, com revisão ETP para `tipo=tr`; 67 testes passando.
+- 2026-05-12: Phase 5 adicionada — Templates TR a partir dos 4 modelos Lei 14.133 em `Referencias/`, com placeholders SysDoc anotados.
 
 ## Recent Decisions
 
