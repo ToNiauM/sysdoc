@@ -99,6 +99,7 @@ The SUMMARY.md for phase 02-01 does not contain a `## Threat Flags` section. No 
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-05-12 | 4 | 3 | 1 | gsd-security-auditor (claude-sonnet-4-6) |
+| 2026-05-12 | 4 | 3 | 1 | gsd-security-auditor (claude-sonnet-4-6) — re-verification: T-01/T-02/T-03 confirmed closed; T-04 disclaimer still absent from sysdoc.py `create()` stdout, README.md, AGENTS.md, and skills/sysdoc/SKILL.md |
 
 ---
 
