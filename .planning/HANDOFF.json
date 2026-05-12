@@ -1,0 +1,95 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-05-12T00:00:00-03:00",
+  "phase": "2",
+  "phase_name": "Comando Create (Word/PDF)",
+  "phase_dir": ".planning/phases/02-comando-create-word-pdf",
+  "plan": 1,
+  "task": 4,
+  "total_tasks": 5,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Generalizar estrutura de projeto para documentos/referencias/output",
+      "status": "done",
+      "commit": "ca4db6f"
+    },
+    {
+      "id": 2,
+      "name": "Adicionar helpers determinísticos de create/TR e revisão ETP",
+      "status": "in_progress",
+      "progress": "Working tree contém load_analysis_json, ensure_etp_text, applicable_etp_items, apply_etp_revisions, pending substitutions e seleção de template por categoria."
+    },
+    {
+      "id": 3,
+      "name": "Adicionar testes de create/TR",
+      "status": "in_progress",
+      "progress": "Working tree contém testes para revisão ETP, pendências, omissão, auto-prepare e seleção de template; suíte atual passa com 63 testes."
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 4,
+      "name": "Revisar e commit das mudanças pendentes de Phase 2",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "name": "Criar SUMMARY.md retroativo da Phase 2 para destravar gsd-add-tests",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Executar gsd-add-tests 2 após SUMMARY.md existir",
+      "status": "blocked"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "gsd-add-tests 2 não pode rodar porque não existe 02-SUMMARY.md.",
+      "type": "methodology",
+      "workaround": "Criar SUMMARY.md retroativo fiel ao trabalho implementado ou executar a fase formalmente via gsd-execute-phase."
+    }
+  ],
+  "human_actions_pending": [
+    {
+      "action": "Decidir se Phase 2 será formalizada por SUMMARY retroativo ou reexecutada via gsd-execute-phase.",
+      "context": "A implementação foi feita manualmente fora do executor GSD; add-tests exige SUMMARY.md de fase concluída.",
+      "blocking": true
+    },
+    {
+      "action": "Revisar a pasta não rastreada Referencias/ antes de qualquer commit.",
+      "context": "A pasta contém modelos DOCX de referência e pode ser insumo real do usuário; não deve ser adicionada automaticamente sem decisão.",
+      "blocking": false
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Estrutura alvo do projeto é documentos/, referencias/, output/ e .sysdoc/.",
+      "rationale": "Mantém a CLI simples e deixa especialização por tipo de documento para skills/modelos.",
+      "phase": "2"
+    },
+    {
+      "decision": "prepare extrai documentos e referencias separadamente.",
+      "rationale": "Preserva a distinção entre documentos analisados e material de apoio no cache.",
+      "phase": "2"
+    },
+    {
+      "decision": "create usa JSON e template DOCX de referencias/ ou --template.",
+      "rationale": "Mantém geração determinística e evita expor skills como conceito principal da CLI.",
+      "phase": "2"
+    }
+  ],
+  "uncommitted_files": [
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "README.md",
+    "skills/sysdoc/SKILL.md",
+    "sysdoc.py",
+    "tests/test_cli.py",
+    "Referencias/"
+  ],
+  "next_action": "Revisar as mudanças pendentes em sysdoc.py e tests/test_cli.py, decidir sobre Referencias/, rodar python -m pytest tests/ -v, commitá-las e então criar 02-SUMMARY.md.",
+  "context_notes": "A fase 2 está em estado híbrido: parte foi commitada em ca4db6f e há trabalho adicional não commitado que aproxima o plano original de create/TR. A suíte atual passa com 63 testes. O bloqueio principal é metodológico: falta SUMMARY.md para que gsd-add-tests aceite a fase como concluída."
+}
