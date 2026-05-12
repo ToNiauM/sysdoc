@@ -1,6 +1,6 @@
 # SysDoc
 
-Ferramenta de análise comparativa técnica e jurídica entre o Estudo Técnico Preliminar (ETP) e o Termo de Referência (TR) de processos de contratação pública brasileira regidos pela Lei 14.133/2021.
+Ferramenta IA-agnóstica para preparar, analisar e gerar saídas determinísticas a partir de documentos. O caso comum continua sendo TR e ETP em contratações públicas, mas a estrutura agora aceita qualquer conjunto de documentos suportados.
 
 A análise é executada em duas camadas complementares:
 
@@ -64,8 +64,10 @@ O fluxo padrão de uma análise tem cinco estágios. Cada estágio produz artefa
                             |
                             v
                     +-----------------------+
-                    | MeuProjeto/           |  <-- usuario copia ETP.pdf,
-                    | +-- modelos/          |      TR.pdf e referencias
+                    | MeuProjeto/           |  <-- usuario copia documentos
+                    | +-- documentos/       |      e referencias
+                    | +-- referencias/      |
+                    | +-- output/           |
                     | +-- .sysdoc/          |
                     |     +-- config.yaml   |
                     +-----------+-----------+
@@ -75,9 +77,8 @@ O fluxo padrão de uma análise tem cinco estágios. Cada estágio produz artefa
                                 v
                     +-----------------------+
                     | .sysdoc/cache/        |  <-- extracao deterministica
-                    | +-- textos/ETP.txt    |      (pypdf + ElementTree)
-                    | +-- textos/TR.txt     |
-                    | +-- textos/REF-*.txt  |
+                    | +-- textos/documentos/|      (pypdf + ElementTree)
+                    | +-- textos/referencias|
                     | +-- contexto_sysdoc.md|
                     | +-- manifest.json     |
                     +-----------+-----------+
@@ -96,10 +97,9 @@ O fluxo padrão de uma análise tem cinco estágios. Cada estágio produz artefa
                                 |       renderiza HTML imutavel
                                 v
                     +-----------------------+
-                    | dados_consolidados_   |
-                    | [modelo]_[data].json  |
-                    | analise_[modelo]_     |
-                    | [data].html           |
+                    | output/dados_...json  |
+                    | output/analise_...html|
+                    | output/*.docx         |
                     +-----------+-----------+
                                 |
                     [5] sysdoc deploy
@@ -116,7 +116,7 @@ O fluxo padrão de uma análise tem cinco estágios. Cada estágio produz artefa
 | Estágio | Responsável | Entradas | Saídas |
 |---------|-------------|----------|--------|
 | 1. Init | CLI | nome do projeto | estrutura de pastas, `config.yaml` |
-| 2. Prepare/Analyze | CLI | `ETP.pdf`, `TR.pdf`, `modelos/*` | textos extraídos, `contexto_sysdoc.md`, `manifest.json` |
+| 2. Prepare/Analyze | CLI | `documentos/*`, `referencias/*` | textos extraídos, `contexto_sysdoc.md`, `manifest.json` |
 | 3. Análise | Agente de IA | `contexto_sysdoc.md`, textos extraídos, `SKILL.md`, `schema_sysdoc.json` | `dados_consolidados.json` |
 | 4. Publish | CLI | `dados_consolidados.json` | JSON versionado + HTML versionado |
 | 5. Deploy | CLI | HTML mais recente, `config.yaml` | `index{N}.html` na VPS |
@@ -133,17 +133,17 @@ Use `.` quando já estiver dentro da pasta do projeto; use `[pasta]` quando esti
 sysdoc init .
 ```
 
-Cria `modelos/`, `.sysdoc/config.yaml` e arquivos mínimos sem sobrescrever o que já existir.
+Cria `documentos/`, `referencias/`, `output/`, `.sysdoc/config.yaml` e arquivos mínimos sem sobrescrever o que já existir.
 
 ### Passo 2 — Adicionar documentos
 
-Coloque `ETP.pdf`, `TR.pdf` e referências em `modelos/` dentro da pasta do projeto.
+Coloque os documentos a analisar em `documentos/`. Use `referencias/` para normas, modelos institucionais, exemplos aprovados, pareceres ou materiais de apoio.
 
 ```bash
 sysdoc status
 ```
 
-Confirma se ETP, TR e modelos foram encontrados.
+Confirma quantos documentos, referências, JSONs, HTMLs e caches foram encontrados.
 
 ### Passo 3 — Configurar deploy
 
@@ -178,10 +178,22 @@ O agente lê o cache, segue `skills/sysdoc/SKILL.md` e entrega `dados_consolidad
 ### Passo 6 — Validar e renderizar
 
 ```bash
+sysdoc render .
+```
+
+Renderiza o HTML em `output/` usando `dados_consolidados.json` ou o JSON mais recente.
+
+Para validar, versionar JSON e renderizar em uma única etapa:
+
+```bash
 sysdoc publish .
 ```
 
-Valida o JSON, versiona a análise e gera o HTML.
+Para gerar um `.docx` a partir de um template Word em `referencias/`:
+
+```bash
+sysdoc create tr
+```
 
 ### Passo 7 — Enviar para produção
 
@@ -213,19 +225,20 @@ sysdoc compare Aquisicao-Combustivel-2026
 
 | Comando | O que faz |
 |---------|-----------|
-| `sysdoc status` | Lista projetos no diretório atual e exibe flags de presença para ETP, TR, modelos, JSON, HTML e cache preparado. |
-| `sysdoc init [pasta]` | Cria estrutura base (`modelos/`, `.sysdoc/config.yaml`). Não sobrescreve `config.yaml` se já existir. |
+| `sysdoc status` | Lista projetos no diretório atual e exibe contagens de documentos, referências, JSON, HTML e cache preparado. |
+| `sysdoc init [pasta]` | Cria estrutura base (`documentos/`, `referencias/`, `output/`, `.sysdoc/config.yaml`). Não sobrescreve `config.yaml` se já existir. |
 | `sysdoc config -vps <usuario@host> -path <caminho> [pasta]` | Atualiza a VPS e a pasta remota em `.sysdoc/config.yaml`. Sem flags, mostra a configuração atual. |
-| `sysdoc prepare [pasta]` | Extrai texto de `ETP.pdf`, `TR.pdf` e arquivos em `modelos/` para `.sysdoc/cache/textos/`. Gera `contexto_sysdoc.md` e `manifest.json`. |
+| `sysdoc prepare [pasta]` | Extrai texto de todos os arquivos suportados em `documentos/` e `referencias/` para `.sysdoc/cache/textos/`. Gera `contexto_sysdoc.md` e `manifest.json`. |
 | `sysdoc all [pasta]` | Inicializa a estrutura e prepara o cache para o agente de IA. |
 | `sysdoc analyze [pasta] [-i "instrução"] [--dry-run]` | Prepara o cache (se ausente) e exibe um handoff visual com o slash command exato (`/sysdoc analyze <pasta>`) para colar no harness de IA. Aceita `--instruction`/`-i` para foco temático e `--dry-run` para reimprimir o handoff sem reextrair PDFs. |
 | `sysdoc guia [pasta]` | Wizard interativo de onboarding: verifica entradas obrigatórias, oferece configurar a VPS, pergunta qual harness será usado e gera `.sysdoc/cache/roteiro.txt` com os comandos exatos para o projeto. Requer terminal interativo. |
 | `sysdoc validate [pasta]` | Valida `dados_consolidados.json` contra o schema, regras de coerência, acentuação PT-BR e rastreabilidade do campo `de`. |
-| `sysdoc render [pasta]` | Renderiza HTML a partir do JSON existente, sem versionar. |
-| `sysdoc publish [pasta]` | Executa `validate` + versionamento de JSON por modelo+data + `render`. |
+| `sysdoc render [pasta] [--json arquivo]` | Renderiza HTML em `output/` a partir de `dados_consolidados.json`, do JSON mais recente ou de um JSON explícito. |
+| `sysdoc publish [pasta] [--json arquivo]` | Executa `validate` + versionamento de JSON por modelo+data em `output/` + `render`. |
+| `sysdoc create [pasta] [tipo] [--template arquivo.docx] [--json arquivo]` | Gera DOCX em `output/` preenchendo placeholders `{{campo}}` de um template Word com dados do JSON. Dentro da pasta do projeto, também aceita `sysdoc create tr`. |
 | `sysdoc deploy [pasta]` | Envia o HTML mais recente para a VPS via SSH/SCP, descobrindo o próximo `index{N}.html` livre. Lê `vps_host`/`vps_path` de `.sysdoc/config.yaml`. |
 | `sysdoc compare [pasta]` | Lista todos os JSONs versionados do projeto com modelo, data, contagem de itens, bloqueantes e relevantes. |
-| `sysdoc --version` | Exibe a versão instalada (1.3.0). |
+| `sysdoc --version` | Exibe a versão instalada (1.4.0). |
 
 Todos os comandos retornam código de saída convencional: 0 para sucesso, não-zero para falha. Nenhum comando faz chamadas a modelos de linguagem.
 
@@ -272,23 +285,20 @@ A fonte única de verdade operacional é `skills/sysdoc/SKILL.md`. Os wrappers s
 
 ```
 MeuProjeto/
-├── ETP.pdf                                   # obrigatório
-├── TR.pdf                                    # obrigatório
-├── modelos/                                  # obrigatório (>= 1 arquivo)
+├── documentos/                               # documentos a analisar
 │   └── ...                                   # PDF, DOCX, TXT ou MD
+├── referencias/                              # normas, modelos, exemplos e templates
+│   └── ...                                   # PDF, DOCX, TXT ou MD
+├── output/                                   # HTML, JSON versionado e DOCX gerados
 ├── .sysdoc/
 │   ├── config.yaml                           # projeto, vps_host, vps_path, modelo_ia_padrao
 │   └── cache/
 │       ├── manifest.json                     # SHA256, contagens e mapeamentos por arquivo
 │       ├── contexto_sysdoc.md                # mapa determinístico para a IA
 │       └── textos/
-│           ├── ETP.txt
-│           ├── TR.txt
-│           └── REF-NN_<nome>.txt
-├── dados_consolidados.json                   # produzido pela IA, base para publish
-├── dados_consolidados_[modelo]_[data].json   # versionado por publish
-├── dados_consolidados_[modelo]_[data]_2.json # auto-incrementado se houver divergência
-└── analise_[modelo]_[data].html              # relatório final renderizado
+│           ├── documentos/
+│           └── referencias/
+└── dados_consolidados.json                   # produzido pela IA, base para render/publish/create
 ```
 
 Diretórios reservados, nunca tratados como projeto pelo `sysdoc status`: `.git`, `.claude`, `.opencode`, `backup`, `skills`, `templates`.

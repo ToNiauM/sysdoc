@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -35,7 +36,7 @@ class TestAnalyzeBehavior:
     def test_analyze_runs_prepare(self, tmp_path, monkeypatch, capsys):
         project_dir = tmp_path / "Projeto1"
         project_dir.mkdir()
-        (project_dir / "modelos").mkdir()
+        (project_dir / "documentos").mkdir()
 
         called: list[str] = []
 
@@ -56,7 +57,7 @@ class TestAnalyzeBehavior:
     def test_analyze_skips_prepare_when_cache_exists(self, tmp_path, monkeypatch):
         project_dir = tmp_path / "Projeto2"
         project_dir.mkdir()
-        (project_dir / "modelos").mkdir()
+        (project_dir / "documentos").mkdir()
         cache = project_dir / ".sysdoc" / "cache"
         cache.mkdir(parents=True)
         (cache / "contexto_sysdoc.md").write_text("# já preparado\n", encoding="utf-8")
@@ -72,7 +73,7 @@ class TestAnalyzeBehavior:
     def test_analyze_with_instruction(self, tmp_path, monkeypatch, capsys):
         project_dir = tmp_path / "Projeto3"
         project_dir.mkdir()
-        (project_dir / "modelos").mkdir()
+        (project_dir / "documentos").mkdir()
         cache = project_dir / ".sysdoc" / "cache"
         cache.mkdir(parents=True)
         (cache / "contexto_sysdoc.md").write_text("# preparado\n", encoding="utf-8")
@@ -120,17 +121,19 @@ class TestInitConfig:
 
         assert rc == 0
         assert marker.read_text(encoding="utf-8") == "não sobrescrever\n"
-        assert (project_dir / "modelos").is_dir()
+        assert (project_dir / "documentos").is_dir()
+        assert (project_dir / "referencias").is_dir()
+        assert (project_dir / "output").is_dir()
         assert (project_dir / ".sysdoc" / "config.yaml").is_file()
 
     def test_init_command_current_directory(self, tmp_path, monkeypatch):
-        (tmp_path / "ETP.pdf").write_bytes(b"%PDF-1.4\n")
-
         monkeypatch.chdir(tmp_path)
         rc = sysdoc.init_command(".")
 
         assert rc == 0
-        assert (tmp_path / "modelos").is_dir()
+        assert (tmp_path / "documentos").is_dir()
+        assert (tmp_path / "referencias").is_dir()
+        assert (tmp_path / "output").is_dir()
         assert (tmp_path / ".sysdoc" / "config.yaml").is_file()
 
 
@@ -153,7 +156,9 @@ class TestAllCommand:
 
         assert rc == 0
         assert Path(called[0]) == project_dir.resolve()
-        assert (project_dir / "modelos").is_dir()
+        assert (project_dir / "documentos").is_dir()
+        assert (project_dir / "referencias").is_dir()
+        assert (project_dir / "output").is_dir()
         assert (project_dir / ".sysdoc" / "config.yaml").is_file()
         assert (project_dir / ".sysdoc" / "cache" / "contexto_sysdoc.md").is_file()
 
@@ -210,8 +215,77 @@ class TestProjectPaths:
 
         paths = sysdoc.project_paths("ProjetoPaths")
         assert hasattr(paths, "config")
+        assert hasattr(paths, "documentos")
+        assert hasattr(paths, "referencias")
+        assert hasattr(paths, "output")
         assert paths.config.name == "config.yaml"
         assert paths.config.parent.name == ".sysdoc"
+
+
+class TestPrepareStructure:
+    def test_prepare_extracts_documents_and_references(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoPrepare"
+        docs = project_dir / "documentos"
+        refs = project_dir / "referencias"
+        docs.mkdir(parents=True)
+        refs.mkdir()
+        (docs / "TR.txt").write_text("1 Objeto\nContratação de serviço continuado.", encoding="utf-8")
+        (refs / "modelo.txt").write_text("Referência de garantia e pagamento.", encoding="utf-8")
+
+        monkeypatch.chdir(tmp_path)
+        rc = sysdoc.prepare("ProjetoPrepare")
+
+        assert rc == 0
+        assert (project_dir / ".sysdoc" / "cache" / "textos" / "documentos" / "TR.txt").is_file()
+        assert (project_dir / ".sysdoc" / "cache" / "textos" / "referencias" / "REF-01_modelo.txt").is_file()
+        manifest = (project_dir / ".sysdoc" / "cache" / "manifest.json").read_text(encoding="utf-8")
+        assert '"category": "documentos"' in manifest
+        assert '"category": "referencias"' in manifest
+
+
+class TestRenderAndCreate:
+    def test_render_uses_output_directory_and_json_override(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoRender"
+        project_dir.mkdir()
+        json_file = project_dir / "custom.json"
+        json_file.write_text("{}", encoding="utf-8")
+        calls: list[list[str]] = []
+
+        def fake_run(args: list[str]) -> int:
+            calls.append(args)
+            return 0
+
+        monkeypatch.setattr(sysdoc, "run_python_script", fake_run)
+        monkeypatch.chdir(tmp_path)
+
+        rc = sysdoc.render("ProjetoRender", json_arg=str(json_file))
+
+        assert rc == 0
+        assert (project_dir / "output").is_dir()
+        assert calls[0][-1] == str(project_dir / "output")
+
+    def test_create_fills_docx_placeholders(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoCreate"
+        refs = project_dir / "referencias"
+        refs.mkdir(parents=True)
+        json_file = project_dir / "dados_consolidados.json"
+        json_file.write_text(
+            '{"modelo_ia":"gpt-5","data_análise":"2026-05-12","projeto":{"objeto":"Objeto teste"}}',
+            encoding="utf-8",
+        )
+        template = refs / "modelo_tr.docx"
+        with zipfile.ZipFile(template, "w") as zf:
+            zf.writestr("[Content_Types].xml", "<Types></Types>")
+            zf.writestr("word/document.xml", "<w:document>{{projeto.objeto}}</w:document>")
+
+        monkeypatch.chdir(tmp_path)
+        rc = sysdoc.create("ProjetoCreate", "tr")
+
+        assert rc == 0
+        output = project_dir / "output" / "tr_gpt-5_2026-05-12.docx"
+        assert output.is_file()
+        with zipfile.ZipFile(output) as zf:
+            assert "Objeto teste" in zf.read("word/document.xml").decode("utf-8")
 
 
 class TestConfigYamlFormat:
@@ -256,7 +330,7 @@ class TestHandoffBox:
     def _make_paths(self, tmp_path: Path) -> sysdoc.ProjectPaths:
         project_dir = tmp_path / "ProjetoHandoff"
         project_dir.mkdir()
-        (project_dir / "modelos").mkdir()
+        (project_dir / "documentos").mkdir()
         return sysdoc.project_paths(str(project_dir))
 
     def test_handoff_box_states_no_analysis(self, tmp_path, monkeypatch):
@@ -306,7 +380,7 @@ class TestAnalyzeDryRun:
     def test_analyze_dry_run_skips_prepare(self, tmp_path, monkeypatch):
         project_dir = tmp_path / "ProjDry"
         project_dir.mkdir()
-        (project_dir / "modelos").mkdir()
+        (project_dir / "documentos").mkdir()
         cache = project_dir / ".sysdoc" / "cache"
         cache.mkdir(parents=True)
         ctx = cache / "contexto_sysdoc.md"
@@ -367,9 +441,11 @@ class TestGuia:
     def test_guia_creates_roteiro(self, tmp_path, monkeypatch):
         project_dir = tmp_path / "ProjGRoteiro"
         project_dir.mkdir()
-        (project_dir / "modelos").mkdir()
-        (project_dir / "ETP.pdf").write_bytes(b"%PDF-1.4\n")
-        (project_dir / "TR.pdf").write_bytes(b"%PDF-1.4\n")
+        docs = project_dir / "documentos"
+        refs = project_dir / "referencias"
+        docs.mkdir()
+        refs.mkdir()
+        (docs / "TR.txt").write_text("Objeto: contratação de serviço de apoio.", encoding="utf-8")
 
         class FakeStdin:
             def isatty(self) -> bool:

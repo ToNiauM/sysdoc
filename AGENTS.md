@@ -4,7 +4,7 @@ Arquivo genérico para **todos os harnesses de IA** (Claude Code, OpenCode, Code
 
 ## What This Is
 
-CLI IA-agnóstico para análise comparativa de documentos ETP/TR em contratações públicas brasileiras (Lei 14.133/2021). A CLI é estritamente determinística e **não** faz chamadas a LLM — quem analisa é o Agente de IA externo (você), lendo os artefatos gerados pela CLI.
+CLI IA-agnóstico para preparação, análise e geração determinística a partir de documentos. O caso comum continua sendo TR/ETP, mas a entrada agora é genérica: qualquer documento suportado em `documentos/`, com apoio em `referencias/`. A CLI é estritamente determinística e **não** faz chamadas a LLM — quem analisa é o Agente de IA externo (você), lendo os artefatos gerados pela CLI.
 
 ## Single Source of Truth
 
@@ -22,6 +22,7 @@ sysdoc validate [pasta]                  # valida dados_consolidados.json
 sysdoc render [pasta]                    # renderiza HTML a partir do JSON
 sysdoc publish [pasta]                   # validate + versionar JSON + render
 sysdoc deploy [pasta]                    # envia HTML para VPS via SSH
+sysdoc create [pasta] [tipo]             # gera DOCX em output/ a partir de JSON + template
 sysdoc compare [pasta]                   # compara versões de análise
 ```
 
@@ -31,12 +32,12 @@ Se o entry point `sysdoc` não estiver instalado, use `python sysdoc.py …` na 
 
 Quando o usuário digitar uma macro, você (Agente) orquestra:
 
-1. **`/sysdoc init [pasta]`** — rode `sysdoc init [pasta]`, peça os PDFs, depois `sysdoc analyze [pasta]`.
+1. **`/sysdoc init [pasta]`** — rode `sysdoc init [pasta]`, peça documentos em `documentos/` e referências/templates em `referencias/`, depois `sysdoc analyze [pasta]`.
 2. **`/sysdoc analyze [pasta] [prompt]`** — rode `sysdoc analyze [pasta] -i "prompt"`, leia `contexto_sysdoc.md` + `.sysdoc/cache/textos/`, gere `dados_consolidados.json`.
 3. **`/sysdoc all [pasta]`** — orquestre: analyze → gerar JSON → publish → deploy.
 4. **`/sysdoc render [pasta]`** — rode `sysdoc render [pasta]`.
 5. **`/sysdoc deploy [pasta]`** — rode `sysdoc deploy [pasta]`.
-6. **`/sysdoc create [pasta] [tipo]`** — placeholder Phase 2 (geração de Word).
+6. **`/sysdoc create [pasta] [tipo]`** — rode `sysdoc create [pasta] [tipo]`; usa o JSON escolhido/mais recente e um template `.docx` de `referencias/` ou `--template`.
 
 ## Key Rules
 
@@ -80,15 +81,17 @@ Quando o usuário digitar uma macro, você (Agente) orquestra:
 ├── AGENTS.md                          # this file
 ├── CLAUDE.md                          # Claude Code-specific notes
 └── [projetos]/                        # cada análise é uma subpasta
-    ├── ETP.pdf
-    ├── TR.pdf
-    ├── modelos/
+    ├── documentos/
+    ├── referencias/
+    ├── output/
     └── .sysdoc/
         ├── config.yaml                # projeto, vps_host, vps_path, modelo_ia_padrao
         └── cache/
             ├── manifest.json
             ├── contexto_sysdoc.md
             └── textos/
+                ├── documentos/
+                └── referencias/
 ```
 
 `IGNORED_DIRS` (nunca tratado como projeto): `.git`, `.claude`, `backup`, `skills`, `templates`.

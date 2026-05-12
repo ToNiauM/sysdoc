@@ -4,6 +4,23 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 ---
 
+## [1.4.0] — 2026-05-12
+
+### Adicionado
+
+- **Estrutura genérica de projeto** (`sysdoc.py`): `sysdoc init` agora cria `documentos/`, `referencias/` e `output/`, mantendo `.sysdoc/config.yaml`. Projetos antigos com `ETP.pdf`, `TR.pdf` e `modelos/` continuam aceitos como compatibilidade.
+- **Prepare genérico** (`sysdoc.py`): `sysdoc prepare` extrai todos os arquivos suportados em `documentos/` e `referencias/`, preservando a origem no cache em `.sysdoc/cache/textos/documentos/` e `.sysdoc/cache/textos/referencias/`.
+- **Saídas em `output/`** (`sysdoc.py`): `render`, `publish`, `deploy` e `compare` agora usam `output/` para HTML e JSON versionado, com fallback para artefatos antigos na raiz quando necessário.
+- **`sysdoc create [pasta] [tipo]`** (`sysdoc.py`): novo gerador DOCX determinístico. Preenche placeholders `{{campo}}` em template `.docx` com valores achatados do JSON (`{{projeto.objeto}}`, `{{modelo_ia}}`, etc.) e grava em `output/`. Aceita `--json` e `--template`.
+- **Testes CLI** (`tests/test_cli.py`): cobertura para extração separada de documentos/referências, render em `output/` e preenchimento DOCX.
+
+### Atualizado
+
+- **Fluxo operacional** (`README.md`, `AGENTS.md`, `skills/sysdoc/SKILL.md`): documentação atualizada para documentos gerais, `referencias/`, `output/` e `create`.
+- **`VERSION` / pacote**: versão ajustada para `1.4.0`.
+
+---
+
 ## [1.3.0] — 2026-05-08
 
 ### Adicionado

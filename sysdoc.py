@@ -26,6 +26,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 from xml.etree import ElementTree
+from xml.sax.saxutils import escape as xml_escape
 
 
 ROOT = Path(__file__).resolve().parent
@@ -36,7 +37,7 @@ SUPPORTED_REFERENCE_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
 DEFAULT_LLM_MODEL = "openai/gpt-4o-mini"
 MAX_LLM_CONTEXT_CHARS = int(os.environ.get("SYSDOC_MAX_LLM_CONTEXT_CHARS", "700000"))
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 CONFIG_FILE = Path.home() / ".sysdoc" / "config.json"
 
@@ -62,9 +63,14 @@ KEY_TERMS = [
 @dataclass(frozen=True)
 class ProjectPaths:
     root: Path
+    documentos: Path
+    referencias: Path
     modelos: Path | None
+    output: Path
     cache: Path
     source_cache: Path
+    documents_cache: Path
+    references_cache: Path
     manifest: Path
     context: Path
     config: Path
@@ -79,17 +85,25 @@ def rel(path: Path) -> str:
 
 def project_paths(project: str | Path) -> ProjectPaths:
     root = (Path.cwd() / project).resolve() if not Path(project).is_absolute() else Path(project).resolve()
+    documentos = root / "documentos"
+    referencias = root / "referencias"
     modelos = None
     for candidate in (root / "modelos", root / "Modelos"):
         if candidate.is_dir():
             modelos = candidate
             break
     cache = root / ".sysdoc" / "cache"
+    source_cache = cache / "textos"
     return ProjectPaths(
         root=root,
+        documentos=documentos,
+        referencias=referencias,
         modelos=modelos,
+        output=root / "output",
         cache=cache,
-        source_cache=cache / "textos",
+        source_cache=source_cache,
+        documents_cache=source_cache / "documentos",
+        references_cache=source_cache / "referencias",
         manifest=cache / "manifest.json",
         context=cache / "contexto_sysdoc.md",
         config=root / ".sysdoc" / "config.yaml",
@@ -148,6 +162,8 @@ def sha256(path: Path) -> str:
 
 def _find_file_case_insensitive(directory: Path, name: str) -> Path | None:
     """Encontra um arquivo no diretório ignorando capitalização (D4)."""
+    if not directory.is_dir():
+        return None
     name_lower = name.lower()
     for entry in directory.iterdir():
         if entry.is_file() and entry.name.lower() == name_lower:
@@ -155,16 +171,35 @@ def _find_file_case_insensitive(directory: Path, name: str) -> Path | None:
     return None
 
 
+def supported_files(directory: Path) -> list[Path]:
+    if not directory.is_dir():
+        return []
+    return sorted(
+        [
+            path
+            for path in directory.rglob("*")
+            if path.is_file() and path.suffix.lower() in SUPPORTED_REFERENCE_SUFFIXES
+        ],
+        key=lambda p: rel(p).lower(),
+    )
+
+
+def legacy_document_files(paths: ProjectPaths) -> list[Path]:
+    files: list[Path] = []
+    for file_name in ("ETP.pdf", "TR.pdf"):
+        source = _find_file_case_insensitive(paths.root, file_name)
+        if source is not None:
+            files.append(source)
+    return files
+
+
 def ensure_project_inputs(paths: ProjectPaths) -> None:
-    missing = []
-    if _find_file_case_insensitive(paths.root, "ETP.pdf") is None:
-        missing.append("ETP.pdf")
-    if _find_file_case_insensitive(paths.root, "TR.pdf") is None:
-        missing.append("TR.pdf")
-    if paths.modelos is None:
-        missing.append("modelos/ ou Modelos/")
-    if missing:
-        raise SystemExit(f"Entradas obrigatórias ausentes em {rel(paths.root)}: {', '.join(missing)}")
+    if supported_files(paths.documentos) or legacy_document_files(paths):
+        return
+    raise SystemExit(
+        f"Nenhum documento suportado encontrado em {rel(paths.documentos)}. "
+        "Adicione PDFs, DOCX, TXT ou MD em documentos/ e rode novamente."
+    )
 
 
 def sanitize_filename(name: str) -> str:
@@ -224,25 +259,24 @@ def extract_text(path: Path) -> str:
 
 
 def list_reference_files(paths: ProjectPaths) -> list[Path]:
-    if paths.modelos is None:
-        return []
-    return sorted(
-        [
-            path
-            for path in paths.modelos.rglob("*")
-            if path.is_file() and path.suffix.lower() in SUPPORTED_REFERENCE_SUFFIXES
-        ],
-        key=lambda p: rel(p).lower(),
-    )
+    files = supported_files(paths.referencias)
+    if files:
+        return files
+    if paths.modelos is not None:
+        return supported_files(paths.modelos)
+    return []
 
 
-def write_extracted_text(paths: ProjectPaths, source: Path, label: str) -> dict:
+def write_extracted_text(paths: ProjectPaths, source: Path, label: str, category: str) -> dict:
     text = extract_text(source)
     out_name = f"{sanitize_filename(label)}.txt"
-    out_path = paths.source_cache / out_name
+    base_cache = paths.documents_cache if category == "documentos" else paths.references_cache
+    out_path = base_cache / out_name
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text, encoding="utf-8")
     return {
         "label": label,
+        "category": category,
         "source": rel(source),
         "cache": rel(out_path),
         "sha256": sha256(source),
@@ -289,8 +323,7 @@ def detect_values(texts: dict[str, str]) -> list[str]:
 
 def detect_object(texts: dict[str, str]) -> str:
     candidates = []
-    for label in ("TR", "ETP"):
-        text = texts.get(label, "")
+    for text in texts.values():
         for _, line in iter_lines(text):
             lower = line.lower()
             if "contratação" in lower or "aquisição" in lower or "objeto" in lower:
@@ -333,8 +366,8 @@ def render_context(paths: ProjectPaths, manifest: dict, texts: dict[str, str]) -
     values = detect_values(texts)
     obj = detect_object(texts)
 
-    sections_etp = detect_sections(texts.get("ETP", ""))
-    sections_tr = detect_sections(texts.get("TR", ""))
+    document_items = [item for item in manifest["files"] if item.get("category") == "documentos"]
+    reference_items = [item for item in manifest["files"] if item.get("category") == "referencias"]
 
     lines: list[str] = []
     lines.append("# Contexto SysDoc")
@@ -343,15 +376,24 @@ def render_context(paths: ProjectPaths, manifest: dict, texts: dict[str, str]) -
     lines.append("")
     lines.append("## Manifesto")
     lines.append("")
-    lines.append("- Produzir análise comparativa técnica e jurídica de ETP e TR.")
-    lines.append("- Preservar separação entre ETP e TR.")
+    lines.append("- Produzir análise técnica, jurídica ou documental conforme a instrução do usuário.")
+    lines.append("- Preservar separação entre documentos analisados e referências.")
     lines.append("- Selecionar apenas achados relevantes, com `de` literal, `para` pronto para colar, parecer objetivo e fundamento específico.")
     lines.append("- Escrever todos os campos gerados em norma culta do português brasileiro, com acentuação correta.")
     lines.append("")
-    lines.append("## Entradas")
+    lines.append("## Documentos Para AnÃ¡lise")
     lines.append("")
-    for item in manifest["files"]:
+    for item in document_items:
         lines.append(f"- {item['label']}: `{item['source']}` -> `{item['cache']}` ({item['words']} palavras, sha256 {item['sha256'][:12]})")
+    if not document_items:
+        lines.append("- Nenhum documento principal extraÃ­do.")
+    lines.append("")
+    lines.append("## ReferÃªncias")
+    lines.append("")
+    for item in reference_items:
+        lines.append(f"- {item['label']}: `{item['source']}` -> `{item['cache']}` ({item['words']} palavras, sha256 {item['sha256'][:12]})")
+    if not reference_items:
+        lines.append("- Nenhuma referÃªncia extraÃ­da.")
     lines.append("")
     lines.append("## Briefing Detectado")
     lines.append("")
@@ -361,18 +403,23 @@ def render_context(paths: ProjectPaths, manifest: dict, texts: dict[str, str]) -
     lines.append("")
     lines.append("## Mapa De Seções")
     lines.append("")
-    lines.append("### ETP")
-    lines.extend(f"- {section}" for section in sections_etp[:60])
-    lines.append("")
-    lines.append("### TR")
-    lines.extend(f"- {section}" for section in sections_tr[:80])
+    for item in document_items:
+        label = item["label"]
+        lines.append(f"### {label}")
+        sections = detect_sections(texts.get(label, ""))
+        if sections:
+            lines.extend(f"- {section}" for section in sections[:80])
+        else:
+            lines.append("- SeÃ§Ãµes numeradas nÃ£o detectadas.")
+        lines.append("")
     lines.append("")
     lines.append("## Extratos Orientadores Por Tema")
     lines.append("")
     for term in KEY_TERMS:
         lines.append(f"### {term}")
         found_any = False
-        for label in ("ETP", "TR"):
+        for item in document_items:
+            label = item["label"]
             hits = snippets_for_term(texts.get(label, ""), term)
             if hits:
                 found_any = True
@@ -385,7 +432,7 @@ def render_context(paths: ProjectPaths, manifest: dict, texts: dict[str, str]) -
     lines.append("")
     lines.append("- Gerar `[pasta]/dados_consolidados.json` no schema canônico.")
     lines.append("- Validar com `python templates/validate_sysdoc.py [pasta]/dados_consolidados.json`.")
-    lines.append("- Renderizar com `python templates/render_analise.py [pasta]/dados_consolidados.json [pasta]`.")
+    lines.append("- Renderizar com `sysdoc render [pasta]`; o HTML serÃ¡ gravado em `output/`.")
     lines.append("")
     return "\n".join(lines)
 
@@ -393,7 +440,8 @@ def render_context(paths: ProjectPaths, manifest: dict, texts: dict[str, str]) -
 def prepare(project: str) -> int:
     paths = project_paths(project)
     ensure_project_inputs(paths)
-    paths.source_cache.mkdir(parents=True, exist_ok=True)
+    paths.documents_cache.mkdir(parents=True, exist_ok=True)
+    paths.references_cache.mkdir(parents=True, exist_ok=True)
 
     manifest = {
         "project": rel(paths.root),
@@ -401,22 +449,23 @@ def prepare(project: str) -> int:
     }
     texts: dict[str, str] = {}
 
-    for label, file_name in (("ETP", "ETP.pdf"), ("TR", "TR.pdf")):
-        source = _find_file_case_insensitive(paths.root, file_name) or (paths.root / file_name)
-        item = write_extracted_text(paths, source, label)
+    document_sources = supported_files(paths.documentos) or legacy_document_files(paths)
+    for index, source in enumerate(document_sources, start=1):
+        label = source.stem.upper() if source.stem.lower() in {"etp", "tr"} else f"DOC-{index:02d}_{source.stem}"
+        item = write_extracted_text(paths, source, label, "documentos")
         manifest["files"].append(item)
         cache_path = Path(item["cache"])
         if not cache_path.is_absolute():
-            cache_path = paths.source_cache / cache_path.name
+            cache_path = paths.documents_cache / cache_path.name
         texts[label] = cache_path.read_text(encoding="utf-8")
 
     for index, source in enumerate(list_reference_files(paths), start=1):
         label = f"REF-{index:02d}_{source.stem}"
-        item = write_extracted_text(paths, source, label)
+        item = write_extracted_text(paths, source, label, "referencias")
         manifest["files"].append(item)
         cache_path = Path(item["cache"])
         if not cache_path.is_absolute():
-            cache_path = paths.source_cache / cache_path.name
+            cache_path = paths.references_cache / cache_path.name
         texts[label] = cache_path.read_text(encoding="utf-8")
 
     paths.manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -438,12 +487,8 @@ HARNESS_OPTIONS: list[tuple[str, str | None]] = [
 
 def _guia_check_inputs(paths: ProjectPaths) -> list[str]:
     missing: list[str] = []
-    if _find_file_case_insensitive(paths.root, "ETP.pdf") is None:
-        missing.append("ETP.pdf")
-    if _find_file_case_insensitive(paths.root, "TR.pdf") is None:
-        missing.append("TR.pdf")
-    if paths.modelos is None:
-        missing.append("modelos/ (pasta com referências)")
+    if not (supported_files(paths.documentos) or legacy_document_files(paths)):
+        missing.append("documentos/ com ao menos um PDF, DOCX, TXT ou MD")
     return missing
 
 
@@ -588,7 +633,7 @@ def _render_handoff_box(paths: ProjectPaths, instruction: str = "") -> str:
     border_bot = "╚" + "═" * (width - 2) + "╝"
 
     rows: list[str] = [border_top, line("CACHE PREPARADO".center(inner)), border_mid, line()]
-    rows.append(line("Os textos de ETP.pdf e TR.pdf foram extraídos e estão prontos."))
+    rows.append(line("Os textos de documentos/ e referencias/ foram extraídos."))
     rows.append(line())
     rows.append(line("▸ A CLI do SysDoc NÃO executa análise."))
     rows.append(line("  A análise é feita pela IA dentro de um harness."))
@@ -625,28 +670,26 @@ def print_analysis_handoff(paths: ProjectPaths, instruction: str = "") -> None:
 
 def status() -> int:
     COL = 30
-    header = f"{'PROJETO':<{COL}} {'ETP':>5} {'TR':>5} {'MODELOS':>8} {'JSON':>5} {'HTML':>5} {'PREP':>5}"
+    header = f"{'PROJETO':<{COL}} {'DOCS':>5} {'REFS':>5} {'JSON':>5} {'HTML':>5} {'PREP':>5}"
     rows = []
     for directory in sorted([p for p in Path.cwd().iterdir() if p.is_dir()], key=lambda p: p.name.lower()):
         if directory.name in IGNORED_DIRS or directory.name.startswith("."):
             continue
         paths = project_paths(directory)
-        has_etp = _find_file_case_insensitive(directory, "ETP.pdf") is not None
-        has_tr = _find_file_case_insensitive(directory, "TR.pdf") is not None
-        has_modelos = paths.modelos is not None
+        docs_count = len(supported_files(paths.documentos) or legacy_document_files(paths))
+        refs_count = len(list_reference_files(paths))
         has_json = (directory / "dados_consolidados.json").is_file()
-        html_count = len(list(directory.glob("analise_*.html")))
+        html_count = len(list(paths.output.glob("analise_*.html")) + list(directory.glob("analise_*.html")))
         prepared = paths.context.is_file()
-        if not any([has_etp, has_tr, has_modelos, has_json, html_count]):
+        if not any([docs_count, refs_count, has_json, html_count]):
             continue
         name = directory.name[:COL]
-        etp_s = "ok" if has_etp else "---"
-        tr_s = "ok" if has_tr else "---"
-        mod_s = "ok" if has_modelos else "---"
+        docs_s = str(docs_count) if docs_count else "---"
+        refs_s = str(refs_count) if refs_count else "---"
         json_s = "ok" if has_json else "---"
         html_s = str(html_count) if html_count else "---"
         prep_s = "ok" if prepared else "---"
-        rows.append(f"{name:<{COL}} {etp_s:>5} {tr_s:>5} {mod_s:>8} {json_s:>5} {html_s:>5} {prep_s:>5}")
+        rows.append(f"{name:<{COL}} {docs_s:>5} {refs_s:>5} {json_s:>5} {html_s:>5} {prep_s:>5}")
     if not rows:
         print("Nenhum projeto SysDoc encontrado neste diretório.")
         return 0
@@ -663,29 +706,48 @@ def run_python_script(args: list[str]) -> int:
     return completed.returncode
 
 
-def validate(project: str) -> int:
+def find_analysis_json(paths: ProjectPaths, json_arg: str | None = None) -> Path:
+    if json_arg:
+        candidate = Path(json_arg)
+        return candidate if candidate.is_absolute() else (Path.cwd() / candidate).resolve()
+    active = paths.root / "dados_consolidados.json"
+    if active.is_file():
+        return active
+    candidates = [
+        path
+        for base in (paths.root, paths.output)
+        for path in base.glob("dados_consolidados*.json")
+        if path.is_file()
+    ]
+    if not candidates:
+        raise SystemExit(f"JSON não encontrado em {rel(paths.root)} ou {rel(paths.output)}")
+    return sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+
+
+def validate(project: str, json_arg: str | None = None) -> int:
     paths = project_paths(project)
-    json_path = paths.root / "dados_consolidados.json"
+    json_path = find_analysis_json(paths, json_arg)
     if not json_path.is_file():
         raise SystemExit(f"JSON não encontrado: {rel(json_path)}")
     return run_python_script(["templates/validate_sysdoc.py", str(json_path), str(paths.root)])
 
 
 
-def render(project: str) -> int:
+def render(project: str, json_arg: str | None = None) -> int:
     paths = project_paths(project)
-    json_path = paths.root / "dados_consolidados.json"
+    json_path = find_analysis_json(paths, json_arg)
     if not json_path.is_file():
         raise SystemExit(f"JSON não encontrado: {rel(json_path)}")
-    return run_python_script(["templates/render_analise.py", str(json_path), str(paths.root)])
+    paths.output.mkdir(parents=True, exist_ok=True)
+    return run_python_script(["templates/render_analise.py", str(json_path), str(paths.output)])
 
 
-def publish(project: str) -> int:
+def publish(project: str, json_arg: str | None = None) -> int:
     paths = project_paths(project)
-    json_path = paths.root / "dados_consolidados.json"
+    json_path = find_analysis_json(paths, json_arg)
     if not json_path.is_file():
         raise SystemExit(f"JSON não encontrado: {rel(json_path)}")
-    validation = validate(project)
+    validation = validate(project, str(json_path))
     if validation != 0:
         return validation
 
@@ -693,21 +755,26 @@ def publish(project: str) -> int:
     model = slug(data.get("modelo_ia", "modelo"))
     date = extract_date(data.get("data_análise", ""))
     payload = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
-    archive = resolve_next_json_archive(paths.root, model, date, payload)
+    paths.output.mkdir(parents=True, exist_ok=True)
+    archive = resolve_next_json_archive(paths.output, model, date, payload)
     if archive.exists():
         print(f"JSON versionado já existe: {rel(archive)}")
     else:
         archive.write_text(payload, encoding="utf-8")
         print(f"JSON versionado: {rel(archive)}")
-    return render(project)
+    return render(project, str(json_path))
 
 
 def deploy(project: str) -> int:
     """Envia o último HTML gerado para a VPS garantindo índice único (index{X}.html)."""
     paths = project_paths(project)
-    htmls = sorted(paths.root.glob("analise_*.html"), key=lambda p: p.stat().st_mtime, reverse=True)
+    htmls = sorted(
+        list(paths.output.glob("analise_*.html")) + list(paths.root.glob("analise_*.html")),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
     if not htmls:
-        print(f"Nenhum HTML encontrado em {rel(paths.root)}. Rode 'sysdoc publish' primeiro.")
+        print(f"Nenhum HTML encontrado em {rel(paths.output)}. Rode 'sysdoc publish' primeiro.")
         return 1
 
     latest_html = htmls[0]
@@ -807,6 +874,92 @@ def resolve_next_json_archive(project_dir: Path, model: str, date: str, payload:
         index += 1
 
 
+def resolve_next_output(output_dir: Path, stem: str, suffix: str) -> Path:
+    first = output_dir / f"{stem}{suffix}"
+    if not first.exists():
+        return first
+    index = 2
+    while True:
+        candidate = output_dir / f"{stem}_{index}{suffix}"
+        if not candidate.exists():
+            return candidate
+        index += 1
+
+
+def flatten_json(data: object, prefix: str = "") -> dict[str, str]:
+    values: dict[str, str] = {}
+    if isinstance(data, dict):
+        for key, value in data.items():
+            child_key = f"{prefix}.{key}" if prefix else str(key)
+            values.update(flatten_json(value, child_key))
+    elif isinstance(data, list):
+        values[prefix] = "\n".join(
+            item if isinstance(item, str) else json.dumps(item, ensure_ascii=False)
+            for item in data
+        )
+    else:
+        values[prefix] = "" if data is None else str(data)
+    return values
+
+
+def find_docx_template(paths: ProjectPaths, tipo: str, template_arg: str | None = None) -> Path:
+    if template_arg:
+        candidate = Path(template_arg)
+        return candidate if candidate.is_absolute() else (Path.cwd() / candidate).resolve()
+    candidates = supported_files(paths.referencias)
+    docx_files = [path for path in candidates if path.suffix.lower() == ".docx"]
+    if not docx_files and paths.modelos is not None:
+        docx_files = [path for path in supported_files(paths.modelos) if path.suffix.lower() == ".docx"]
+    if not docx_files:
+        raise SystemExit(
+            f"Nenhum template .docx encontrado em {rel(paths.referencias)}. "
+            "Use 'sysdoc create <tipo> --template caminho.docx'."
+        )
+    tipo_norm = tipo.lower()
+    preferred_names = {f"{tipo_norm}.docx", f"modelo_{tipo_norm}.docx", f"template_{tipo_norm}.docx"}
+    for path in docx_files:
+        if path.name.lower() in preferred_names:
+            return path
+    for path in docx_files:
+        if tipo_norm in path.stem.lower():
+            return path
+    return docx_files[0]
+
+
+def render_docx_template(template: Path, output: Path, values: dict[str, str]) -> None:
+    replacements = {
+        f"{{{{{key}}}}}": xml_escape(value)
+        for key, value in values.items()
+    }
+    with zipfile.ZipFile(template, "r") as source, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
+        for item in source.infolist():
+            payload = source.read(item.filename)
+            if item.filename.startswith("word/") and item.filename.endswith(".xml"):
+                text = payload.decode("utf-8")
+                for placeholder, value in replacements.items():
+                    text = text.replace(placeholder, value)
+                payload = text.encode("utf-8")
+            target.writestr(item, payload)
+
+
+def create(project: str, tipo: str, json_arg: str | None = None, template_arg: str | None = None) -> int:
+    paths = project_paths(project)
+    json_path = find_analysis_json(paths, json_arg)
+    template = find_docx_template(paths, tipo, template_arg)
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+    values = flatten_json(data)
+    values["tipo"] = tipo
+    values["json"] = rel(json_path)
+    values["template"] = rel(template)
+    model = slug(data.get("modelo_ia", "modelo"))
+    date = extract_date(data.get("data_análise", data.get("data_analise", "")))
+    paths.output.mkdir(parents=True, exist_ok=True)
+    output = resolve_next_output(paths.output, f"{slug(tipo)}_{model}_{date}", ".docx")
+    render_docx_template(template, output, values)
+    print(f"DOCX gerado: {rel(output)}")
+    return 0
+
+
 def slug(value: str) -> str:
     text = str(value or "").strip().lower()
     text = (
@@ -832,13 +985,18 @@ def ensure_project_structure(project: str | Path) -> ProjectPaths:
         shutil.copytree(template, dest)
     else:
         dest.mkdir(parents=True, exist_ok=True)
-        (dest / "modelos").mkdir(exist_ok=True)
+        (dest / "documentos").mkdir(exist_ok=True)
+        (dest / "referencias").mkdir(exist_ok=True)
+        (dest / "output").mkdir(exist_ok=True)
         readme = dest / "README.md"
         if not readme.exists():
             readme.write_text(
-                f"# {dest.name}\n\nCopie ETP.pdf e TR.pdf para esta pasta, adicione referências em modelos/ e rode:\n\n```bash\nsysdoc analyze .\n```\n",
+                f"# {dest.name}\n\nCopie os documentos para documentos/, adicione referencias em referencias/ e rode:\n\n```bash\nsysdoc analyze .\n```\n",
                 encoding="utf-8",
             )
+    (dest / "documentos").mkdir(exist_ok=True)
+    (dest / "referencias").mkdir(exist_ok=True)
+    (dest / "output").mkdir(exist_ok=True)
     init_config(dest)
     return project_paths(dest)
 
@@ -848,8 +1006,10 @@ def init_command(project: str) -> int:
     paths = ensure_project_structure(project)
     print(f"Estrutura SysDoc pronta em: {paths.root}")
     print(f"  Configuração: {rel(paths.config)}")
-    print(f"  Modelos: {rel(paths.root / 'modelos')}")
-    print(f"  Próximo passo: copie ETP.pdf e TR.pdf para {paths.root}")
+    print(f"  Documentos: {rel(paths.documentos)}")
+    print(f"  Referencias: {rel(paths.referencias)}")
+    print(f"  Output: {rel(paths.output)}")
+    print(f"  Proximo passo: copie os arquivos a analisar para {paths.documentos}")
     return 0
 
 
@@ -867,7 +1027,7 @@ def extract_date(value: str) -> str:
 def compare(project: str) -> int:
     """Lista JSONs versionados de um projeto e compara itens, classificações e riscos (M3-C)."""
     paths = project_paths(project)
-    jsons = sorted(paths.root.glob("dados_consolidados_*.json"))
+    jsons = sorted(set(paths.root.glob("dados_consolidados_*.json")) | set(paths.output.glob("dados_consolidados_*.json")))
     if not jsons:
         print("Nenhuma versão encontrada. Rode 'sysdoc publish' para versionar.")
         return 1
@@ -912,7 +1072,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status", help="Lista projetos e estado operacional.")
     init_parser = sub.add_parser("init", help="Cria a estrutura de um novo projeto SysDoc.")
-    init_parser.add_argument("project", help="Nome da pasta do novo projeto.")
+    init_parser.add_argument("project", nargs="?", default=".", help="Nome da pasta do novo projeto.")
 
     all_parser = sub.add_parser(
         "all",
@@ -953,16 +1113,16 @@ def build_parser() -> argparse.ArgumentParser:
     config_parser.add_argument("--modelo-ia-padrao", help="Slug do modelo de IA preferido para o projeto.")
 
     compare_parser = sub.add_parser("compare", help="Compara versões de análise de um projeto.")
-    compare_parser.add_argument("project", help="Pasta do projeto SysDoc.")
+    compare_parser.add_argument("project", nargs="?", default=".", help="Pasta do projeto SysDoc.")
 
     deploy_parser = sub.add_parser("deploy", help="Envia o último HTML gerado para a VPS por SSH.")
-    deploy_parser.add_argument("project", help="Pasta do projeto SysDoc.")
+    deploy_parser.add_argument("project", nargs="?", default=".", help="Pasta do projeto SysDoc.")
 
     analyze_parser = sub.add_parser(
         "analyze",
         help="Prepara contexto e exibe instruções para análise por LLM do harness.",
     )
-    analyze_parser.add_argument("project", help="Pasta do projeto SysDoc.")
+    analyze_parser.add_argument("project", nargs="?", default=".", help="Pasta do projeto SysDoc.")
     analyze_parser.add_argument(
         "--instruction", "-i",
         default="",
@@ -982,7 +1142,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     for command in ("prepare", "validate", "render", "publish"):
         item = sub.add_parser(command, help=f"Executa {command} em um projeto.")
-        item.add_argument("project", help="Pasta do projeto SysDoc.")
+        item.add_argument("project", nargs="?", default=".", help="Pasta do projeto SysDoc.")
+        if command in {"validate", "render", "publish"}:
+            item.add_argument("--json", dest="json_path", help="Caminho para um JSON especÃ­fico.")
+
+    create_parser = sub.add_parser("create", help="Gera DOCX a partir de JSON e template Word.")
+    create_parser.add_argument("args", nargs="*", help="Uso: create [pasta] [tipo] ou create [tipo] dentro da pasta.")
+    create_parser.add_argument("--json", dest="json_path", help="Caminho para um JSON especÃ­fico.")
+    create_parser.add_argument("--template", help="Template .docx com placeholders {{campo}}.")
     parser.add_argument("--version", action="version", version=f"SysDoc {VERSION}")
     return parser
 
@@ -1012,11 +1179,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "prepare":
         return prepare(args.project)
     if args.command == "validate":
-        return validate(args.project)
+        return validate(args.project, json_arg=args.json_path)
     if args.command == "render":
-        return render(args.project)
+        return render(args.project, json_arg=args.json_path)
     if args.command == "publish":
-        return publish(args.project)
+        return publish(args.project, json_arg=args.json_path)
     if args.command == "deploy":
         return deploy(args.project)
     if args.command == "compare":
@@ -1025,6 +1192,21 @@ def main(argv: list[str] | None = None) -> int:
         return analyze(args.project, instruction=args.instruction, dry_run=args.dry_run)
     if args.command == "guia":
         return guia(args.project)
+    if args.command == "create":
+        create_args = args.args
+        if len(create_args) == 0:
+            project, tipo = ".", "documento"
+        elif len(create_args) == 1:
+            candidate = Path(create_args[0])
+            if candidate.exists() and candidate.is_dir():
+                project, tipo = create_args[0], "documento"
+            else:
+                project, tipo = ".", create_args[0]
+        elif len(create_args) == 2:
+            project, tipo = create_args
+        else:
+            parser.error("uso: sysdoc create [pasta] [tipo] [--json arquivo] [--template arquivo.docx]")
+        return create(project, tipo, json_arg=args.json_path, template_arg=args.template)
     parser.error("comando inválido")
     return 2
 
