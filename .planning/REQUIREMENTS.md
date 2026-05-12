@@ -13,8 +13,8 @@
 
 ### Document Generation
 
-- [ ] **SYSD-04**: Gerador de Word (python-docx) a partir de template
-- [ ] **SYSD-05**: Comando `sysdoc create` no CLI
+- [x] **SYSD-04**: Gerador de Word a partir de template
+- [x] **SYSD-05**: Comando `sysdoc create` no CLI
 
 ### Integration
 
@@ -44,8 +44,8 @@
 | SYSD-01 | Phase 1 | ✅ Complete |
 | SYSD-02 | Phase 1 | ✅ Complete |
 | SYSD-03 | Phase 1 | ✅ Complete |
-| SYSD-04 | Phase 2 | Pending |
-| SYSD-05 | Phase 2 | Pending |
+| SYSD-04 | Phase 2 | ✅ Complete |
+| SYSD-05 | Phase 2 | ✅ Complete |
 | SYSD-06 | Phase 3 | Pending |
 | SYSD-07 | Phase 3 | Pending |
 

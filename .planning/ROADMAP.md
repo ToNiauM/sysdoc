@@ -45,8 +45,8 @@
 3. Funciona offline/sem LLM
 
 **Requirements:**
-- [ ] **SYSD-04**: Criar gerador de Word (python-docx) baseado em template
-- [ ] **SYSD-05**: Adicionar comando create ao CLI
+- [x] **SYSD-04**: Criar gerador de Word baseado em template
+- [x] **SYSD-05**: Adicionar comando create ao CLI
 
 ---
 

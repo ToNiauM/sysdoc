@@ -1,35 +1,72 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 03
+status: ready_to_discuss
+last_updated: "2026-05-12T20:10:53.624Z"
+progress:
+  total_phases: 4
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 50
+---
+
 # STATE — SysDoc
 
 **Project:** SysDoc - Sistema de Análise de Documentação de Licitação
-**Current Phase:** Phase 2 — planejada (02-01-PLAN.md), pronta para $gsd-execute-phase 2
+**Current Phase:** Phase 3 — Integração Agentes IA, pronta para `$gsd-discuss-phase 3`
 **Mode:** standard
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-07)
+See: .planning/PROJECT.md
 
-**Core value:** CLI offline para análise de documentos de licitação via agentes de IA
+**Core value:** CLI offline para análise de documentos de licitação via agentes de IA.
 
 ## Progress
 
 | Phase | Status | Plans | Progress |
 |-------|--------|-------|----------|
-| 1 | ● | 1/1 | 100% |
-| 2 | ◐ | 0/1 | 0% |
-| 3 | ○ | 0/1 | 0% |
+| 1 | complete | 1/1 | 100% |
+| 2 | complete | 1/1 | 100% |
+| 3 | pending | 0/1 | 0% |
+| 4 | pending | 0/1 | 0% |
 
 ## Recent Changes
 
-- 2026-05-07: Projeto inicializado no GSD
-- 2026-05-07: Codebase mapeado (7 documentos)
-- 2026-05-07: Phase 1 concluída — `sysdoc analyze`, `.sysdoc/config.yaml`, AGENTS.md, wrappers Claude Code/OpenCode, 10 testes CLI novos.
-- 2026-05-07: Phase 2 — context capturado: MVP é apenas TR.docx (base para edição humana), conteúdo = JSON header + ETP literal + `para` substituindo cláusulas problemáticas.
-- 2026-05-08: Phase 2 planejada — `02-RESEARCH.md`, `02-PATTERNS.md` e `02-01-PLAN.md` criados para implementar `sysdoc create` com TR `.docx`.
+- 2026-05-07: Projeto inicializado no GSD.
+- 2026-05-07: Codebase mapeado.
+- 2026-05-07: Phase 1 concluída — `sysdoc analyze`, `.sysdoc/config.yaml`, AGENTS.md, wrappers Claude Code/OpenCode e testes CLI.
+- 2026-05-08: Phase 2 planejada — `02-RESEARCH.md`, `02-PATTERNS.md` e `02-01-PLAN.md`.
+- 2026-05-12: Phase 2 concluída — `sysdoc create` gera DOCX determinístico a partir de JSON + templates em `referencias/`, com revisão ETP para `tipo=tr`; 67 testes passando.
+
+## Recent Decisions
+
+- Templates de geração DOCX ficam em `referencias/`, não em um template fixo do repositório.
+- `sysdoc create` permanece offline e determinístico, usando substituição ZIP/XML de placeholders em DOCX.
+- `tipo=tr` é o padrão quando omitido; `--tipo` existe para scripts.
+- Para TR, o ETP preparado é lido de `.sysdoc/cache/textos/documentos/ETP.txt`, com fallback legado para `.sysdoc/cache/textos/ETP.txt`.
+
+## Pending Todos
+
+- Revisar a pasta não rastreada `Referencias/` antes de qualquer publicação ampla; ela parece conter modelos reais do usuário.
+
+## Blockers/Concerns
+
+- Nenhum bloqueio ativo para continuar o roadmap.
+
+## Session Continuity
+
+Last session: 2026-05-12
+Stopped at: Phase 2 completed and verified; ready to start Phase 3 discussion/planning.
+Resume file: none
 
 ## Current Focus
 
-Phase 2: Comando Create (Word/PDF) — plano pronto. Próximo passo: `$gsd-execute-phase 2` para implementar `sysdoc create`.
+Phase 3: Integração Agentes IA. Próximo passo recomendado: `$gsd-discuss-phase 3`.
 
 ---
 
-*Last updated: 2026-05-08*
+*Last updated: 2026-05-12*

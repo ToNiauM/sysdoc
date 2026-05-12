@@ -2,61 +2,69 @@
 
 ## What This Is
 
-CLI offline para análise comparativa de documentos de licitação (ETP e TR) contra modelos de referência. Gera relatórios HTML determinísticos. Funciona como sistema invocável via slash commands em agentes de IA (OpenCode, Claude Code, Codex, Antigravity).
+CLI offline para preparação, análise assistida por agente e geração determinística de documentos. O caso comum continua sendo ETP/TR, mas a estrutura de projeto é genérica: documentos a analisar ficam em `documentos/`, referências e templates ficam em `referencias/`, e artefatos publicados ficam em `output/`.
 
 ## Core Value
 
-Análise técnica e jurídica de documentos de licitação via CLI determinística + harness LLM para análises complexas, outputting HTML de para e documentos Word gerados.
+Análise técnica e jurídica de documentos de licitação via CLI determinística + harness de IA externo, com saídas rastreáveis em JSON, HTML e DOCX.
 
 ## Requirements
 
 ### Validated
 
-- ✓ Extração de PDF/DOCX para texto (sysdoc.py:extract_pdf, extract_docx)
-- ✓ Validação de JSON (templates/validate_sysdoc.py)
-- ✓ Renderização HTML (templates/render_analise.py)
-- ✓ CLI completa com comandos: status, init, prepare, analyze, validate, render, publish, deploy
+- ✓ Extração de PDF/DOCX/TXT/MD para texto.
+- ✓ Estrutura `.sysdoc/config.yaml` por projeto.
+- ✓ Estrutura genérica `documentos/`, `referencias/`, `output/`.
+- ✓ Validação de JSON consolidado.
+- ✓ Renderização HTML determinística.
+- ✓ CLI completa com comandos: status, init, config, prepare, analyze, validate, render, publish, deploy, compare, guia.
+- ✓ `sysdoc create` gera DOCX determinístico a partir de JSON + template.
+- ✓ `tipo=tr` aplica revisão ETP com substituição exata `de`→`para` e registra pendências.
 
 ### Active
 
-- [ ] Sistema de comandos estilo GSD (/sysdoc [comando])
-- [ ] Comando create para gerar documentos Word/PDF
-- [ ] Documentação para integração com agentes de IA
-- [ ] Saída Word além de HTML
-- [ ] Estrutura de projeto padronizada para invoked-by-agent
+- [ ] Documentação e validação de integração com agentes de IA.
 
 ### Out of Scope
 
-- Interface GUI — CLI only
-- Análise em tempo real com múltiplas LLMs — uma por vez
-- Armazenamento em cloud — local-only
+- Interface GUI — CLI only.
+- Análise em tempo real com múltiplas LLMs — uma por vez.
+- Armazenamento em cloud — local-only.
+- Geração PDF direta no `create` — Word pode exportar PDF por enquanto.
+
+## Current State
+
+Phase 2 concluída em 2026-05-12. `sysdoc create` está implementado e verificado com 67 testes passando.
 
 ## Context
 
 **Código existente:**
-- `sysdoc.py` (~700 linhas) — CLI principal (entry point único)
-- `templates/validate_sysdoc.py` (425 linhas) — Validador
-- `templates/render_analise.py` (340 linhas) — Renderizador HTML
-- `skills/sysdoc/SKILL.md` — Operações canônicas
-- `AGENTS.md` — Instruções genéricas para harnesses de IA
 
-**Stack atual:** Python 3.12+, pypdf, python-docx, jinja2, pytest
+- `sysdoc.py` — CLI principal.
+- `templates/validate_sysdoc.py` — validador determinístico.
+- `templates/render_analise.py` — renderizador HTML determinístico.
+- `skills/sysdoc/SKILL.md` — fluxo operacional canônico.
+- `AGENTS.md` — instruções genéricas para harnesses de IA.
+
+**Stack atual:** Python 3.12+, pypdf, pyyaml, pytest.
 
 ## Constraints
 
-- **Offline/determinístico**: Scripts Python geram máximo de output independente de IA
-- **Agent-invocável**: CLI deve funcionar via /sysdoc em qualquer harness
-- **Saída múltipla**: HTML e Word
+- **Offline/determinístico**: scripts Python geram output sem chamada a LLM.
+- **Agent-invocável**: CLI deve funcionar via `/sysdoc` em qualquer harness.
+- **Saída múltipla**: JSON, HTML e Word.
+- **Templates de análise imutáveis**: `templates/analise_template.html`, `templates/render_analise.py` e `templates/validate_sysdoc.py` não são alterados durante análises.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| CLI only, sem GUI | Agentes de IA não usam GUI | — Pending |
-| Output HTML + Word | Word é formato padrão para documentos oficiais | — Pending |
-| Python puro para prepare/render | Determinístico, zero LLM needed | — Pending |
-| LLM só no analyze | Harness do agente faz análise | — Pending |
+| CLI only, sem GUI | Agentes de IA não usam GUI | Accepted |
+| Output HTML + Word | Word é formato operacional para documentos oficiais | Accepted |
+| Python puro para prepare/render/create | Determinístico, zero LLM needed | Accepted |
+| LLM só no analyze | Harness externo faz análise; CLI prepara e renderiza | Accepted |
+| Templates DOCX em `referencias/` | Referências incluem modelos oficiais e material de apoio por projeto | Accepted |
 
 ---
 
-*Last updated: 2026-05-07 after project initialization*
+*Last updated: 2026-05-12 after Phase 2 completion*
