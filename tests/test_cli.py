@@ -496,6 +496,37 @@ class TestRenderAndCreate:
         with pytest.raises(SystemExit):
             sysdoc.create("ProjetoNoJson", "tr")
 
+    def test_create_tr_missing_etp_with_revisions_fails(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoNoEtp"
+        refs = project_dir / "referencias"
+        refs.mkdir(parents=True)
+        json_file = project_dir / "dados_consolidados.json"
+        json_file.write_text(
+            json.dumps({
+                "modelo_ia": "gpt-5",
+                "data_an\u00e1lise": "2026-05-12",
+                "projeto": {"objeto": "Aquisi\u00e7\u00e3o de materiais"},
+                "itens": [
+                    {
+                        "id": "ETP-001",
+                        "documento": "ETP",
+                        "classifica\u00e7\u00e3o": "risco",
+                        "de": "texto antigo",
+                        "para": "texto novo",
+                    }
+                ],
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        template = refs / "modelo_compras.docx"
+        with zipfile.ZipFile(template, "w") as zf:
+            zf.writestr("[Content_Types].xml", "<Types></Types>")
+            zf.writestr("word/document.xml", "<w:document>{{corpo_etp}}</w:document>")
+
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(SystemExit):
+            sysdoc.create("ProjetoNoEtp", "tr")
+
     def test_create_tr_auto_prepare_when_etp_missing(self, tmp_path, monkeypatch):
         project_dir = tmp_path / "ProjetoAutoPrep"
         refs = project_dir / "referencias"
@@ -537,8 +568,8 @@ class TestRenderAndCreate:
         def fake_prepare(project: str) -> int:
             prepare_called.append(project)
             p = sysdoc.project_paths(project)
-            p.source_cache.mkdir(parents=True, exist_ok=True)
-            (p.source_cache / "ETP.txt").write_text(
+            p.documents_cache.mkdir(parents=True, exist_ok=True)
+            (p.documents_cache / "ETP.txt").write_text(
                 "Texto com item antigo final", encoding="utf-8"
             )
             return 0

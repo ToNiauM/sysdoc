@@ -910,14 +910,18 @@ def load_analysis_json(paths: ProjectPaths) -> dict:
 
 
 def ensure_etp_text(project: str, paths: ProjectPaths) -> Path:
-    etp_path = paths.source_cache / "ETP.txt"
-    if not etp_path.is_file():
+    candidates = (paths.documents_cache / "ETP.txt", paths.source_cache / "ETP.txt")
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    if not any(candidate.is_file() for candidate in candidates):
         result = prepare(project)
         if result != 0:
             raise SystemExit(result)
-    if not etp_path.is_file():
-        raise SystemExit(f"Texto do ETP não encontrado: {rel(etp_path)}")
-    return etp_path
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise SystemExit(f"Texto do ETP não encontrado: {rel(paths.documents_cache / 'ETP.txt')}")
 
 
 def is_omission_marker(value: str) -> bool:
@@ -1083,7 +1087,7 @@ def create(project: str, tipo: str, json_arg: str | None = None, template_arg: s
                 revised_etp, pending = apply_etp_revisions(etp_text, etp_items)
         except SystemExit:
             if etp_items:
-                pending = etp_items
+                raise
         values = flatten_json(data)
         values["tipo"] = tipo
         values["json"] = rel(json_path)
