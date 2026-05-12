@@ -902,6 +902,72 @@ def flatten_json(data: object, prefix: str = "") -> dict[str, str]:
     return values
 
 
+def load_analysis_json(paths: ProjectPaths) -> dict:
+    json_path = paths.root / "dados_consolidados.json"
+    if not json_path.is_file():
+        raise SystemExit(f"JSON não encontrado: {rel(json_path)}")
+    return json.loads(json_path.read_text(encoding="utf-8"))
+
+
+def ensure_etp_text(project: str, paths: ProjectPaths) -> Path:
+    etp_path = paths.source_cache / "ETP.txt"
+    if not etp_path.is_file():
+        result = prepare(project)
+        if result != 0:
+            raise SystemExit(result)
+    if not etp_path.is_file():
+        raise SystemExit(f"Texto do ETP não encontrado: {rel(etp_path)}")
+    return etp_path
+
+
+def is_omission_marker(value: str) -> bool:
+    return bool(re.match(r"\[OMISS[AÃ]O[:\]\s]", str(value or ""), re.IGNORECASE))
+
+
+def applicable_etp_items(data: dict) -> list[dict]:
+    return [
+        item for item in data.get("itens", [])
+        if item.get("documento") == "ETP"
+        and item.get("classificação") in {"ajuste_necessário", "risco"}
+        and not is_omission_marker(item.get("de", ""))
+    ]
+
+
+def apply_etp_revisions(etp_text: str, items: list[dict]) -> tuple[str, list[dict]]:
+    revised = etp_text
+    pending = []
+    for item in items:
+        before = str(item.get("de") or "")
+        after = str(item.get("para") or "")
+        if before and after and before in revised:
+            revised = revised.replace(before, after, 1)
+        else:
+            pending.append(item)
+    return revised, pending
+
+
+def build_pending_text(pending: list[dict]) -> str:
+    if not pending:
+        return "Nenhuma substituição pendente."
+    return "\n".join(
+        f"{item.get('id', '?')}: trecho original não localizado para substituição exata."
+        for item in pending
+    )
+
+
+def resolve_next_docx_output(project_dir: Path, prefix: str, model: str, date: str) -> Path:
+    stem = f"{prefix}_{model}_{date}"
+    candidate = project_dir / f"{stem}.docx"
+    if not candidate.exists():
+        return candidate
+    index = 2
+    while True:
+        candidate = project_dir / f"{stem}_{index}.docx"
+        if not candidate.exists():
+            return candidate
+        index += 1
+
+
 def find_docx_template(paths: ProjectPaths, tipo: str, template_arg: str | None = None) -> Path:
     if template_arg:
         candidate = Path(template_arg)
@@ -942,21 +1008,103 @@ def render_docx_template(template: Path, output: Path, values: dict[str, str]) -
             target.writestr(item, payload)
 
 
+def _detect_procurement_category(data: dict) -> str:
+    """Detecta a categoria de contratação a partir do JSON consolidado."""
+    projeto = data.get("projeto", {})
+    objeto = str(projeto.get("objeto") or "").lower()
+    if any(kw in objeto for kw in ("obra", "engenharia", "construção", "reforma")):
+        return "obras"
+    if any(kw in objeto for kw in ("serviço", "servico", "prestação", "prestacao")):
+        vigencia = str(projeto.get("vigência") or projeto.get("vigencia") or "").lower()
+        if "dedicação" in vigencia or "dedicacao" in vigencia or "exclusiva" in vigencia:
+            return "servicos_com_dedicacao"
+        return "servicos_sem_dedicacao"
+    return "compras"
+
+
+def _select_reference_template(
+    paths: ProjectPaths, tipo: str, category: str, template_arg: str | None = None,
+) -> Path:
+    """Seleciona template .docx de referencias/ baseado no tipo e categoria."""
+    if template_arg:
+        candidate = Path(template_arg)
+        return candidate if candidate.is_absolute() else (Path.cwd() / candidate).resolve()
+
+    candidates = supported_files(paths.referencias)
+    docx_files = [p for p in candidates if p.suffix.lower() == ".docx"]
+    if not docx_files and paths.modelos is not None:
+        docx_files = [p for p in supported_files(paths.modelos) if p.suffix.lower() == ".docx"]
+    if not docx_files:
+        raise SystemExit(
+            f"Nenhum template .docx encontrado em {rel(paths.referencias)}. "
+            "Adicione modelos de referência em referencias/ ou use --template."
+        )
+
+    if tipo.lower() == "tr":
+        category_keywords = {
+            "compras": ["compra", "aquisição", "aquisicao"],
+            "servicos_com_dedicacao": ["servico", "serviço", "dedicação", "dedicacao", "dedica"],
+            "servicos_sem_dedicacao": ["contrato", "sem-mao", "sem-mão", "sem_mao"],
+            "obras": ["obra", "engenharia", "servicos-e-obras", "serviços-e-obras"],
+        }
+        keywords = category_keywords.get(category, [])
+        for kw in keywords:
+            for path in docx_files:
+                if kw in path.stem.lower():
+                    return path
+
+    tipo_norm = tipo.lower()
+    preferred_names = {f"{tipo_norm}.docx", f"modelo_{tipo_norm}.docx", f"template_{tipo_norm}.docx"}
+    for path in docx_files:
+        if path.name.lower() in preferred_names:
+            return path
+    for path in docx_files:
+        if tipo_norm in path.stem.lower():
+            return path
+    return docx_files[0]
+
+
 def create(project: str, tipo: str, json_arg: str | None = None, template_arg: str | None = None) -> int:
     paths = project_paths(project)
     json_path = find_analysis_json(paths, json_arg)
-    template = find_docx_template(paths, tipo, template_arg)
     data = json.loads(json_path.read_text(encoding="utf-8"))
-    values = flatten_json(data)
-    values["tipo"] = tipo
-    values["json"] = rel(json_path)
-    values["template"] = rel(template)
+
+    if tipo.lower() == "tr":
+        category = _detect_procurement_category(data)
+        template = _select_reference_template(paths, tipo, category, template_arg)
+        etp_items = applicable_etp_items(data)
+        revised_etp = ""
+        pending = []
+        etp_text = ""
+        try:
+            etp_path = ensure_etp_text(project, paths)
+            etp_text = etp_path.read_text(encoding="utf-8", errors="replace")
+            if etp_items:
+                revised_etp, pending = apply_etp_revisions(etp_text, etp_items)
+        except SystemExit:
+            if etp_items:
+                pending = etp_items
+        values = flatten_json(data)
+        values["tipo"] = tipo
+        values["json"] = rel(json_path)
+        values["template"] = rel(template)
+        values["corpo_etp"] = revised_etp or etp_text
+        values["substituicoes_pendentes"] = build_pending_text(pending)
+    else:
+        template = _select_reference_template(paths, tipo, "", template_arg)
+        values = flatten_json(data)
+        values["tipo"] = tipo
+        values["json"] = rel(json_path)
+        values["template"] = rel(template)
+
     model = slug(data.get("modelo_ia", "modelo"))
     date = extract_date(data.get("data_análise", data.get("data_analise", "")))
     paths.output.mkdir(parents=True, exist_ok=True)
-    output = resolve_next_output(paths.output, f"{slug(tipo)}_{model}_{date}", ".docx")
+    output = resolve_next_docx_output(paths.root, slug(tipo), model, date)
     render_docx_template(template, output, values)
     print(f"DOCX gerado: {rel(output)}")
+    if tipo.lower() == "tr" and pending:
+        print(f"Substituições pendentes: {len(pending)}")
     return 0
 
 
@@ -1150,6 +1298,7 @@ def build_parser() -> argparse.ArgumentParser:
     create_parser.add_argument("args", nargs="*", help="Uso: create [pasta] [tipo] ou create [tipo] dentro da pasta.")
     create_parser.add_argument("--json", dest="json_path", help="Caminho para um JSON especÃ­fico.")
     create_parser.add_argument("--template", help="Template .docx com placeholders {{campo}}.")
+    create_parser.add_argument("--tipo", dest="tipo_flag", help="Tipo de documento a gerar. PadrÃƒÂ£o: tr.")
     parser.add_argument("--version", action="version", version=f"SysDoc {VERSION}")
     return parser
 
@@ -1194,16 +1343,18 @@ def main(argv: list[str] | None = None) -> int:
         return guia(args.project)
     if args.command == "create":
         create_args = args.args
+        tipo_flag = args.tipo_flag
         if len(create_args) == 0:
-            project, tipo = ".", "documento"
+            project, tipo = ".", tipo_flag or "tr"
         elif len(create_args) == 1:
             candidate = Path(create_args[0])
             if candidate.exists() and candidate.is_dir():
-                project, tipo = create_args[0], "documento"
+                project, tipo = create_args[0], tipo_flag or "tr"
             else:
-                project, tipo = ".", create_args[0]
+                project, tipo = ".", tipo_flag or create_args[0]
         elif len(create_args) == 2:
             project, tipo = create_args
+            tipo = tipo_flag or tipo
         else:
             parser.error("uso: sysdoc create [pasta] [tipo] [--json arquivo] [--template arquivo.docx]")
         return create(project, tipo, json_arg=args.json_path, template_arg=args.template)

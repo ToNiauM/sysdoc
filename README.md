@@ -195,6 +195,8 @@ Para gerar um `.docx` a partir de um template Word em `referencias/`:
 sysdoc create tr
 ```
 
+Quando `tipo` for omitido, `create` assume `tr`. A flag `--tipo` também pode ser usada para scripts.
+
 ### Passo 7 — Enviar para produção
 
 ```bash
@@ -235,7 +237,7 @@ sysdoc compare Aquisicao-Combustivel-2026
 | `sysdoc validate [pasta]` | Valida `dados_consolidados.json` contra o schema, regras de coerência, acentuação PT-BR e rastreabilidade do campo `de`. |
 | `sysdoc render [pasta] [--json arquivo]` | Renderiza HTML em `output/` a partir de `dados_consolidados.json`, do JSON mais recente ou de um JSON explícito. |
 | `sysdoc publish [pasta] [--json arquivo]` | Executa `validate` + versionamento de JSON por modelo+data em `output/` + `render`. |
-| `sysdoc create [pasta] [tipo] [--template arquivo.docx] [--json arquivo]` | Gera DOCX em `output/` preenchendo placeholders `{{campo}}` de um template Word com dados do JSON. Dentro da pasta do projeto, também aceita `sysdoc create tr`. |
+| `sysdoc create [pasta] [tipo] [--template arquivo.docx] [--json arquivo]` | Gera DOCX a partir de um template Word e dados do JSON. Para `tipo=tr`: aplica revisão ETP (substituição `de`→`para`), seleciona template por categoria de contratação em `referencias/` e grava na raiz como `tr_[modelo]_[data].docx`. |
 | `sysdoc deploy [pasta]` | Envia o HTML mais recente para a VPS via SSH/SCP, descobrindo o próximo `index{N}.html` livre. Lê `vps_host`/`vps_path` de `.sysdoc/config.yaml`. |
 | `sysdoc compare [pasta]` | Lista todos os JSONs versionados do projeto com modelo, data, contagem de itens, bloqueantes e relevantes. |
 | `sysdoc --version` | Exibe a versão instalada (1.4.0). |

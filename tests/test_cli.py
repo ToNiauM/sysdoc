@@ -4,6 +4,7 @@ Testes do CLI do SysDoc (analyze, init_config, ProjectPaths.config).
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import zipfile
@@ -244,6 +245,62 @@ class TestPrepareStructure:
 
 
 class TestRenderAndCreate:
+    def test_create_command_help(self):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "sysdoc.py"), "create", "--help"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        assert result.returncode == 0
+        assert "create" in result.stdout.lower()
+        assert "--tipo" in result.stdout
+
+    def test_create_defaults_to_tr_for_project(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoDefaultTR"
+        project_dir.mkdir()
+        captured: dict[str, str | None] = {}
+
+        def fake_create(project: str, tipo: str, json_arg: str | None = None, template_arg: str | None = None) -> int:
+            captured["project"] = project
+            captured["tipo"] = tipo
+            captured["json_arg"] = json_arg
+            captured["template_arg"] = template_arg
+            return 0
+
+        monkeypatch.setattr(sysdoc, "create", fake_create)
+
+        rc = sysdoc.main(["create", str(project_dir)])
+
+        assert rc == 0
+        assert captured == {
+            "project": str(project_dir),
+            "tipo": "tr",
+            "json_arg": None,
+            "template_arg": None,
+        }
+
+    def test_create_tipo_flag_overrides_positional_type(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoTipoFlag"
+        project_dir.mkdir()
+        captured: dict[str, str | None] = {}
+
+        def fake_create(project: str, tipo: str, json_arg: str | None = None, template_arg: str | None = None) -> int:
+            captured["project"] = project
+            captured["tipo"] = tipo
+            captured["json_arg"] = json_arg
+            captured["template_arg"] = template_arg
+            return 0
+
+        monkeypatch.setattr(sysdoc, "create", fake_create)
+
+        rc = sysdoc.main(["create", str(project_dir), "documento", "--tipo", "tr"])
+
+        assert rc == 0
+        assert captured["project"] == str(project_dir)
+        assert captured["tipo"] == "tr"
+
     def test_render_uses_output_directory_and_json_override(self, tmp_path, monkeypatch):
         project_dir = tmp_path / "ProjetoRender"
         project_dir.mkdir()
@@ -282,10 +339,252 @@ class TestRenderAndCreate:
         rc = sysdoc.create("ProjetoCreate", "tr")
 
         assert rc == 0
-        output = project_dir / "output" / "tr_gpt-5_2026-05-12.docx"
+        output = project_dir / "tr_gpt-5_2026-05-12.docx"
         assert output.is_file()
         with zipfile.ZipFile(output) as zf:
             assert "Objeto teste" in zf.read("word/document.xml").decode("utf-8")
+
+    def test_create_tr_applies_etp_revisions(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoTR"
+        refs = project_dir / "referencias"
+        cache = project_dir / ".sysdoc" / "cache" / "textos"
+        refs.mkdir(parents=True)
+        cache.mkdir(parents=True)
+
+        json_file = project_dir / "dados_consolidados.json"
+        json_file.write_text(
+            json.dumps({
+                "modelo_ia": "gpt-5",
+                "data_análise": "2026-05-12",
+                "projeto": {"objeto": "Aquisição de combustível"},
+                "itens": [
+                    {
+                        "id": "ETP-001",
+                        "documento": "ETP",
+                        "classificação": "ajuste_necessário",
+                        "de": "cláusula antiga",
+                        "para": "cláusula revisada",
+                    }
+                ],
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        (cache / "ETP.txt").write_text(
+            "Texto inicial cláusula antiga texto final", encoding="utf-8"
+        )
+
+        template = refs / "modelo_compras.docx"
+        with zipfile.ZipFile(template, "w") as zf:
+            zf.writestr("[Content_Types].xml", "<Types></Types>")
+            zf.writestr(
+                "word/document.xml",
+                "<w:document>{{corpo_etp}}</w:document>",
+            )
+
+        monkeypatch.chdir(tmp_path)
+        rc = sysdoc.create("ProjetoTR", "tr")
+
+        assert rc == 0
+        output = project_dir / "tr_gpt-5_2026-05-12.docx"
+        assert output.is_file()
+        with zipfile.ZipFile(output) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+            assert "cláusula revisada" in xml
+            assert "cláusula antiga" not in xml
+
+    def test_create_tr_reports_pending_substitution(self, tmp_path, monkeypatch, capsys):
+        project_dir = tmp_path / "ProjetoPending"
+        refs = project_dir / "referencias"
+        cache = project_dir / ".sysdoc" / "cache" / "textos"
+        refs.mkdir(parents=True)
+        cache.mkdir(parents=True)
+
+        json_file = project_dir / "dados_consolidados.json"
+        json_file.write_text(
+            json.dumps({
+                "modelo_ia": "gpt-5",
+                "data_análise": "2026-05-12",
+                "projeto": {"objeto": "Serviço de limpeza"},
+                "itens": [
+                    {
+                        "id": "ETP-001",
+                        "documento": "ETP",
+                        "classificação": "risco",
+                        "de": "texto que não existe no ETP",
+                        "para": "texto substituto",
+                    }
+                ],
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        (cache / "ETP.txt").write_text(
+            "Texto do ETP sem correspondência", encoding="utf-8"
+        )
+
+        template = refs / "modelo_servicos.docx"
+        with zipfile.ZipFile(template, "w") as zf:
+            zf.writestr("[Content_Types].xml", "<Types></Types>")
+            zf.writestr(
+                "word/document.xml",
+                "<w:document>{{substituicoes_pendentes}}</w:document>",
+            )
+
+        monkeypatch.chdir(tmp_path)
+        rc = sysdoc.create("ProjetoPending", "tr")
+
+        assert rc == 0
+        captured = capsys.readouterr()
+        assert "Substituições pendentes: 1" in captured.out
+        output = project_dir / "tr_gpt-5_2026-05-12.docx"
+        with zipfile.ZipFile(output) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+            assert "ETP-001" in xml
+
+    def test_create_tr_ignores_omission_markers(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoOmissao"
+        refs = project_dir / "referencias"
+        cache = project_dir / ".sysdoc" / "cache" / "textos"
+        refs.mkdir(parents=True)
+        cache.mkdir(parents=True)
+
+        json_file = project_dir / "dados_consolidados.json"
+        json_file.write_text(
+            json.dumps({
+                "modelo_ia": "gpt-5",
+                "data_análise": "2026-05-12",
+                "projeto": {"objeto": "Obra de reforma"},
+                "itens": [
+                    {
+                        "id": "ETP-001",
+                        "documento": "ETP",
+                        "classificação": "ajuste_necessário",
+                        "de": "[OMISSÃO] texto omitido",
+                        "para": "texto preenchido",
+                    }
+                ],
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        (cache / "ETP.txt").write_text("ETP sem alteração", encoding="utf-8")
+
+        template = refs / "modelo_obras.docx"
+        with zipfile.ZipFile(template, "w") as zf:
+            zf.writestr("[Content_Types].xml", "<Types></Types>")
+            zf.writestr(
+                "word/document.xml",
+                "<w:document>{{corpo_etp}}</w:document>",
+            )
+
+        monkeypatch.chdir(tmp_path)
+        rc = sysdoc.create("ProjetoOmissao", "tr")
+
+        assert rc == 0
+        output = project_dir / "tr_gpt-5_2026-05-12.docx"
+        with zipfile.ZipFile(output) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+            assert "ETP sem alteração" in xml
+
+    def test_create_tr_missing_json_fails(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoNoJson"
+        refs = project_dir / "referencias"
+        refs.mkdir(parents=True)
+
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(SystemExit):
+            sysdoc.create("ProjetoNoJson", "tr")
+
+    def test_create_tr_auto_prepare_when_etp_missing(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoAutoPrep"
+        refs = project_dir / "referencias"
+        docs = project_dir / "documentos"
+        refs.mkdir(parents=True)
+        docs.mkdir()
+
+        json_file = project_dir / "dados_consolidados.json"
+        json_file.write_text(
+            json.dumps({
+                "modelo_ia": "gpt-5",
+                "data_análise": "2026-05-12",
+                "projeto": {"objeto": "Aquisição de materiais"},
+                "itens": [
+                    {
+                        "id": "ETP-001",
+                        "documento": "ETP",
+                        "classificação": "ajuste_necessário",
+                        "de": "item antigo",
+                        "para": "item novo",
+                    }
+                ],
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        (docs / "ETP.txt").write_text("Texto com item antigo final", encoding="utf-8")
+
+        template = refs / "modelo_compras.docx"
+        with zipfile.ZipFile(template, "w") as zf:
+            zf.writestr("[Content_Types].xml", "<Types></Types>")
+            zf.writestr(
+                "word/document.xml",
+                "<w:document>{{corpo_etp}}</w:document>",
+            )
+
+        prepare_called: list[str] = []
+
+        def fake_prepare(project: str) -> int:
+            prepare_called.append(project)
+            p = sysdoc.project_paths(project)
+            p.source_cache.mkdir(parents=True, exist_ok=True)
+            (p.source_cache / "ETP.txt").write_text(
+                "Texto com item antigo final", encoding="utf-8"
+            )
+            return 0
+
+        monkeypatch.setattr(sysdoc, "prepare", fake_prepare)
+        monkeypatch.chdir(tmp_path)
+
+        rc = sysdoc.create("ProjetoAutoPrep", "tr")
+
+        assert rc == 0
+        assert len(prepare_called) == 1
+
+    def test_create_selects_compras_template(self, tmp_path, monkeypatch):
+        project_dir = tmp_path / "ProjetoCompras"
+        refs = project_dir / "referencias"
+        refs.mkdir(parents=True)
+
+        json_file = project_dir / "dados_consolidados.json"
+        json_file.write_text(
+            json.dumps({
+                "modelo_ia": "gpt-5",
+                "data_análise": "2026-05-12",
+                "projeto": {"objeto": "Aquisição de materiais de escritório"},
+                "itens": [],
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        compras_tpl = refs / "modelo_compras.docx"
+        with zipfile.ZipFile(compras_tpl, "w") as zf:
+            zf.writestr("[Content_Types].xml", "<Types></Types>")
+            zf.writestr("word/document.xml", "<w:document>COMPRAS {{projeto.objeto}}</w:document>")
+
+        servicos_tpl = refs / "modelo_servicos.docx"
+        with zipfile.ZipFile(servicos_tpl, "w") as zf:
+            zf.writestr("[Content_Types].xml", "<Types></Types>")
+            zf.writestr("word/document.xml", "<w:document>SERVICOS {{projeto.objeto}}</w:document>")
+
+        monkeypatch.chdir(tmp_path)
+        rc = sysdoc.create("ProjetoCompras", "tr")
+
+        assert rc == 0
+        output = project_dir / "tr_gpt-5_2026-05-12.docx"
+        with zipfile.ZipFile(output) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+            assert "COMPRAS" in xml
 
 
 class TestConfigYamlFormat:

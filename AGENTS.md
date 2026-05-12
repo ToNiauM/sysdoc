@@ -22,7 +22,7 @@ sysdoc validate [pasta]                  # valida dados_consolidados.json
 sysdoc render [pasta]                    # renderiza HTML a partir do JSON
 sysdoc publish [pasta]                   # validate + versionar JSON + render
 sysdoc deploy [pasta]                    # envia HTML para VPS via SSH
-sysdoc create [pasta] [tipo]             # gera DOCX em output/ a partir de JSON + template
+sysdoc create [pasta] [tipo]             # gera DOCX a partir de JSON + template
 sysdoc compare [pasta]                   # compara versões de análise
 ```
 
@@ -37,7 +37,7 @@ Quando o usuário digitar uma macro, você (Agente) orquestra:
 3. **`/sysdoc all [pasta]`** — orquestre: analyze → gerar JSON → publish → deploy.
 4. **`/sysdoc render [pasta]`** — rode `sysdoc render [pasta]`.
 5. **`/sysdoc deploy [pasta]`** — rode `sysdoc deploy [pasta]`.
-6. **`/sysdoc create [pasta] [tipo]`** — rode `sysdoc create [pasta] [tipo]`; usa o JSON escolhido/mais recente e um template `.docx` de `referencias/` ou `--template`.
+6. **`/sysdoc create [pasta] [tipo]`** — rode `sysdoc create [pasta] [tipo]`; quando omitido, `tipo=tr`. Para `tipo=tr`, aplica revisão ETP com substituição `de`→`para`, seleciona template por categoria de contratação em `referencias/` e grava como `tr_[modelo]_[data].docx` na raiz do projeto.
 
 ## Key Rules
 

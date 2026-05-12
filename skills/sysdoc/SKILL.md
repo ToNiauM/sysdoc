@@ -35,8 +35,10 @@ O usuário acionará você (o Agente de IA) através de "Macro Comandos". Quando
 - **`/sysdoc deploy [pasta]`**: Rode `sysdoc deploy [pasta]` para enviar o HTML mais recente para a VPS configurada em `.sysdoc/config.yaml`.
 
 - **`/sysdoc create [pasta] [tipo]`**:
-  - Rode `sysdoc create [pasta] [tipo]` para gerar `.docx` em `output/`.
-  - O comando usa `dados_consolidados.json` ou o JSON mais recente e preenche placeholders `{{campo}}` de um template `.docx` em `referencias/` ou passado por `--template`.
+  - Rode `sysdoc create [pasta] [tipo]` para gerar `.docx` a partir de `dados_consolidados.json` e um template em `referencias/`.
+  - Quando omitido, `tipo=tr`.
+  - Para `tipo=tr`: aplica revisão ETP (substituição literal `de`→`para` em itens problemáticos), seleciona template por categoria de contratação (compras, serviços com/sem dedicação, obras) e grava na raiz como `tr_[modelo]_[data].docx`.
+  - Aceita `--template` para template explícito e `--json` para JSON específico.
 
 ## Ferramentas de CLI (Apenas para o Agente)
 
@@ -52,7 +54,7 @@ sysdoc validate [pasta]
 sysdoc render [pasta]
 sysdoc publish [pasta]
 sysdoc deploy [pasta]
-sysdoc create [pasta] [tipo] [--template arquivo.docx] [--json arquivo.json]
+sysdoc create [pasta] [tipo] [--tipo tipo] [--template arquivo.docx] [--json arquivo.json]
 sysdoc compare [pasta]
 ```
 
@@ -70,7 +72,7 @@ Se `documentos/` não tiver nenhum arquivo suportado, interrompa e peça os docu
 - `[pasta]/dados_consolidados.json`
 - `[pasta]/output/dados_consolidados_[modelo_ia]_[data].json` quando publicado por `python sysdoc.py publish [pasta]`
 - `[pasta]/output/analise_[modelo_ia]_[data].html` (ex.: `analise_gpt-5_2026-04-24.html`)
-- `[pasta]/output/[tipo]_[modelo_ia]_[data].docx` quando gerado por `sysdoc create`
+- `[pasta]/[tipo]_[modelo_ia]_[data].docx` quando gerado por `sysdoc create`
 
 O renderizador auto-incrementa `_2`, `_3`, ... quando já existe arquivo para o mesmo modelo/data.
 
