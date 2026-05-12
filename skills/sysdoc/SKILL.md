@@ -47,7 +47,7 @@ sysdoc status
 sysdoc init [pasta]
 sysdoc prepare [pasta]
 sysdoc analyze [pasta] [-i "instrução"]
-sysdoc config -vps <usuario@host> -path <caminho-remoto> [pasta]
+sysdoc config --vps <usuario@host> --path <caminho-remoto> [pasta]
 sysdoc validate [pasta]
 sysdoc render [pasta]
 sysdoc publish [pasta]

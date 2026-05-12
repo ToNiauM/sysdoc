@@ -1061,7 +1061,7 @@ def build_parser() -> argparse.ArgumentParser:
               python sysdoc.py status
               python sysdoc.py init .
               python sysdoc.py all .
-              python sysdoc.py config -vps root@host -path /var/www/html .
+              python sysdoc.py config --vps root@host --path /var/www/html .
               python sysdoc.py prepare Combustivel
               python sysdoc.py validate Combustivel
               python sysdoc.py render Combustivel
@@ -1091,7 +1091,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     config_parser.add_argument("project", nargs="?", default=".", help="Pasta do projeto SysDoc.")
     config_parser.add_argument(
-        "-vps",
+        "--vps",
         dest="vps_host",
         help="Host SSH da VPS, ex.: root@servidor.",
     )
@@ -1101,7 +1101,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
     config_parser.add_argument(
-        "-path",
+        "--path",
         dest="vps_path",
         help="Pasta remota onde o HTML será publicado.",
     )

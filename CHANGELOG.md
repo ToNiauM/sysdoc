@@ -4,6 +4,14 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 ---
 
+## [Não publicado]
+
+### Alterado
+
+- **Flags `config --vps` e `--path`** (`sysdoc.py`, `tests/test_cli.py`, `AGENTS.md`, `README.md`, `skills/sysdoc/SKILL.md`): substitui as flags antigas `-vps`/`-path` (sintaxe não-POSIX) por `--vps`/`--path`. `--vps-host` e `--vps-path` permanecem como aliases ocultos para retrocompatibilidade. Help do `sysdoc config` agora exibe apenas as formas canônicas.
+
+---
+
 ## [1.4.0] — 2026-05-12
 
 ### Adicionado

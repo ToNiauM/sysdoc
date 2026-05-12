@@ -148,7 +148,7 @@ Confirma quantos documentos, referências, JSONs, HTMLs e caches foram encontrad
 ### Passo 3 — Configurar deploy
 
 ```bash
-sysdoc config -vps usuario@servidor -path /caminho/publico/html .
+sysdoc config --vps usuario@servidor --path /caminho/publico/html .
 ```
 
 Grava a VPS e a pasta remota em `.sysdoc/config.yaml`.
@@ -207,7 +207,7 @@ Envia o HTML mais recente para a VPS configurada.
 
 ```bash
 sysdoc init Aquisicao-Combustivel-2026
-sysdoc config -vps usuario@servidor -path /caminho/publico/html Aquisicao-Combustivel-2026
+sysdoc config --vps usuario@servidor --path /caminho/publico/html Aquisicao-Combustivel-2026
 sysdoc all Aquisicao-Combustivel-2026
 sysdoc publish Aquisicao-Combustivel-2026
 sysdoc deploy Aquisicao-Combustivel-2026
@@ -227,7 +227,7 @@ sysdoc compare Aquisicao-Combustivel-2026
 |---------|-----------|
 | `sysdoc status` | Lista projetos no diretório atual e exibe contagens de documentos, referências, JSON, HTML e cache preparado. |
 | `sysdoc init [pasta]` | Cria estrutura base (`documentos/`, `referencias/`, `output/`, `.sysdoc/config.yaml`). Não sobrescreve `config.yaml` se já existir. |
-| `sysdoc config -vps <usuario@host> -path <caminho> [pasta]` | Atualiza a VPS e a pasta remota em `.sysdoc/config.yaml`. Sem flags, mostra a configuração atual. |
+| `sysdoc config --vps <usuario@host> --path <caminho> [pasta]` | Atualiza a VPS e a pasta remota em `.sysdoc/config.yaml`. Sem flags, mostra a configuração atual. |
 | `sysdoc prepare [pasta]` | Extrai texto de todos os arquivos suportados em `documentos/` e `referencias/` para `.sysdoc/cache/textos/`. Gera `contexto_sysdoc.md` e `manifest.json`. |
 | `sysdoc all [pasta]` | Inicializa a estrutura e prepara o cache para o agente de IA. |
 | `sysdoc analyze [pasta] [-i "instrução"] [--dry-run]` | Prepara o cache (se ausente) e exibe um handoff visual com o slash command exato (`/sysdoc analyze <pasta>`) para colar no harness de IA. Aceita `--instruction`/`-i` para foco temático e `--dry-run` para reimprimir o handoff sem reextrair PDFs. |
@@ -249,7 +249,7 @@ Todos os comandos retornam código de saída convencional: 0 para sucesso, não-
 Criado automaticamente por `sysdoc init`. Configure deploy com:
 
 ```bash
-sysdoc config -vps usuario@servidor -path /caminho/publico/html .
+sysdoc config --vps usuario@servidor --path /caminho/publico/html .
 ```
 
 O arquivo fica assim:
@@ -264,7 +264,7 @@ modelo_ia_padrao: "<slug>"        # ex.: "claude-sonnet-4-6"
 Comportamento:
 
 - `vps_host` e `vps_path` em branco ⇒ `sysdoc deploy` usa o fallback hardcoded.
-- `sysdoc config [pasta]` sem `-vps`/`-path` mostra os valores atuais.
+- `sysdoc config [pasta]` sem `--vps`/`--path` mostra os valores atuais.
 - `modelo_ia_padrao` é metadado informativo; o JSON final ainda deve trazer o slug real do modelo que fez a análise.
 
 ---
