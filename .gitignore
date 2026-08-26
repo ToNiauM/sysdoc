@@ -7,3 +7,5 @@ __pycache__/
 .sysdoc/cache/
 *.pdf.txt
 referencias/prompts-dvi/
+/.sysdoc/
+/Processo-Teste/
