@@ -18,11 +18,13 @@
 **Mode:** standard
 
 **Success Criteria:**
+
 1. CLI responde a /sysdoc no contexto de agentes
 2. Estrutura de projeto padronizada para invocation
 3. Help contextual para cada comando
 
 **Requirements:**
+
 - [x] **SYSD-01**: Refatorar argparse para aceitar /sysdoc prefix (mant compat)
 - [x] **SYSD-02**: Adicionar estrutura de projeto .sysdoc/config.yaml
 - [x] **SYSD-03**: Documentar formato de invocation em AGENTS.md
@@ -40,11 +42,13 @@
 **Wave 1:** Implementa `sysdoc create` para TR `.docx`, incluindo template Word, helpers determinísticos, parser, testes e documentação.
 
 **Success Criteria:**
+
 1. Gera arquivo .docx a partir de template
 2. Preenche campos de dados_consolidados.json
 3. Funciona offline/sem LLM
 
 **Requirements:**
+
 - [x] **SYSD-04**: Criar gerador de Word baseado em template
 - [x] **SYSD-05**: Adicionar comando create ao CLI
 
@@ -57,11 +61,13 @@
 **Mode:** standard
 
 **Success Criteria:**
+
 1. SKILL.md atualizado para invocation
 2. AGENTS.md criado
 3. Testado em pelo menos 2 agentes
 
 **Requirements:**
+
 - [ ] **SYSD-06**: Atualizar skills/sysdoc/SKILL.md para invocation
 - [ ] **SYSD-07**: Criar AGENTS.md com formato de comandos
 
@@ -74,6 +80,7 @@
 **Mode:** standard
 
 **Success Criteria:**
+
 1. `sysdoc analyze` exibe handoff visual em diagrama ASCII com slash command e harnesses suportados
 2. `sysdoc guia` conduz o usuário passo a passo até o harness, com guarda de TTY
 3. `sysdoc analyze --dry-run` reimprime o handoff sem reextrair PDFs
@@ -81,6 +88,7 @@
 5. Suite de testes cobre handoff, dry-run e guia, com regressão para o princípio offline
 
 **Requirements:**
+
 - [x] **SYSD-08**: Refatorar `print_analysis_handoff()` em diagrama ASCII com Claude Code, OpenCode, Codex CLI e Gemini CLI
 - [x] **SYSD-09**: Adicionar flag `--dry-run` em `analyze` (reimprime handoff sem reextrair)
 - [x] **SYSD-10**: Implementar `sysdoc guia` com wizard interativo e proteção `isatty()`
@@ -101,20 +109,34 @@
 **Onda 5:** documentação canônica, CHANGELOG 1.5.0 e verificação com processos reais.
 
 Plans:
+**Wave 1**
+
 - [ ] 05-01-PLAN.md — Fundação do motor: pacote `sysdoc_dvi`, contratos, loader do checklist, entry point `sysdoc-dvi`
 - [ ] 05-02-PLAN.md — Padrão de nomes de artefatos `xx_nome_tipo_data.extensao` em publish/render/create
 - [ ] 05-03-PLAN.md — Contrato de dados 1.1: `origem_verificacao`, `checklist_id`, `checklist_hash`, `schema_version` e rastreabilidade
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 05-04-PLAN.md — Tabela `normas/vigencia.yaml` e verificação determinística de vigência
 - [ ] 05-05-PLAN.md — Auditoria aritmética da pesquisa de preços com memória de cálculo
 - [ ] 05-06-PLAN.md — Verificações mecânicas e grounding check do campo `de`
 - [ ] 05-07-PLAN.md — Mapeamento de peças por âncoras no manifest, com override e abort
 - [ ] 05-08-PLAN.md — Camada multi-provedor, configuração de modelos e `AgenteLLM`
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 05-09-PLAN.md — Prompts Jinja e despacho por tipo de verificação
 - [ ] 05-10-PLAN.md — Síntese dedicada dos pareceres executivo e por documento
 - [ ] 05-11-PLAN.md — Montagem do `dados_consolidados.json`, relatório de execução e checkpoint
 - [ ] 05-12-PLAN.md — `sysdoc create dvi` (DOCX a partir de template institucional)
 - [ ] 05-13-PLAN.md — Conversão dos prompts DVI em `checklists/dvi.yaml` e seed da tabela de vigência
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 05-14-PLAN.md — Pipeline `sysdoc-dvi run`, `relatorio` e `config`
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 05-15-PLAN.md — Documentação canônica, CHANGELOG 1.5.0 e verificação com processos reais
 
 ---
