@@ -1,0 +1,102 @@
+{
+  "descricao": "MCP sintético com erros aritméticos plantados para provar CA2 (zero falso negativo na auditoria de pesquisa de preços). Nenhum dado real de processo.",
+  "linhas": [
+    {
+      "descricao": "Item 1 — controle correto",
+      "unidade": "unid",
+      "quantidade": "10",
+      "cotacoes": [
+        { "fonte": "Fornecedor A", "valor_unitario": "100.00" },
+        { "fonte": "Fornecedor B", "valor_unitario": "102.00" },
+        { "fonte": "Fornecedor C", "valor_unitario": "98.00" }
+      ],
+      "metodo_declarado": "media",
+      "unitario_declarado": "100.00",
+      "total_declarado": "1000.00",
+      "divergencia_esperada": null
+    },
+    {
+      "descricao": "Item 2 — média incorreta",
+      "unidade": "unid",
+      "quantidade": "5",
+      "cotacoes": [
+        { "fonte": "Fornecedor A", "valor_unitario": "50.00" },
+        { "fonte": "Fornecedor B", "valor_unitario": "52.00" },
+        { "fonte": "Fornecedor C", "valor_unitario": "48.00" }
+      ],
+      "metodo_declarado": "media",
+      "unitario_declarado": "60.00",
+      "total_declarado": "250.00",
+      "divergencia_esperada": {
+        "campo": "unitario",
+        "descricao_erro": "unitário declarado (60,00) não corresponde à média recalculada das cotações (50,00)"
+      }
+    },
+    {
+      "descricao": "Item 3 — mediana incorreta com número par de cotações",
+      "unidade": "unid",
+      "quantidade": "8",
+      "cotacoes": [
+        { "fonte": "Fornecedor A", "valor_unitario": "10.00" },
+        { "fonte": "Fornecedor B", "valor_unitario": "20.00" },
+        { "fonte": "Fornecedor C", "valor_unitario": "30.00" },
+        { "fonte": "Fornecedor D", "valor_unitario": "40.00" }
+      ],
+      "metodo_declarado": "mediana",
+      "unitario_declarado": "35.00",
+      "total_declarado": "200.00",
+      "divergencia_esperada": {
+        "campo": "unitario",
+        "descricao_erro": "unitário declarado (35,00) não corresponde à mediana recalculada das cotações pares (25,00)"
+      }
+    },
+    {
+      "descricao": "Item 4 — unitário × quantidade divergente do total declarado",
+      "unidade": "unid",
+      "quantidade": "6",
+      "cotacoes": [
+        { "fonte": "Fornecedor A", "valor_unitario": "15.00" },
+        { "fonte": "Fornecedor B", "valor_unitario": "15.00" },
+        { "fonte": "Fornecedor C", "valor_unitario": "15.00" }
+      ],
+      "metodo_declarado": "media",
+      "unitario_declarado": "15.00",
+      "total_declarado": "100.00",
+      "divergencia_esperada": {
+        "campo": "total",
+        "descricao_erro": "total declarado (100,00) não corresponde a quantidade × unitário recalculado (6 × 15,00 = 90,00)"
+      }
+    },
+    {
+      "descricao": "Item 5 — método declarado inválido",
+      "unidade": "unid",
+      "quantidade": "3",
+      "cotacoes": [
+        { "fonte": "Fornecedor A", "valor_unitario": "20.00" },
+        { "fonte": "Fornecedor B", "valor_unitario": "22.00" },
+        { "fonte": "Fornecedor C", "valor_unitario": "18.00" }
+      ],
+      "metodo_declarado": "moda",
+      "unitario_declarado": "20.00",
+      "total_declarado": "60.00",
+      "divergencia_esperada": {
+        "campo": "metodo",
+        "descricao_erro": "método declarado 'moda' fora do domínio válido {media, mediana, menor}"
+      }
+    },
+    {
+      "descricao": "Item 6 — divergência de um centavo dentro da tolerância",
+      "unidade": "unid",
+      "quantidade": "4",
+      "cotacoes": [
+        { "fonte": "Fornecedor A", "valor_unitario": "25.00" },
+        { "fonte": "Fornecedor B", "valor_unitario": "25.00" },
+        { "fonte": "Fornecedor C", "valor_unitario": "25.00" }
+      ],
+      "metodo_declarado": "media",
+      "unitario_declarado": "25.00",
+      "total_declarado": "100.01",
+      "divergencia_esperada": null
+    }
+  ]
+}
