@@ -129,3 +129,12 @@ None - no external service configuration required.
 ---
 *Phase: 05-motor-analise-checklist*
 *Completed: 2026-08-26*
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/05-motor-analise-checklist/05-02-SUMMARY.md`
+- FOUND: `tests/test_nomes_artefatos.py`
+- FOUND commit: `3ef65c7` (Task 1)
+- FOUND commit: `ce44179` (Task 2)
+- FOUND commit: `3f3d4b0` (Task 3)
+- FOUND commit: `5f0fc06` (CHANGELOG deviation)
