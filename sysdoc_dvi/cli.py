@@ -6,19 +6,33 @@ Binário separado de `sysdoc` (D-01): concentra o fluxo de análise por
 checklist (`run`, `relatorio`, `config`). A CLI `sysdoc` continua sem
 qualquer chamada a modelo de linguagem; este entry point é quem chama.
 
-Esqueleto nesta task: os três handlers ainda não implementam o pipeline
-(planos seguintes desta fase preenchem `run`/`relatorio`/`config`).
+`run` delega a `sysdoc_dvi.pipeline.executar_run`; `relatorio` reimprime o
+último relatório de execução gravado em `output/` sem reexecutar nada;
+`config` grava/lista o mapeamento de modelos econômico/forte em
+`~/.sysdoc/config.json` (seção `dvi`), sempre com permissão restrita
+(diretório 0700, arquivo 0600) e sem nunca ecoar uma chave de API (T-05-46).
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sys
 import textwrap
+from pathlib import Path
 
 from sysdoc_dvi import __version__
+from sysdoc_dvi.config import PROVEDORES_VALIDOS
 
 VERSION = __version__
+
+_VAR_AMBIENTE_POR_PROVEDOR = {
+    "openrouter": "OPENROUTER_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -110,13 +124,49 @@ def run(
     forte: str | None = None,
     resume: bool = True,
 ) -> int:
-    print("sysdoc-dvi run: não implementado")
-    return 2
+    from sysdoc_dvi.pipeline import executar_run
+
+    return executar_run(
+        project,
+        tipo=tipo,
+        checklist=checklist,
+        economico=economico,
+        forte=forte,
+        retomar=resume,
+    )
+
+
+def _config_path_padrao() -> Path:
+    return Path.home() / ".sysdoc" / "config.json"
+
+
+def _ultimo_relatorio(project: str) -> Path | None:
+    import sysdoc
+
+    paths = sysdoc.project_paths(project)
+    candidatos = sorted(
+        paths.output.glob("*_relatorio_*.json"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return candidatos[0] if candidatos else None
 
 
 def relatorio(project: str) -> int:
-    print("sysdoc-dvi relatorio: não implementado")
-    return 2
+    caminho = _ultimo_relatorio(project)
+    if caminho is None:
+        print(
+            f"Nenhum relatório encontrado para '{project}'. "
+            f"Rode 'sysdoc-dvi run {project}' primeiro."
+        )
+        return 1
+
+    from sysdoc_dvi.relatorio import renderizar_relatorio
+
+    dados = json.loads(caminho.read_text(encoding="utf-8"))
+    print(renderizar_relatorio(dados, project))
+    print(f"Relatório lido de: {caminho}")
+    return 0
 
 
 def config(
@@ -124,8 +174,59 @@ def config(
     forte: str | None = None,
     listar: bool = False,
 ) -> int:
-    print("sysdoc-dvi config: não implementado")
-    return 2
+    path = _config_path_padrao()
+    dados: dict = {}
+    if path.is_file():
+        try:
+            conteudo = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"não foi possível ler {path}: {exc}")
+            return 1
+        if isinstance(conteudo, dict):
+            dados = conteudo
+
+    if listar:
+        secao_dvi = dados.get("dvi") if isinstance(dados.get("dvi"), dict) else {}
+        api_keys = dados.get("api_keys") if isinstance(dados.get("api_keys"), dict) else {}
+        print(f"Configuração de modelos em {path}:")
+        print(f"  econômico: {secao_dvi.get('economico') or '<não definido>'}")
+        print(f"  forte: {secao_dvi.get('forte') or '<não definido>'}")
+        print("  chaves de API:")
+        for provedor in PROVEDORES_VALIDOS:
+            var_ambiente = _VAR_AMBIENTE_POR_PROVEDOR[provedor]
+            presente = bool(api_keys.get(provedor)) or bool(os.environ.get(var_ambiente))
+            print(f"    - {provedor}: {'configurada' if presente else 'ausente'}")
+        return 0
+
+    if economico is None and forte is None:
+        print(
+            "Nada para atualizar: use --economico/--forte para definir o mapeamento "
+            "ou --listar para consultar o que já está configurado."
+        )
+        return 1
+
+    secao_dvi = dict(dados.get("dvi") or {})
+    if economico:
+        secao_dvi["economico"] = economico
+    if forte:
+        secao_dvi["forte"] = forte
+    dados["dvi"] = secao_dvi
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(path.parent, 0o700)
+    except OSError:
+        pass
+    path.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+    print(f"Configuração de modelos gravada em {path}.")
+    print(f"  econômico: {secao_dvi.get('economico') or '<mantido>'}")
+    print(f"  forte: {secao_dvi.get('forte') or '<mantido>'}")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
