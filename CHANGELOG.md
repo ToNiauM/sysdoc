@@ -6,6 +6,11 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 ## [Não publicado]
 
+### Adicionado
+
+- **`sysdoc create dvi`** (`sysdoc.py`, `tests/test_dvi_create.py`, RF10): novo tipo `dvi` no comando `create`, gerando o DVI em DOCX a partir de template institucional em `referencias/` (busca por `dvi.docx`, `modelo_dvi.docx`, `template_dvi.docx` ou qualquer `.docx` com "dvi" no nome; `--template` explícito é respeitado). Preenche `{{parecer_executivo}}`, `{{secao_etp.parecer_documento}}`, `{{secao_tr.parecer_documento}}` e demais campos achatados do JSON consolidado, além das chaves derivadas `tabela_itens` (uma linha por item: `ID — documento/seção — classificação (severidade, risco): parecer`), `total_itens`, `total_bloqueantes` e `total_pendentes`. Saída no padrão `xx_projeto_dvi_data.docx`. Sem template disponível, falha com mensagem citando `dvi.docx` em `referencias/`. Nenhuma chamada de LLM; geração 100% offline a partir do JSON revisado.
+- **Validação de entradas ZIP do template DOCX** (`sysdoc.py`, mitigação T-05-41): `render_docx_template` agora recusa templates `.docx` cujo `infolist` contenha caminho absoluto ou segmento `..`, antes de reescrever o ZIP.
+
 ### Alterado
 
 - **Padrão de nomes de artefatos `xx_nome_tipo_data.extensao`** (`sysdoc.py`, `templates/render_analise.py`, `tests/test_nomes_artefatos.py`, decisões D-08/D-09 da Fase 5): `publish` (JSON versionado), `render` (HTML) e `create` (DOCX) agora nomeiam a saída com um contador de produção por (projeto, tipo) — `01_processo-042_dvi_2026-08-26.docx`, regerar produz `02_...`, nunca sobrescreve nem reutiliza número. `modelo_ia` sai do nome do arquivo e permanece apenas nos metadados do JSON. `status`, `deploy` e `compare` continuam reconhecendo artefatos com nome legado (`analise_[modelo]_[data].html`, `dados_consolidados_[modelo]_[data].json`, `tr_[modelo]_[data].docx`) junto dos novos. Funções órfãs `resolve_next_json_archive`, `resolve_next_output` e `resolve_next_docx_output` removidas de `sysdoc.py`; `resolve_next_filename` removida de `templates/render_analise.py` em favor de `proximo_nome_artefato` replicada nos dois módulos (o renderer roda isolado como subprocesso, sem importar `sysdoc.py`).

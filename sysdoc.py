@@ -1020,6 +1020,24 @@ def build_pending_text(pending: list[dict]) -> str:
     )
 
 
+def build_tabela_itens(itens: list[dict]) -> str:
+    if not itens:
+        return "Nenhum item consolidado."
+    linhas = []
+    for item in itens:
+        item_id = item.get("id", "?")
+        documento = item.get("documento", "?")
+        secao = item.get("seção", item.get("secao", "?"))
+        classificacao = item.get("classificação", item.get("classificacao", "?"))
+        severidade = item.get("severidade", "?")
+        risco = item.get("risco_jurídico", item.get("risco_juridico", "?"))
+        parecer = item.get("parecer", "")
+        linhas.append(
+            f"{item_id} — {documento}/{secao} — {classificacao} ({severidade}, {risco}): {parecer}"
+        )
+    return "\n".join(linhas)
+
+
 def find_docx_template(paths: ProjectPaths, tipo: str, template_arg: str | None = None) -> Path:
     if template_arg:
         candidate = Path(template_arg)
@@ -1044,12 +1062,26 @@ def find_docx_template(paths: ProjectPaths, tipo: str, template_arg: str | None 
     return docx_files[0]
 
 
+def _assert_safe_zip_entries(source: zipfile.ZipFile, template: Path) -> None:
+    for item in source.infolist():
+        name = item.filename
+        if name.startswith("/") or name.startswith("\\") or Path(name).is_absolute():
+            raise SystemExit(
+                f"Template inválido ({rel(template)}): entrada de caminho absoluto no ZIP ({name})."
+            )
+        if ".." in Path(name).parts:
+            raise SystemExit(
+                f"Template inválido ({rel(template)}): entrada com '..' no ZIP ({name})."
+            )
+
+
 def render_docx_template(template: Path, output: Path, values: dict[str, str]) -> None:
     replacements = {
         f"{{{{{key}}}}}": xml_escape(value)
         for key, value in values.items()
     }
     with zipfile.ZipFile(template, "r") as source, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
+        _assert_safe_zip_entries(source, template)
         for item in source.infolist():
             payload = source.read(item.filename)
             if item.filename.startswith("word/") and item.filename.endswith(".xml"):
@@ -1142,6 +1174,28 @@ def create(project: str, tipo: str, json_arg: str | None = None, template_arg: s
         values["template"] = rel(template)
         values["corpo_etp"] = revised_etp or etp_text
         values["substituicoes_pendentes"] = build_pending_text(pending)
+    elif tipo.lower() == "dvi":
+        try:
+            template = _select_reference_template(paths, tipo, "", template_arg)
+        except SystemExit:
+            raise SystemExit(
+                f"Nenhum template DVI (.docx) encontrado em {rel(paths.referencias)}. "
+                "Adicione o modelo institucional como 'dvi.docx' (ou 'modelo_dvi.docx', "
+                "'template_dvi.docx') nessa pasta, ou use --template caminho.docx."
+            )
+        itens = data.get("itens", [])
+        values = flatten_json(data)
+        values["tipo"] = tipo
+        values["json"] = rel(json_path)
+        values["template"] = rel(template)
+        values["tabela_itens"] = build_tabela_itens(itens)
+        values["total_itens"] = str(len(itens))
+        values["total_bloqueantes"] = str(
+            sum(1 for item in itens if item.get("risco_jurídico") == "bloqueante")
+        )
+        values["total_pendentes"] = str(
+            sum(1 for item in itens if item.get("classificação") == "pendente")
+        )
     else:
         template = _select_reference_template(paths, tipo, "", template_arg)
         values = flatten_json(data)
@@ -1268,6 +1322,7 @@ def build_parser() -> argparse.ArgumentParser:
               python sysdoc.py validate Combustivel
               python sysdoc.py render Combustivel
               python sysdoc.py publish Combustivel
+              python sysdoc.py create Combustivel dvi
             """
         ),
     )
@@ -1348,11 +1403,18 @@ def build_parser() -> argparse.ArgumentParser:
         if command in {"validate", "render", "publish"}:
             item.add_argument("--json", dest="json_path", help="Caminho para um JSON especÃ­fico.")
 
-    create_parser = sub.add_parser("create", help="Gera DOCX a partir de JSON e template Word.")
+    create_parser = sub.add_parser(
+        "create",
+        help="Gera DOCX a partir de JSON e template Word. Tipos aceitos: tr, dvi.",
+    )
     create_parser.add_argument("args", nargs="*", help="Uso: create [pasta] [tipo] ou create [tipo] dentro da pasta.")
     create_parser.add_argument("--json", dest="json_path", help="Caminho para um JSON especÃ­fico.")
     create_parser.add_argument("--template", help="Template .docx com placeholders {{campo}}.")
-    create_parser.add_argument("--tipo", dest="tipo_flag", help="Tipo de documento a gerar. PadrÃƒÂ£o: tr.")
+    create_parser.add_argument(
+        "--tipo",
+        dest="tipo_flag",
+        help="Tipo de documento a gerar: tr (padrão) ou dvi.",
+    )
     parser.add_argument("--version", action="version", version=f"SysDoc {VERSION}")
     return parser
 
