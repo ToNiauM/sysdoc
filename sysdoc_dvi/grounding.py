@@ -15,6 +15,13 @@ relatório de execução (RF9).
 
 A lógica aqui é deliberadamente mais estrita que `templates/validate_sysdoc.py`
 (`is_traceable`) — não a substitui.
+
+Antes de degradar um item que falhou na checagem acima, `aplicar_grounding`
+dá uma segunda chance determinística via `reancorar_trecho` (P3): se o
+trecho citado divergir do texto-fonte só por espaçamento, hifenização de
+fim de linha ou pontuação tipográfica (aspas/travessão), `de` é reescrito
+com o trecho LITERAL correspondente do texto-fonte (nunca sintetizado) e o
+item é marcado com `reancorado=True`, preservando classificação e risco.
 """
 
 from __future__ import annotations
@@ -37,9 +44,21 @@ _STOPWORDS = {
 
 _MAX_POSICOES_CANDIDATAS = 200
 
+_MAPA_PONTUACAO_TIPOGRAFICA = str.maketrans(
+    {
+        "“": '"', "”": '"', "„": '"', "«": '"', "»": '"', "‟": '"',
+        "‘": "'", "’": "'", "‚": "'", "‛": "'", "′": "'",
+        "–": "-", "—": "-", "−": "-", "‒": "-",
+    }
+)
+
+
+def _normalizar_pontuacao(texto: str) -> str:
+    return texto.translate(_MAPA_PONTUACAO_TIPOGRAFICA)
+
 
 def normalizar_texto(texto: str) -> str:
-    texto = str(texto or "")
+    texto = _normalizar_pontuacao(str(texto or ""))
     texto = re.sub(r"-\s*\n\s*", "", texto)
     normalizado = unicodedata.normalize("NFKD", texto)
     sem_acentos = "".join(char for char in normalizado if not unicodedata.combining(char))
@@ -47,38 +66,73 @@ def normalizar_texto(texto: str) -> str:
     return re.sub(r"\s+", " ", minusculo).strip()
 
 
+def _normalizar_com_mapa(texto: str) -> tuple[str, list[int]]:
+    bruto = _normalizar_pontuacao(str(texto or ""))
+    saida: list[str] = []
+    mapa: list[int] = []
+    indice = 0
+    tamanho = len(bruto)
+
+    while indice < tamanho:
+        caractere = bruto[indice]
+
+        if caractere == "-":
+            resto = bruto[indice + 1:]
+            casamento = re.match(r"\s*\n\s*", resto)
+            if casamento:
+                indice += 1 + casamento.end()
+                continue
+
+        if caractere.isspace():
+            fim_run = indice
+            while fim_run < tamanho and bruto[fim_run].isspace():
+                fim_run += 1
+            if saida and saida[-1] != " ":
+                saida.append(" ")
+                mapa.append(indice)
+            indice = fim_run
+            continue
+
+        decomposto = unicodedata.normalize("NFKD", caractere)
+        base = "".join(char for char in decomposto if not unicodedata.combining(char)).lower()
+        for char_base in base:
+            saida.append(char_base)
+            mapa.append(indice)
+        indice += 1
+
+    while saida and saida[0] == " ":
+        saida.pop(0)
+        mapa.pop(0)
+    while saida and saida[-1] == " ":
+        saida.pop()
+        mapa.pop()
+
+    return "".join(saida), mapa
+
+
 def _tokens_significativos(texto_normalizado: str) -> list[str]:
     tokens = re.findall(r"[a-z0-9]+", texto_normalizado)
     return [token for token in tokens if len(token) >= 3 and token not in _STOPWORDS]
 
 
-def verificar_trecho(
-    de: str, texto_peca: str, limiar: float = LIMIAR_GROUNDING_DEFAULT
-) -> tuple[bool, float]:
-    bruto = str(de or "").strip()
-    if bruto.startswith(_MARCADOR_OMISSAO):
-        return True, 1.0
-
-    trecho_norm = normalizar_texto(bruto)
+def _melhor_janela(trecho_norm: str, texto_norm: str) -> tuple[float, int, int]:
     tokens = _tokens_significativos(trecho_norm)
-    if len(tokens) < 3:
-        return False, 0.0
-
-    texto_norm = normalizar_texto(texto_peca)
-    if not texto_norm:
-        return False, 0.0
+    if len(tokens) < 3 or not texto_norm:
+        return 0.0, 0, 0
 
     tamanho = len(trecho_norm)
     primeiro_token = tokens[0]
     posicoes = [match.start() for match in re.finditer(re.escape(primeiro_token), texto_norm)]
     if not posicoes:
-        return False, 0.0
+        return 0.0, 0, 0
     if len(posicoes) > _MAX_POSICOES_CANDIDATAS:
         posicoes = posicoes[:_MAX_POSICOES_CANDIDATAS]
 
     margem = max(10, tamanho // 3)
     passo = max(1, tamanho // 8)
     melhor_score = 0.0
+    melhor_inicio = 0
+    melhor_fim = 0
 
     for pos in posicoes:
         candidatos = {pos}
@@ -92,10 +146,51 @@ def verificar_trecho(
             score = difflib.SequenceMatcher(None, trecho_norm, janela).ratio()
             if score > melhor_score:
                 melhor_score = score
+                melhor_inicio = inicio
+                melhor_fim = inicio + len(janela)
         if melhor_score >= 0.999:
             break
 
-    return melhor_score >= limiar, melhor_score
+    return melhor_score, melhor_inicio, melhor_fim
+
+
+def verificar_trecho(
+    de: str, texto_peca: str, limiar: float = LIMIAR_GROUNDING_DEFAULT
+) -> tuple[bool, float]:
+    bruto = str(de or "").strip()
+    if bruto.startswith(_MARCADOR_OMISSAO):
+        return True, 1.0
+
+    trecho_norm = normalizar_texto(bruto)
+    texto_norm = normalizar_texto(texto_peca)
+    score, _, _ = _melhor_janela(trecho_norm, texto_norm)
+    return score >= limiar, score
+
+
+def reancorar_trecho(
+    de: str, texto_peca: str, limiar: float = LIMIAR_GROUNDING_DEFAULT
+) -> str | None:
+    bruto = str(de or "").strip()
+    if not bruto or bruto.startswith(_MARCADOR_OMISSAO):
+        return None
+
+    trecho_norm = normalizar_texto(bruto)
+    texto_norm, mapa = _normalizar_com_mapa(texto_peca)
+    if not texto_norm or not mapa:
+        return None
+
+    score, inicio, fim = _melhor_janela(trecho_norm, texto_norm)
+    if score < limiar or fim <= inicio:
+        return None
+
+    inicio_original = mapa[inicio]
+    fim_original = mapa[fim - 1] + 1
+    literal = str(texto_peca or "")[inicio_original:fim_original]
+
+    ancorado, _ = verificar_trecho(literal, texto_peca, limiar)
+    if not ancorado:
+        return None
+    return literal
 
 
 def aplicar_grounding(
@@ -107,6 +202,16 @@ def aplicar_grounding(
     ancorado, score = verificar_trecho(resultado.de, texto_peca, limiar)
     if ancorado:
         return resultado
+
+    literal = reancorar_trecho(resultado.de, texto_peca, limiar)
+    if literal is not None:
+        return replace(
+            resultado,
+            de=literal,
+            reancorado=True,
+            falha_grounding=False,
+            de_rejeitado=None,
+        )
 
     novo_parecer = (
         f"{resultado.parecer} [REJEITADO PELO GROUNDING: trecho citado em `de` não foi "

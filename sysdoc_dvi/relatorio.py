@@ -52,6 +52,11 @@ def _falhas_estruturadas(itens: list[ResultadoItem]) -> dict:
     return {"total": len(afetados), "itens": afetados}
 
 
+def _reancoragens(itens: list[ResultadoItem]) -> dict:
+    afetados = [item.checklist_id for item in itens if getattr(item, "reancorado", False)]
+    return {"total": len(afetados), "itens": afetados}
+
+
 def _agregar_uso(registro_chamadas: list[dict]) -> tuple[dict, dict, float]:
     tokens_por_modelo: dict[str, dict[str, int]] = {}
     custo_por_modelo: dict[str, float] = {}
@@ -121,6 +126,7 @@ def montar_relatorio(
         "itens_por_origem": _contagem(itens, "origem_verificacao"),
         "falhas_grounding": _falhas_grounding(itens),
         "falhas_estruturadas": _falhas_estruturadas(itens),
+        "reancoragens": _reancoragens(itens),
         "tokens_por_modelo": tokens_por_modelo,
         "custo_por_modelo": custo_por_modelo,
         "custo_total": custo_total,
@@ -158,8 +164,11 @@ def renderizar_relatorio(relatorio: dict, projeto: str = "") -> str:
     linhas.append(f"4) Falhas de grounding: {falhas_grounding.get('total', 0)}")
     linhas.append(f"5) Falhas estruturadas: {falhas_estruturadas.get('total', 0)}")
 
+    reancoragens = relatorio.get("reancoragens") or {}
+    linhas.append(f"6) Re-ancoragens determinísticas: {reancoragens.get('total', 0)}")
+
     pecas_mapeadas = relatorio.get("pecas_mapeadas") or {}
-    linhas.append("6) Peças mapeadas:")
+    linhas.append("7) Peças mapeadas:")
     if pecas_mapeadas:
         for peca in sorted(pecas_mapeadas):
             info = pecas_mapeadas[peca]
