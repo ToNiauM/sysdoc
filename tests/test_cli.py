@@ -339,7 +339,7 @@ class TestRenderAndCreate:
         rc = sysdoc.create("ProjetoCreate", "tr")
 
         assert rc == 0
-        output = project_dir / "tr_gpt-5_2026-05-12.docx"
+        output = project_dir / "01_projetocreate_tr_2026-05-12.docx"
         assert output.is_file()
         with zipfile.ZipFile(output) as zf:
             assert "Objeto teste" in zf.read("word/document.xml").decode("utf-8")
@@ -386,7 +386,7 @@ class TestRenderAndCreate:
         rc = sysdoc.create("ProjetoTR", "tr")
 
         assert rc == 0
-        output = project_dir / "tr_gpt-5_2026-05-12.docx"
+        output = project_dir / "01_projetotr_tr_2026-05-12.docx"
         assert output.is_file()
         with zipfile.ZipFile(output) as zf:
             xml = zf.read("word/document.xml").decode("utf-8")
@@ -437,7 +437,7 @@ class TestRenderAndCreate:
         assert rc == 0
         captured = capsys.readouterr()
         assert "Substituições pendentes: 1" in captured.out
-        output = project_dir / "tr_gpt-5_2026-05-12.docx"
+        output = project_dir / "01_projetopending_tr_2026-05-12.docx"
         with zipfile.ZipFile(output) as zf:
             xml = zf.read("word/document.xml").decode("utf-8")
             assert "ETP-001" in xml
@@ -482,7 +482,7 @@ class TestRenderAndCreate:
         rc = sysdoc.create("ProjetoOmissao", "tr")
 
         assert rc == 0
-        output = project_dir / "tr_gpt-5_2026-05-12.docx"
+        output = project_dir / "01_projetoomissao_tr_2026-05-12.docx"
         with zipfile.ZipFile(output) as zf:
             xml = zf.read("word/document.xml").decode("utf-8")
             assert "ETP sem alteração" in xml
@@ -612,7 +612,7 @@ class TestRenderAndCreate:
         rc = sysdoc.create("ProjetoCompras", "tr")
 
         assert rc == 0
-        output = project_dir / "tr_gpt-5_2026-05-12.docx"
+        output = project_dir / "01_projetocompras_tr_2026-05-12.docx"
         with zipfile.ZipFile(output) as zf:
             xml = zf.read("word/document.xml").decode("utf-8")
             assert "COMPRAS" in xml
