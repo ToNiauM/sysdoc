@@ -18,6 +18,7 @@ import subprocess
 import sys
 import textwrap
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 import zipfile
@@ -58,6 +59,40 @@ KEY_TERMS = [
     "sustentabilidade",
     "cooperativas",
 ]
+
+PECA_ANCORAS: dict[str, list[str]] = {
+    "ETP": [
+        "estudo técnico preliminar",
+        "etp",
+        "necessidade da contratação",
+        "estimativa das quantidades",
+    ],
+    "TR": [
+        "termo de referência",
+        "tr",
+        "critérios de medição e pagamento",
+        "obrigações da contratada",
+    ],
+    "MCP": [
+        "mapa comparativo de preços",
+        "pesquisa de preços",
+        "cotação",
+        "média dos preços",
+    ],
+    "RISCOS": [
+        "mapa de riscos",
+        "matriz de riscos",
+        "probabilidade",
+        "impacto",
+        "ação preventiva",
+    ],
+    "PROCESSO": [
+        "despacho",
+        "sei",
+        "autuação",
+        "portaria de designação",
+    ],
+}
 
 
 @dataclass(frozen=True)
@@ -267,6 +302,38 @@ def list_reference_files(paths: ProjectPaths) -> list[Path]:
     return []
 
 
+def _normalizar_ancora(texto: str) -> str:
+    decomposto = unicodedata.normalize("NFKD", texto or "")
+    sem_acentos = "".join(ch for ch in decomposto if not unicodedata.combining(ch))
+    return sem_acentos.lower()
+
+
+def detectar_ancoras(texto: str) -> dict[str, int]:
+    normalizado = _normalizar_ancora(texto)
+    contagens: dict[str, int] = {}
+    for peca, termos in PECA_ANCORAS.items():
+        total = 0
+        for termo in termos:
+            termo_normalizado = _normalizar_ancora(termo)
+            padrao = re.compile(r"\b" + re.escape(termo_normalizado) + r"\b")
+            total += len(padrao.findall(normalizado))
+        contagens[peca] = total
+    return contagens
+
+
+def peca_sugerida(ancoras: dict[str, int]) -> str | None:
+    if not ancoras:
+        return None
+    ordenado = sorted(ancoras.items(), key=lambda item: item[1], reverse=True)
+    melhor_peca, melhor_score = ordenado[0]
+    if melhor_score == 0:
+        return None
+    segunda_score = ordenado[1][1] if len(ordenado) > 1 else -1
+    if melhor_score > segunda_score:
+        return melhor_peca
+    return None
+
+
 def write_extracted_text(paths: ProjectPaths, source: Path, label: str, category: str) -> dict:
     text = extract_text(source)
     out_name = f"{sanitize_filename(label)}.txt"
@@ -274,6 +341,7 @@ def write_extracted_text(paths: ProjectPaths, source: Path, label: str, category
     out_path = base_cache / out_name
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text, encoding="utf-8")
+    ancoras = detectar_ancoras(text)
     return {
         "label": label,
         "category": category,
@@ -282,6 +350,8 @@ def write_extracted_text(paths: ProjectPaths, source: Path, label: str, category
         "sha256": sha256(source),
         "chars": len(text),
         "words": count_words(text),
+        "ancoras": ancoras,
+        "peca_sugerida": peca_sugerida(ancoras),
     }
 
 
