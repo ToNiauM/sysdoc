@@ -1,6 +1,6 @@
 ---
 name: sysdoc-analise
-description: Analisa comparativamente ETP.pdf e TR.pdf de licitação contra modelos/referências, gera dados_consolidados.json validado e HTML determinístico nomeado como analise_[modelo_ia]_[data].html. Acione quando o usuário digitar "/sysdoc", "sysdoc", "sysdoc analyze", "sysdoc render", "sysdoc deploy", "sysdoc [pasta]", ou pedir análise de licitação (ETP, TR, Delic, modelos).
+description: Analisa comparativamente ETP.pdf e TR.pdf de licitação contra modelos/referências, gera dados_consolidados.json validado e HTML determinístico nomeado como analise_[modelo_ia]_[data].html. Acione quando o usuário digitar "/sysdoc", "sysdoc", "sysdoc analyze", "sysdoc render", "sysdoc deploy", "sysdoc-dvi", "sysdoc-dvi run", "sysdoc [pasta]", ou pedir análise de licitação (ETP, TR, Delic, modelos, DVI).
 ---
 
 # SysDoc — Wrapper OpenCode
@@ -39,5 +39,7 @@ Leia também `AGENTS.md` na raiz do projeto, se existir — contém regras gerai
 4. **Português brasileiro** — todos os campos gerados devem usar norma culta e acentuação correta. Preserve literalidade apenas no campo `de`.
 
 5. **Templates imutáveis** — nunca edite `templates/analise_template.html`, `templates/render_analise.py` ou `templates/validate_sysdoc.py`. O HTML é gerado **somente** pelo renderizador determinístico.
+
+6. **Análise DVI por checklist** — para análise DVI (Diligência de Verificação de Instrução), leia `checklists/dvi.yaml` (fonte canônica dos itens, ver `skills/sysdoc/SKILL.md`) em vez de aplicar as lentes genéricas acima. O binário `sysdoc-dvi run [pasta] --tipo geral|tic` executa o pipeline completo automatizado; como harness, você pode operar no nível artefato lendo o mesmo YAML diretamente.
 
 Qualquer divergência entre este wrapper e `skills/sysdoc/SKILL.md` — prevalece o canônico neutro.

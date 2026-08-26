@@ -28,6 +28,18 @@ sysdoc compare [pasta]                   # compara versões de análise
 
 Se o entry point `sysdoc` não estiver instalado, use `python sysdoc.py …` na raiz do repositório.
 
+### Motor DVI (`sysdoc-dvi`) — binário separado, chama modelo
+
+`sysdoc` acima é **CLI determinística**: nunca chama modelo. `sysdoc-dvi` é o **orquestrador** que chama modelo, um binário separado:
+
+```bash
+sysdoc-dvi run [pasta] --tipo geral|tic     # pipeline completo: checklist -> peças -> itens -> síntese -> JSON -> validate -> render -> relatório
+sysdoc-dvi relatorio [pasta]                # reimprime o último relatório de execução, sem reexecutar
+sysdoc-dvi config --economico <alvo> --forte <alvo> [--listar]  # grava/lista o mapeamento de modelos em ~/.sysdoc/config.json
+```
+
+Os **itens de análise vêm de `checklists/dvi.yaml`**, nunca de um prompt embutido em código ou documentação. Um harness (você) pode operar no nível artefato lendo o mesmo YAML diretamente — ver `skills/sysdoc/SKILL.md`, seção "Análise DVI por checklist" — sem precisar do binário `sysdoc-dvi`.
+
 ## Macros de Prompt (Orquestrados pelo Agente)
 
 Quando o usuário digitar uma macro, você (Agente) orquestra:
