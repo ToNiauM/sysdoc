@@ -1,0 +1,47 @@
+# Tabela curada de vigência de normativos citados no checklist DVI.
+#
+# Mantida manualmente pelo dono do produto. `conferida_em` registra a data
+# da última curadoria humana; nunca é preenchida por modelo de linguagem —
+# apenas por revisão humana direta (D-10, D-11, D-12 de 05-CONTEXT.md).
+#
+# status: vigente | revogada | substituida | suspensa | pendente_de_conferencia
+# `pendente_de_conferencia` é usado quando o status real ainda não foi
+# confirmado com segurança pelo dono do produto — nunca inventar revogação
+# ou substituição sem base confirmada.
+
+normas:
+  - norma: "Lei nº 14.133, de 1º de abril de 2021"
+    aliases: ["Lei 14.133/2021", "NLLC", "Nova Lei de Licitações"]
+    status: vigente
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "Decreto nº 10.024, de 20 de setembro de 2019"
+    aliases: ["Decreto 10.024/2019"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "Instrução Normativa SEGES/ME nº 65, de 7 de julho de 2021"
+    aliases: ["IN SEGES/ME 65/2021", "IN 65/2021"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "Instrução Normativa SEGES/ME nº 58, de 8 de agosto de 2022"
+    aliases: ["IN SEGES/ME 58/2022", "IN 58/2022"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "Instrução Normativa SGD/ME nº 94, de 23 de dezembro de 2022"
+    aliases: ["IN SGD/ME 94/2022", "IN 94/2022"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "Acórdão TCU nº 1.872/2018-Plenário"
+    aliases: ["Acórdão 1872/2018 TCU", "TCU 1.872/2018-Plenário"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
