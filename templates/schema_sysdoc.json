@@ -60,7 +60,12 @@
       "minItems": 1,
       "items": { "$ref": "#/$defs/item" }
     },
-    "nota_integridade": { "type": "string" }
+    "nota_integridade": { "type": "string" },
+    "schema_version": { "type": "string" },
+    "checklist_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
   },
   "$defs": {
     "secao_documento": {
@@ -106,7 +111,12 @@
         "severidade": { "enum": ["crítica", "alta", "média", "baixa", "informativa"] },
         "risco_jurídico": { "enum": ["bloqueante", "relevante", "menor", "informativo"] },
         "status_delic": { "enum": ["confirmado", "novo", "divergente", null] },
-        "alterado_pelo_jurídico": { "type": "boolean" }
+        "alterado_pelo_jurídico": { "type": "boolean" },
+        "origem_verificacao": { "enum": ["llm", "deterministico", "lookup"] },
+        "checklist_id": {
+          "type": "string",
+          "pattern": "^DVI-(GER|TIC|AMB)-\\d{3}$"
+        }
       }
     }
   }

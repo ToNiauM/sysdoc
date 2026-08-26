@@ -178,6 +178,82 @@ class TestCoherence:
 
 
 # ---------------------------------------------------------------------------
+# validate_sysdoc — campos do motor (origem_verificacao, checklist_id)
+# ---------------------------------------------------------------------------
+
+class TestCamposMotor:
+    def test_valid_origem_verificacao_and_checklist_id_pass(self, tmp_path):
+        (tmp_path / "ETP.pdf").write_bytes(b"%PDF-1.4 placeholder")
+        (tmp_path / "TR.pdf").write_bytes(b"%PDF-1.4 placeholder")
+        item = _base_item(
+            "ETP", 1, origem_verificacao="llm", checklist_id="DVI-AMB-001"
+        )
+        data = _base_data(itens=[item, _base_item("TR", 1)])
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert errors == [], f"Erros inesperados: {errors}"
+
+    def test_invalid_origem_verificacao_fails(self, tmp_path):
+        item = _base_item("ETP", 1, origem_verificacao="chute")
+        data = _base_data(itens=[item, _base_item("TR", 1)])
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert any("origem_verificacao" in e for e in errors)
+
+    def test_invalid_checklist_id_pattern_fails(self, tmp_path):
+        item = _base_item("ETP", 1, checklist_id="ABC-1")
+        data = _base_data(itens=[item, _base_item("TR", 1)])
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert any("DVI-(GER|TIC|AMB)-NNN" in e for e in errors)
+
+    def test_item_without_new_fields_still_passes(self, tmp_path):
+        (tmp_path / "ETP.pdf").write_bytes(b"%PDF-1.4 placeholder")
+        (tmp_path / "TR.pdf").write_bytes(b"%PDF-1.4 placeholder")
+        data = _base_data()
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert errors == [], f"Erros inesperados: {errors}"
+
+
+# ---------------------------------------------------------------------------
+# validate_sysdoc — metadados de auditoria (schema_version, checklist_hash)
+# ---------------------------------------------------------------------------
+
+class TestMetadadosAuditoria:
+    def test_valid_schema_version_and_checklist_hash_pass(self, tmp_path):
+        (tmp_path / "ETP.pdf").write_bytes(b"%PDF-1.4 placeholder")
+        (tmp_path / "TR.pdf").write_bytes(b"%PDF-1.4 placeholder")
+        data = _base_data(
+            schema_version="1.1", checklist_hash="a" * 64
+        )
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert errors == [], f"Erros inesperados: {errors}"
+
+    def test_non_hex_checklist_hash_fails(self, tmp_path):
+        data = _base_data(schema_version="1.1", checklist_hash="não-hex")
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert any("checklist_hash" in e for e in errors)
+
+    def test_missing_both_metadata_fields_still_passes(self, tmp_path):
+        (tmp_path / "ETP.pdf").write_bytes(b"%PDF-1.4 placeholder")
+        (tmp_path / "TR.pdf").write_bytes(b"%PDF-1.4 placeholder")
+        data = _base_data()
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert errors == [], f"Erros inesperados: {errors}"
+
+
+# ---------------------------------------------------------------------------
 # validate_sysdoc — word count
 # ---------------------------------------------------------------------------
 
@@ -212,6 +288,21 @@ class TestTraceability:
         source = "O objeto é comprar papel"
         excerpt = "contratação de serviços de limpeza predial especializada"
         assert not is_traceable(excerpt, source)
+
+    def test_traceability_reads_documentos_cache_path(self, tmp_path):
+        cache_dir = tmp_path / ".sysdoc" / "cache" / "textos" / "documentos"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "ETP.txt").write_text(
+            "O objeto é comprar papel para a repartição.", encoding="utf-8"
+        )
+        item = _base_item(
+            "ETP", 1, de="contratação de serviços de limpeza predial especializada"
+        )
+        data = _base_data(itens=[item, _base_item("TR", 1)])
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert any("não foi rastreado" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
