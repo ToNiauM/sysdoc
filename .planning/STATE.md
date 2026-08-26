@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 03
+current_phase: Phase 3 — Integração Agentes IA, pronta para `$gsd-discuss-phase 3`
 status: ready_to_discuss
-last_updated: "2026-05-12T20:10:53.624Z"
+stopped_at: Phase 5 context gathered
+last_updated: "2026-08-26T13:27:17.718Z"
 progress:
-  total_phases: 4
-  completed_phases: 2
+  total_phases: 5
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 2
-  percent: 50
+  completed_plans: 1
+  percent: 20
 ---
 
 # STATE — SysDoc
@@ -33,6 +34,7 @@ See: .planning/PROJECT.md
 | 2 | complete | 1/1 | 100% |
 | 3 | pending | 0/1 | 0% |
 | 4 | pending | 0/1 | 0% |
+| 5 | pending | 0/0 | 0% |
 
 ## Recent Changes
 
@@ -49,6 +51,12 @@ See: .planning/PROJECT.md
 - `tipo=tr` é o padrão quando omitido; `--tipo` existe para scripts.
 - Para TR, o ETP preparado é lido de `.sysdoc/cache/textos/documentos/ETP.txt`, com fallback legado para `.sysdoc/cache/textos/ETP.txt`.
 
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 5 added: Motor de análise por checklist com agentes plugáveis (PRD completo em `.planning/phases/05-motor-analise-checklist/PRD.md`)
+
 ## Pending Todos
 
 - Revisar a pasta não rastreada `Referencias/` antes de qualquer publicação ampla; ela parece conter modelos reais do usuário.
@@ -59,9 +67,9 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-05-12
-Stopped at: Phase 2 completed and verified; ready to start Phase 3 discussion/planning.
-Resume file: none
+Last session: 2026-08-26T13:27:17.684Z
+Stopped at: Phase 5 context gathered
+Resume file: .planning/phases/05-motor-analise-checklist/05-CONTEXT.md
 
 ## Current Focus
 
