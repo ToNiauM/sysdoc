@@ -8,16 +8,15 @@ as respostas por item explicitamente. Nenhum teste importa `requests`.
 
 from __future__ import annotations
 
+import json
 import sys
-from decimal import Decimal
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from sysdoc_dvi.despacho import (  # noqa: E402
+    LIMITE_CONTEXTO_PADRAO,
     SCHEMA_ITEM,
     SCHEMA_TABELA_PRECOS,
     SCHEMAS_POR_TIPO,
@@ -25,6 +24,8 @@ from sysdoc_dvi.despacho import (  # noqa: E402
     executar_item,
 )
 from sysdoc_dvi.tipos import ItemChecklist, ResultadoItem  # noqa: E402
+
+FIXTURE_MCP_SINTETICO = ROOT / "tests" / "fixtures" / "mcp_sintetico.json"
 
 
 def _item(
@@ -144,6 +145,33 @@ class TestRoteamento:
         resultado = executar_item(item, {"ETP": TEXTO_PECA}, agente=None, tabela_vigencia={})
         assert resultado.classificação == "pendente"
 
+    def test_julgamento_chama_o_agente(self):
+        item = _item(tipo="julgamento")
+        agente = AgenteFalso(
+            {
+                item.id: _resultado_llm(
+                    de="O objeto é a contratação de serviços continuados de limpeza predial",
+                    fundamento="art. 18 da Lei 14.133/2021",
+                )
+            }
+        )
+        resultado = executar_item(item, {"ETP": TEXTO_PECA}, agente, tabela_vigencia={})
+        assert resultado.classificação == "conforme"
+        assert len(agente.chamadas) == 1
+
+    def test_mecanica_nunca_toca_no_agente_e_funciona_com_agente_none(self):
+        item = _item(tipo="mecanica", parametros={"verificacao": "catalogo"})
+        resultado = executar_item(
+            item, {"ETP": "1. Objeto\nCATMAT 123456"}, agente=None, tabela_vigencia={}
+        )
+        assert resultado.origem_verificacao == "deterministico"
+        assert resultado.classificação == "conforme"
+
+    def test_tipo_que_exige_agente_sem_agente_vira_pendente(self):
+        item = _item(tipo="julgamento")
+        resultado = executar_item(item, {"ETP": TEXTO_PECA}, agente=None, tabela_vigencia={})
+        assert resultado.classificação == "pendente"
+
 
 class TestGrounding:
     def test_de_fabricado_reclassifica_para_pendente(self):
@@ -153,11 +181,85 @@ class TestGrounding:
         assert resultado.classificação == "pendente"
         assert resultado.falha_grounding is True
 
+    def test_de_fabricado_em_julgamento_tambem_reclassifica(self):
+        item = _item(tipo="julgamento")
+        agente = AgenteFalso(
+            {item.id: _resultado_llm(de="dispositivo inventado que não existe na peça analisada")}
+        )
+        resultado = executar_item(item, {"ETP": TEXTO_PECA}, agente, tabela_vigencia={})
+        assert resultado.classificação == "pendente"
+        assert resultado.falha_grounding is True
+
+    def test_de_ancorado_preserva_classificacao_original(self):
+        item = _item(tipo="presenca")
+        agente = AgenteFalso(
+            {
+                item.id: _resultado_llm(
+                    de="O objeto é a contratação de serviços continuados de limpeza predial",
+                    classificação="conforme",
+                )
+            }
+        )
+        resultado = executar_item(item, {"ETP": TEXTO_PECA}, agente, tabela_vigencia={})
+        assert resultado.classificação == "conforme"
+        assert resultado.falha_grounding is False
+
+
+class TestFundamentacao:
+    def test_citacao_fora_da_base_legal_vira_pendente(self):
+        item = _item(
+            tipo="julgamento",
+            base_legal_texto="Lei 14.133/2021, art. 18.",
+            referencia="art. 18 da Lei 14.133/2021",
+        )
+        agente = AgenteFalso(
+            {
+                item.id: _resultado_llm(
+                    de="O objeto é a contratação de serviços continuados de limpeza predial",
+                    classificação="risco",
+                    risco="relevante",
+                    fundamento="Acórdão 1234/2020 do TCU",
+                )
+            }
+        )
+        resultado = executar_item(item, {"ETP": TEXTO_PECA}, agente, tabela_vigencia={})
+        assert resultado.classificação == "pendente"
+        assert "fora da base legal" in resultado.parecer.lower()
+
+    def test_citacao_dentro_da_base_legal_preserva_classificacao(self):
+        item = _item(
+            tipo="julgamento",
+            base_legal_texto="Lei 14.133/2021, art. 18.",
+            referencia="art. 18 da Lei 14.133/2021",
+        )
+        agente = AgenteFalso(
+            {
+                item.id: _resultado_llm(
+                    de="O objeto é a contratação de serviços continuados de limpeza predial",
+                    classificação="conforme",
+                    fundamento="art. 18 da Lei 14.133/2021",
+                )
+            }
+        )
+        resultado = executar_item(item, {"ETP": TEXTO_PECA}, agente, tabela_vigencia={})
+        assert resultado.classificação == "conforme"
+
+    def test_fundamento_vazio_nao_e_penalizado(self):
+        item = _item(tipo="presenca")
+        agente = AgenteFalso(
+            {
+                item.id: _resultado_llm(
+                    de="O objeto é a contratação de serviços continuados de limpeza predial",
+                    fundamento="",
+                )
+            }
+        )
+        resultado = executar_item(item, {"ETP": TEXTO_PECA}, agente, tabela_vigencia={})
+        assert resultado.classificação == "conforme"
+
 
 class TestCalculo:
     def _tabela_json(self):
-        import json
-
         linhas = [
             {
                 "descricao": "Item 1",
@@ -196,6 +298,69 @@ class TestCalculo:
         assert resultado.classificação == "risco"
         assert "60.00" in resultado.parecer
 
+    def _resposta_fixture(self, checklist_id):
+        dados = json.loads(FIXTURE_MCP_SINTETICO.read_text(encoding="utf-8"))
+        return (
+            ResultadoItem(
+                checklist_id=checklist_id,
+                origem_verificacao="llm",
+                documento="ETP",
+                seção="",
+                de="",
+                para=json.dumps(dados["linhas"]),
+                parecer="",
+                fundamento="",
+                classificação="pendente",
+                severidade="média",
+                risco_jurídico="informativo",
+            ),
+            dados,
+        )
+
+    def test_erros_plantados_do_mcp_sintetico_aparecem_todos_na_memoria_de_calculo(self):
+        item = _item(tipo="calculo", peca="MCP")
+        resposta, dados = self._resposta_fixture(item.id)
+        agente = AgenteFalso({item.id: resposta})
+        resultado = executar_item(
+            item, {"MCP": "anexo de pesquisa de preços sintético"}, agente, tabela_vigencia={}
+        )
+        assert resultado.classificação == "risco"
+        assert resultado.origem_verificacao == "deterministico"
+        for linha in dados["linhas"]:
+            if linha["divergencia_esperada"] is not None:
+                assert linha["descricao"] in resultado.parecer
+
+    def test_linhas_de_controle_do_mcp_sintetico_nao_aparecem_como_divergencia(self):
+        item = _item(tipo="calculo", peca="MCP")
+        resposta, dados = self._resposta_fixture(item.id)
+        agente = AgenteFalso({item.id: resposta})
+        resultado = executar_item(
+            item, {"MCP": "anexo de pesquisa de preços sintético"}, agente, tabela_vigencia={}
+        )
+        linha_de_divergencia = resultado.de
+        for linha in dados["linhas"]:
+            if linha["divergencia_esperada"] is None:
+                assert linha["descricao"] not in linha_de_divergencia
+
+    def test_tabela_extraida_malformada_vira_pendente_sem_excecao(self):
+        item = _item(tipo="calculo", peca="MCP")
+        resposta = ResultadoItem(
+            checklist_id=item.id,
+            origem_verificacao="llm",
+            documento="ETP",
+            seção="",
+            de="",
+            para="não é um JSON válido",
+            parecer="",
+            fundamento="",
+            classificação="pendente",
+            severidade="média",
+            risco_jurídico="informativo",
+        )
+        agente = AgenteFalso({item.id: resposta})
+        resultado = executar_item(item, {"MCP": "tabela"}, agente, tabela_vigencia={})
+        assert resultado.classificação == "pendente"
+
 
 class TestResiliencia:
     def test_erro_no_agente_nao_interrompe_o_laco(self):
@@ -214,6 +379,67 @@ class TestResiliencia:
         assert len(resultados) == 2
         assert resultados[0].classificação == "pendente"
         assert resultados[1].classificação == "conforme"
+
+    def test_parametro_mecanico_invalido_vira_pendente_sem_derrubar_o_laco(self):
+        item1 = _item(id="DVI-GER-001", tipo="mecanica", parametros={"verificacao": "inexistente"})
+        item2 = _item(id="DVI-GER-002", tipo="vigencia", pergunta="")
+        resultados = executar_checklist(
+            [item1, item2], {"ETP": TEXTO_PECA}, agente=None, tabela_vigencia={}
+        )
+        assert len(resultados) == 2
+        assert resultados[0].classificação == "pendente"
+
+    def test_excecao_inesperada_no_despacho_ainda_produz_pendente(self, monkeypatch):
+        import sysdoc_dvi.despacho as despacho_mod
+
+        def _levanta(*args, **kwargs):
+            raise RuntimeError("falha interna inesperada")
+
+        monkeypatch.setattr(despacho_mod, "_recortar_contexto", _levanta)
+        item = _item(tipo="presenca")
+        agente = AgenteFalso({item.id: _resultado_llm()})
+        resultados = executar_checklist([item], {"ETP": TEXTO_PECA}, agente, tabela_vigencia={})
+        assert len(resultados) == 1
+        assert resultados[0].classificação == "pendente"
+
+
+class TestContexto:
+    def test_contexto_contem_apenas_a_peca_do_item(self):
+        item = _item(tipo="presenca", peca="ETP")
+        agente = AgenteFalso(
+            {
+                item.id: _resultado_llm(
+                    de="O objeto é a contratação de serviços continuados de limpeza predial"
+                )
+            }
+        )
+        textos = {"ETP": TEXTO_PECA, "TR": "texto do TR que nunca deve aparecer no contexto do item"}
+        executar_item(item, textos, agente, tabela_vigencia={})
+        assert len(agente.chamadas) == 1
+        _, contexto_recebido = agente.chamadas[0]
+        assert "texto do TR" not in contexto_recebido
+        assert "limpeza predial" in contexto_recebido
+
+    def test_peca_grande_e_recortada_respeitando_o_limite(self):
+        filler = "Disposição contratual genérica sobre execução do objeto. "
+        texto_grande = filler * 5000
+        alvo = "\nO objeto é a contratação de serviços continuados de limpeza predial.\n"
+        meio = len(texto_grande) // 2
+        texto_peca = texto_grande[:meio] + alvo + texto_grande[meio:]
+        assert len(texto_peca) > LIMITE_CONTEXTO_PADRAO
+
+        item = _item(tipo="presenca", peca="ETP", pergunta="limpeza predial contratação")
+        agente = AgenteFalso(
+            {
+                item.id: _resultado_llm(
+                    de="O objeto é a contratação de serviços continuados de limpeza predial"
+                )
+            }
+        )
+        resultado = executar_item(item, {"ETP": texto_peca}, agente, tabela_vigencia={})
+        _, contexto_recebido = agente.chamadas[0]
+        assert len(contexto_recebido) <= LIMITE_CONTEXTO_PADRAO
+        assert "recortado" in resultado.parecer.lower()
 
 
 class TestCheckpointHook:
@@ -237,3 +463,13 @@ class TestCheckpointHook:
             ao_concluir=concluidos.append,
         )
         assert len(concluidos) == 2
+
+    def test_ao_concluir_e_chamado_mesmo_quando_item_degrada_para_pendente(self):
+        item = _item(id="DVI-GER-001", tipo="presenca")
+        agente = AgenteFalso({item.id: RuntimeError("falha simulada")})
+        concluidos = []
+        executar_checklist(
+            [item], {"ETP": TEXTO_PECA}, agente, tabela_vigencia={}, ao_concluir=concluidos.append
+        )
+        assert len(concluidos) == 1
+        assert concluidos[0].classificação == "pendente"
