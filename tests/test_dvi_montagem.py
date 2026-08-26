@@ -23,7 +23,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from sysdoc_dvi import provedores  # noqa: E402
 from sysdoc_dvi.montagem import ErroMontagem, montar_json  # noqa: E402
+from sysdoc_dvi.relatorio import montar_relatorio, renderizar_relatorio  # noqa: E402
 from sysdoc_dvi.tipos import ResultadoItem, UsoModelo  # noqa: E402
 
 
@@ -254,3 +256,180 @@ class TestIds:
 
         for item in dados["itens"]:
             assert re.fullmatch(rf"{item['documento']}-\d{{3}}", item["id"])
+
+
+# ---------------------------------------------------------------------------
+# TestRelatorio
+# ---------------------------------------------------------------------------
+
+class TestRelatorio:
+    def setup_method(self):
+        provedores.limpar_registro_chamadas()
+
+    def teardown_method(self):
+        provedores.limpar_registro_chamadas()
+
+    def test_relatorio_contem_chaves_esperadas(self):
+        itens = [_resultado(documento="ETP", classificação="conforme", risco_jurídico="informativo")]
+        relatorio = montar_relatorio(
+            itens=itens,
+            checklist_hash=CHECKLIST_HASH,
+            schema_version="1.1",
+            duracao_total_s=12.5,
+        )
+        for chave in (
+            "itens_por_status",
+            "itens_por_tipo",
+            "itens_por_origem",
+            "falhas_grounding",
+            "falhas_estruturadas",
+            "tokens_por_modelo",
+            "custo_por_modelo",
+            "custo_total",
+            "duracao_total_s",
+            "checklist_hash",
+            "schema_version",
+            "pecas_mapeadas",
+            "avisos",
+        ):
+            assert chave in relatorio
+
+    def test_itens_por_status_e_por_documento(self):
+        itens = [
+            _resultado(documento="ETP", classificação="conforme", risco_jurídico="informativo"),
+            _resultado(documento="ETP", classificação="risco", risco_jurídico="relevante"),
+            _resultado(documento="TR", classificação="pendente"),
+        ]
+        relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 1.0)
+        assert relatorio["itens_por_status"] == {"conforme": 1, "risco": 1, "pendente": 1}
+        assert relatorio["itens_por_tipo"] == {"ETP": 2, "TR": 1}
+
+    def test_falhas_grounding_listadas(self):
+        itens = [
+            _resultado(checklist_id="DVI-GER-030", falha_grounding=True),
+            _resultado(checklist_id="DVI-GER-031", falha_grounding=False),
+        ]
+        relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 1.0)
+        assert relatorio["falhas_grounding"] == {"total": 1, "itens": ["DVI-GER-030"]}
+
+    def test_falhas_estruturadas_listadas(self):
+        itens = [
+            _resultado(checklist_id="DVI-GER-040", falha_estruturada="erro de parsing"),
+        ]
+        relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 1.0)
+        assert relatorio["falhas_estruturadas"] == {"total": 1, "itens": ["DVI-GER-040"]}
+
+    def test_sem_chamadas_llm_reporta_custo_zero(self):
+        itens = [_resultado(origem_verificacao="deterministico")]
+        relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 0.3)
+        assert relatorio["custo_total"] == 0.0
+        assert relatorio["tokens_por_modelo"] == {}
+        assert relatorio["custo_por_modelo"] == {}
+
+    def test_tokens_e_custo_por_modelo_a_partir_do_registro(self):
+        registro = [
+            {
+                "provedor": "openrouter",
+                "modelo": "deepseek-chat",
+                "tokens_entrada": 100,
+                "tokens_saida": 50,
+                "custo_estimado": 0.02,
+                "duracao_s": 1.1,
+            },
+            {
+                "provedor": "openrouter",
+                "modelo": "deepseek-chat",
+                "tokens_entrada": 40,
+                "tokens_saida": 10,
+                "custo_estimado": 0.01,
+                "duracao_s": 0.5,
+            },
+        ]
+        itens = [_resultado()]
+        relatorio = montar_relatorio(
+            itens, CHECKLIST_HASH, "1.1", 1.6, registro_chamadas=registro
+        )
+        assert relatorio["tokens_por_modelo"]["openrouter/deepseek-chat"] == {
+            "entrada": 140,
+            "saida": 60,
+        }
+        assert relatorio["custo_por_modelo"]["openrouter/deepseek-chat"] == pytest.approx(0.03)
+        assert relatorio["custo_total"] == pytest.approx(0.03)
+
+    def test_alvo_sem_preco_gera_aviso(self):
+        registro = [
+            {
+                "provedor": "openrouter",
+                "modelo": "modelo-sem-preco",
+                "tokens_entrada": 100,
+                "tokens_saida": 50,
+                "custo_estimado": 0.0,
+                "duracao_s": 1.0,
+            }
+        ]
+        itens = [_resultado()]
+        relatorio = montar_relatorio(
+            itens, CHECKLIST_HASH, "1.1", 1.0, registro_chamadas=registro
+        )
+        assert any("openrouter/modelo-sem-preco" in aviso for aviso in relatorio["avisos"])
+
+    def test_norma_desatualizada_gera_aviso(self):
+        tabela = {
+            "lei x": {
+                "norma": "Lei X",
+                "status": "vigente",
+                "conferida_em": "2020-01-01",
+            }
+        }
+        itens = [_resultado()]
+        relatorio = montar_relatorio(
+            itens, CHECKLIST_HASH, "1.1", 1.0, tabela_vigencia=tabela, limiar_dias_vigencia=180
+        )
+        assert any("Lei X" in aviso for aviso in relatorio["avisos"])
+
+    def test_registro_usa_registro_chamadas_padrao_do_provedor(self):
+        uso = UsoModelo(
+            provedor="anthropic",
+            modelo="claude-opus-4",
+            tokens_entrada=10,
+            tokens_saida=5,
+            custo_estimado=0.001,
+            duracao_s=0.2,
+        )
+        provedores.REGISTRO_CHAMADAS.append(
+            {
+                "provedor": uso.provedor,
+                "modelo": uso.modelo,
+                "tokens_entrada": uso.tokens_entrada,
+                "tokens_saida": uso.tokens_saida,
+                "tokens_cache_leitura": 0,
+                "tokens_cache_escrita": 0,
+                "custo_estimado": uso.custo_estimado,
+                "duracao_s": uso.duracao_s,
+            }
+        )
+        itens = [_resultado()]
+        relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 1.0)
+        assert "anthropic/claude-opus-4" in relatorio["tokens_por_modelo"]
+
+    def test_nenhum_campo_sensivel_no_relatorio(self):
+        itens = [_resultado()]
+        relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 1.0)
+        serializado = json.dumps(relatorio)
+        for termo in ("api_key", "Authorization", "prompt_bruto"):
+            assert termo not in serializado
+
+    def test_renderizar_relatorio_contem_proximo_comando(self):
+        itens = [_resultado()]
+        relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 1.0)
+        texto = renderizar_relatorio(relatorio, projeto="ProcessoDemo")
+        assert "sysdoc create dvi" in texto
+        assert "ProcessoDemo" in texto
+
+    def test_renderizar_relatorio_tem_passos_numerados_e_custo(self):
+        itens = [_resultado()]
+        relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 2.5)
+        texto = renderizar_relatorio(relatorio)
+        assert "1)" in texto
+        assert "Custo total estimado" in texto
+        assert "Duração total" in texto
