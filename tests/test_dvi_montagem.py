@@ -494,12 +494,12 @@ class TestRelatorio:
         for termo in ("api_key", "Authorization", "prompt_bruto"):
             assert termo not in serializado
 
-    def test_renderizar_relatorio_contem_proximo_comando(self):
+    def test_renderizar_relatorio_contem_proximo_comando_na_ordem_pasta_tipo(self):
         itens = [_resultado()]
         relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 1.0)
         texto = renderizar_relatorio(relatorio, projeto="ProcessoDemo")
-        assert "sysdoc create dvi" in texto
-        assert "ProcessoDemo" in texto
+        assert "sysdoc create ProcessoDemo dvi" in texto
+        assert "sysdoc create dvi ProcessoDemo" not in texto
 
     def test_renderizar_relatorio_tem_passos_numerados_e_custo(self):
         itens = [_resultado()]

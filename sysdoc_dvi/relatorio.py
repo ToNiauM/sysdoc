@@ -9,7 +9,7 @@ pela camada de provedores), duração total e avisos operacionais (norma com
 curadoria vencida, alvo sem preço registrado). `renderizar_relatorio`
 produz a versão em texto, no mesmo estilo de handoff numerado usado por
 `sysdoc.py`, terminando sempre com a instrução do próximo comando
-(`sysdoc create dvi`). Nenhum dos dois expõe chave de API, prompt ou
+(`sysdoc create [pasta] dvi`). Nenhum dos dois expõe chave de API, prompt ou
 resposta bruta do modelo (T-05-37).
 """
 
@@ -171,6 +171,6 @@ def renderizar_relatorio(relatorio: dict, projeto: str = "") -> str:
     linhas.append(f"Hash do checklist: {relatorio.get('checklist_hash', '')}")
     linhas.append(f"Versão do schema: {relatorio.get('schema_version', '')}")
     linhas.append("")
-    linhas.append(f"Próximo passo: sysdoc create dvi {project_arg}")
+    linhas.append(f"Próximo passo: sysdoc create {project_arg} dvi")
 
     return "\n".join(linhas)
