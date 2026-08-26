@@ -103,6 +103,47 @@ def _texto_placeholder(campo: str, resultado: ResultadoItem) -> str:
     return "Fundamentação não disponível; item classificado como pendente para revisão humana."
 
 
+_RISCOS_COERENTES_COM_RISCO = {"relevante", "bloqueante"}
+_SEVERIDADES_COERENTES_COM_BLOQUEANTE = {"crítica", "alta"}
+
+
+def _degradar_incoerente(resultado: ResultadoItem) -> ResultadoItem:
+    """Degrada para `pendente` combinações incoerentes que o schema permite ao
+    modelo emitir mas que o validador rejeita (RF9: um item nunca derruba a
+    análise inteira). A combinação `conforme` + risco não informativo já é
+    reparada em `montagem._montar_item` e não passa por aqui."""
+    incoerencia = None
+    if (
+        resultado.classificação == "risco"
+        and resultado.risco_jurídico not in _RISCOS_COERENTES_COM_RISCO
+    ):
+        incoerencia = (
+            f"classificação 'risco' com risco_jurídico '{resultado.risco_jurídico}'"
+        )
+    elif (
+        resultado.risco_jurídico == "bloqueante"
+        and resultado.severidade not in _SEVERIDADES_COERENTES_COM_BLOQUEANTE
+    ):
+        incoerencia = f"risco_jurídico 'bloqueante' com severidade '{resultado.severidade}'"
+
+    if incoerencia is None:
+        return resultado
+
+    return replace(
+        resultado,
+        classificação="pendente",
+        risco_jurídico="informativo",
+        falha_estruturada=(
+            f"combinação incoerente na resposta do modelo ({incoerencia}); "
+            "item degradado para pendente"
+        ),
+        parecer=(
+            f"{resultado.parecer} [COMBINAÇÃO INCOERENTE NA RESPOSTA DO MODELO: "
+            f"{incoerencia}; item reclassificado como pendente para revisão humana]"
+        ).strip(),
+    )
+
+
 def _preencher_pendencias(resultados: list[ResultadoItem]) -> list[ResultadoItem]:
     completados: list[ResultadoItem] = []
     for resultado in resultados:
@@ -201,6 +242,12 @@ def executar_run(
     inicio = time.monotonic()
     try:
         return _executar_run(projeto, tipo, checklist, economico, forte, retomar, agente, inicio)
+    except provedores.ErroProvedor as exc:
+        print(
+            f"{exc} O checkpoint desta execução foi preservado; rode 'sysdoc-dvi run' "
+            "novamente para retomar do ponto de falha."
+        )
+        return 1
     except _ERROS_CONHECIDOS as exc:
         print(str(exc))
         return 1
@@ -291,7 +338,9 @@ def _executar_run(
     resultados_por_id = dict(checkpoint_resolvido)
     for resultado in novos_resultados:
         resultados_por_id[resultado.checklist_id] = resultado
-    resultados = _preencher_pendencias([resultados_por_id[item.id] for item in itens])
+    resultados = _preencher_pendencias(
+        [_degradar_incoerente(resultados_por_id[item.id]) for item in itens]
+    )
 
     print("6) Sintetizando pareceres (modelo forte)...")
     agente_sintese = _resolver_agente_sintese(agente_execucao, config)

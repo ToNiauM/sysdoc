@@ -120,6 +120,12 @@ def _nota_integridade(itens: list[ResultadoItem]) -> str:
     )
 
 
+def _extrair_campo(conteudo: object, campo_resposta: str) -> str:
+    if not isinstance(conteudo, dict):
+        return ""
+    return str(conteudo.get(campo_resposta, ""))
+
+
 def _chamar_com_retry(
     agente: AgenteSintese,
     nome_template: str,
@@ -133,7 +139,7 @@ def _chamar_com_retry(
     prompt = montar_prompt(nome_template, nota_retry=None, **contexto)
     resposta = agente.chamar(ALVO_SINTESE, prompt, schema=schema)
     usos.append(resposta.uso)
-    texto = str(resposta.conteudo.get(campo_resposta, ""))
+    texto = _extrair_campo(resposta.conteudo, campo_resposta)
     contagem = word_count(texto)
     if contagem >= minimo:
         return texto, usos
@@ -145,7 +151,7 @@ def _chamar_com_retry(
     )
     resposta = agente.chamar(ALVO_SINTESE, prompt_retry, schema=schema)
     usos.append(resposta.uso)
-    texto = str(resposta.conteudo.get(campo_resposta, ""))
+    texto = _extrair_campo(resposta.conteudo, campo_resposta)
     contagem = word_count(texto)
     if contagem < minimo:
         raise ErroSintese(

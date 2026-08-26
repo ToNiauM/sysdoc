@@ -27,7 +27,7 @@ import sysdoc  # noqa: E402
 from sysdoc_dvi import cli, pipeline  # noqa: E402
 from sysdoc_dvi.checklist import hash_checklist  # noqa: E402
 from sysdoc_dvi.checkpoint import registrar_item  # noqa: E402
-from sysdoc_dvi.provedores import RespostaModelo  # noqa: E402
+from sysdoc_dvi.provedores import ErroProvedor, RespostaModelo  # noqa: E402
 from sysdoc_dvi.tipos import ResultadoItem, UsoModelo  # noqa: E402
 
 ETP_TEXTO = (
@@ -382,6 +382,84 @@ class TestRetomada:
         assert rc2 == 0
         assert agente_2.chamadas == ["DVI-GER-003"]
         assert len(agente_2.chamadas) < len(agente_1.chamadas)
+
+
+class AgenteSinteseFalha(AgenteFalso):
+    """Executa itens normalmente, mas todo `chamar` de síntese falha como um
+    erro HTTP do provedor."""
+
+    def chamar(self, alvo: str, prompt: str, *, schema: dict | None = None) -> RespostaModelo:
+        raise ErroProvedor(
+            "falha HTTP 429 do provedor 'anthropic' ao chamar o modelo forte."
+        )
+
+
+class AgenteIncoerente(AgenteFalso):
+    """Emite uma combinação incoerente (risco + menor) para um único item."""
+
+    def __init__(self, id_incoerente: str):
+        super().__init__()
+        self._id_incoerente = id_incoerente
+
+    def executar_item(self, item, contexto):
+        resultado = super().executar_item(item, contexto)
+        if item.id != self._id_incoerente:
+            return resultado
+        return replace(resultado, classificação="risco", risco_jurídico="menor")
+
+
+class TestRobustezPipeline:
+    def test_erro_provedor_na_sintese_sai_com_1_e_mensagem_sem_traceback(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        home_dir = _preparar_home(tmp_path)
+        monkeypatch.setenv("HOME", str(home_dir))
+        _criar_projeto(tmp_path, "ProjetoSinteseFalha")
+        checklist_path = _escrever_checklist(tmp_path)
+        monkeypatch.chdir(tmp_path)
+
+        rc = pipeline.executar_run(
+            "ProjetoSinteseFalha",
+            tipo="geral",
+            checklist=str(checklist_path),
+            agente=AgenteSinteseFalha(),
+        )
+
+        assert rc == 1
+        saida = capsys.readouterr().out
+        assert "falha HTTP 429" in saida
+        assert "retomar" in saida
+
+    def test_item_incoerente_do_modelo_degrada_para_pendente_sem_abortar(
+        self, tmp_path, monkeypatch
+    ):
+        home_dir = _preparar_home(tmp_path)
+        monkeypatch.setenv("HOME", str(home_dir))
+        projeto_dir = _criar_projeto(tmp_path, "ProjetoIncoerente")
+        checklist_path = _escrever_checklist(tmp_path)
+        monkeypatch.chdir(tmp_path)
+
+        rc = pipeline.executar_run(
+            "ProjetoIncoerente",
+            tipo="geral",
+            checklist=str(checklist_path),
+            agente=AgenteIncoerente("DVI-GER-002"),
+        )
+
+        assert rc == 0
+        dados = json.loads(
+            (projeto_dir / "dados_consolidados.json").read_text(encoding="utf-8")
+        )
+        item_incoerente = next(
+            item for item in dados["itens"] if item.get("checklist_id") == "DVI-GER-002"
+        )
+        assert item_incoerente["classificação"] == "pendente"
+        assert item_incoerente["risco_jurídico"] == "informativo"
+
+        relatorios = sorted((projeto_dir / "output").glob("*_relatorio_*.json"))
+        assert relatorios
+        relatorio = json.loads(relatorios[-1].read_text(encoding="utf-8"))
+        assert "DVI-GER-002" in relatorio["falhas_estruturadas"]["itens"]
 
 
 class TestDerivacaoModeloIa:

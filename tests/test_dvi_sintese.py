@@ -202,6 +202,25 @@ class TestMinimos:
             assert "150" in str(exc)
         assert len(agente.chamadas) == 2
 
+    def test_conteudo_nao_dict_vira_erro_sintese_e_nao_excecao_bruta(self):
+        respostas = [
+            ["lista", "inesperada", "do", "modelo"],
+            ["outra", "lista", "inesperada"],
+        ]
+        agente = AgenteFalso(respostas)
+        try:
+            sintetizar(
+                [_item(documento="ETP"), _item(documento="TR")],
+                _projeto(),
+                agente,
+                "ETP-001/2026",
+                "TR-001/2026",
+            )
+            raise AssertionError("deveria ter levantado ErroSintese")
+        except ErroSintese as exc:
+            assert "0" in str(exc)
+        assert len(agente.chamadas) == 2
+
     def test_retry_unico_documento_atinge_minimo_na_segunda_tentativa(self):
         respostas = [
             {"parecer_executivo": _palavras(460)},
