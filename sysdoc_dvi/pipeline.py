@@ -30,6 +30,7 @@ para que a rastreabilidade também não seja acusada como fabricação.
 
 from __future__ import annotations
 
+import itertools
 import json
 import re
 import time
@@ -329,8 +330,13 @@ def _executar_run(
         print(f"   Retomando: {len(checkpoint_resolvido)} item(ns) já resolvido(s) no checkpoint.")
     print(f"5) Executando checklist ({len(itens_pendentes)} item(ns) pendente(s))...")
 
+    total_pendentes = len(itens_pendentes)
+    contador_progresso = itertools.count(1)
+
     def _ao_concluir(resultado: ResultadoItem) -> None:
         registrar_item(paths.root, checklist_hash_atual, resultado)
+        numero = next(contador_progresso)
+        print(f"   [{numero}/{total_pendentes}] {resultado.checklist_id}: {resultado.classificação}")
 
     novos_resultados = executar_checklist(
         itens_pendentes,

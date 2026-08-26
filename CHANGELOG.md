@@ -8,6 +8,7 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 ### Adicionado
 
+- **P4 — progresso por item no passo 5 do `sysdoc-dvi run`** (`sysdoc_dvi/pipeline.py`, `tests/test_dvi_progresso.py`): o passo 5 (execução do checklist) ficava mudo por toda a duração da análise; agora cada item concluído imprime `   [n/total] ID: classificação`, com `total` igual ao número de itens pendentes do run atual (numa retomada por checkpoint, reflete só os itens ainda não resolvidos). O checkpoint continua sendo gravado como primeira ação do callback de conclusão.
 - **README — seção "Exemplo didático: do zero ao deploy nos dois fluxos"**: passo a passo comentado de um mesmo projeto fictício percorrendo o fluxo original (agente de IA via `sysdoc analyze` → `publish` → `create tr` → `deploy`) e o novo fluxo DVI (`sysdoc-dvi config` → `run --tipo tic` → `relatorio` → `create dvi` → `deploy`), com tabela comparativa de quando usar cada um.
 
 ### Corrigido
