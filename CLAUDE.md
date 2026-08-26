@@ -34,7 +34,20 @@ sysdoc publish [pasta]                  # validate + version JSON + render HTML
 sysdoc deploy [pasta]                   # find next index via SSH and SCP html to VPS
 sysdoc compare [pasta]                  # compara versoes json geradas
 sysdoc analyze [pasta] [-i instrução]   # prepare + imprime caminhos para o agente
+sysdoc create [pasta] [tipo]            # gera DOCX (tr, dvi) a partir de JSON + template
 ```
+
+### Motor DVI (`sysdoc-dvi`) — binário separado, chama modelo
+
+`sysdoc` acima nunca chama modelo. Quem chama modelo é o binário separado `sysdoc-dvi`:
+
+```bash
+sysdoc-dvi run [pasta] --tipo geral|tic     # pipeline completo: checklist -> peças -> itens -> síntese -> JSON -> validate -> render -> relatório
+sysdoc-dvi relatorio [pasta]                # reimprime o último relatório de execução
+sysdoc-dvi config --economico <alvo> --forte <alvo> [--listar]  # grava/lista o mapeamento de modelos
+```
+
+Os itens de análise DVI vêm de `checklists/dvi.yaml` — fonte canônica declarada em `skills/sysdoc/SKILL.md`, seção "Análise DVI por checklist". Nunca duplique itens do checklist em documentação ou prompt. A tabela `normas/vigencia.yaml` é a única fonte de vigência normativa consultada pelo tipo de verificação `vigencia`; norma ausente da tabela vira item `pendente`, nunca inferência do modelo.
 
 ## Macros de Prompt (Orquestrados pelo Agente)
 
@@ -62,7 +75,10 @@ python templates/render_analise.py [pasta]/dados_consolidados.json [pasta]
 |---------|------|
 | `skills/sysdoc/SKILL.md` | **Canonical operational flow** — IA-agnostic, single source of truth |
 | `.claude/skills/sysdoc-analise/SKILL.md` | Thin Claude Code wrapper; delegates to canonical |
-| `sysdoc.py` | CLI Entrypoint: `status`, `connect`, `models`, `init`, `prepare`, `analyze`, `validate`, `render`, `publish`, `deploy` |
+| `sysdoc.py` | CLI Entrypoint: `status`, `init`, `all`, `config`, `prepare`, `analyze`, `guia`, `validate`, `render`, `publish`, `deploy`, `compare`, `create` — determinística, nunca chama modelo |
+| `sysdoc_dvi/cli.py` | Entrypoint `sysdoc-dvi`: `run`, `relatorio`, `config` — orquestrador que chama modelo, consumindo `checklists/dvi.yaml` |
+| `checklists/dvi.yaml` | Fonte canônica dos itens de análise DVI (não duplicada em `SKILL.md` ou prompts) |
+| `normas/vigencia.yaml` | Fonte única de vigência normativa para o tipo de verificação `vigencia` |
 | `run_sysdoc.sh` | Script wrapper que roda Fases 1, 2 e 4 (Prepare, Analyze, Deploy) sequencialmente |
 | `templates/validate_sysdoc.py` | Deterministic JSON validator (schema + coherence + PT-BR accents + traceability) |
 | `templates/render_analise.py` | Deterministic HTML renderer — **immutable** |
@@ -102,11 +118,11 @@ ETP.pdf + TR.pdf + modelos/
     → validate → render → analise_[model]_[date].html
 ```
 
-The `analyze` command dynamically routes the prompt to the configured provider (OpenRouter, OpenAI, Gemini, or Anthropic) utilizing strict JSON outputs (`json_object` or `json_schema`) enforced via `schema_sysdoc.json`.
+`sysdoc analyze` is deliberately deterministic — it runs `prepare` and prints cache paths for the harness to read. It never calls a model. The command that calls a model is `sysdoc-dvi run`, using strict JSON outputs (`json_object` or `json_schema`) enforced via `schema_sysdoc.json`.
 
 ### Environment & Configuration
 
-API Keys and provider preferences are centrally managed in `~/.sysdoc/config.json`, populated via the `sysdoc connect` and `sysdoc models` commands. Alternatively, standard environment variables are supported:
+API Keys and provider preferences are centrally managed in `~/.sysdoc/config.json`, populated by hand-editing the file or via `sysdoc-dvi config --economico <alvo> --forte <alvo>`. Alternatively, standard environment variables are supported:
 
 | Variable / Config | Purpose | Default |
 |----------|---------|---------|
@@ -124,6 +140,9 @@ API Keys and provider preferences are centrally managed in `~/.sysdoc/config.jso
 - All generated fields must use correct Brazilian Portuguese (acentuação em norma culta). The `de` field is the only exception — it preserves the literal original text.
 - Do not invent article numbers, SEI numbers, acórdãos, values, dates, or clauses. Use `pendente` when the basis is insufficient.
 - Coherence rules enforced by the validator: `classificação=risco` → `risco_jurídico` ∈ {`relevante`, `bloqueante`}; `classificação=conforme` → `risco_jurídico=informativo`; `risco_jurídico=bloqueante` → `severidade` ∈ {`crítica`, `alta`}.
+- Items of a DVI analysis come from `checklists/dvi.yaml` — never duplicate item IDs, questions, or legal basis in documentation or in a prompt. `normas/vigencia.yaml` is the single source for norm validity lookups.
+- New artifact naming pattern (since 1.5.0): `xx_nome_tipo_data.extensao` (e.g. `01_processo-042_dvi_2026-08-26.docx`) — see CHANGELOG `[1.5.0]`.
+- `render_analise.py`, `publish`, and `create` are allowed to evolve **between versions**, with the change registered in CHANGELOG.md — they only stay immutable **during a single analysis run**, not across releases.
 
 ## PDF Extraction Priority (Claude Code)
 

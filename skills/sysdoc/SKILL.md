@@ -40,6 +40,27 @@ O usuário acionará você (o Agente de IA) através de "Macro Comandos". Quando
   - Para `tipo=tr`: aplica revisão ETP (substituição literal `de`→`para` em itens problemáticos), seleciona template por categoria de contratação (compras, serviços com/sem dedicação, obras) e grava na raiz como `tr_[modelo]_[data].docx`.
   - Aceita `--template` para template explícito e `--json` para JSON específico.
 
+## Análise DVI por checklist
+
+`checklists/dvi.yaml` é a **fonte canônica** dos itens de análise DVI (Diligência de Verificação de Instrução). Este `SKILL.md` nunca duplica IDs, perguntas ou base legal de item — apenas referencia o YAML. Isso evita drift entre a documentação e o checklist real (risco nº 3 do PRD da Fase 5).
+
+Qualquer harness (nível artefato do RF8) que queira operar a análise DVI deve:
+
+1. Ler `checklists/dvi.yaml` e filtrar os itens por `aplicabilidade` (`geral`, `tic` ou `ambos`) e por `ativo: true`.
+2. Executar **um item por vez**, com o contexto restrito à peça (`peca`) indicada no próprio item — nunca o processo inteiro de uma vez.
+3. Preencher `checklist_id` (o `id` do item no YAML) e `origem_verificacao` em cada item do JSON produzido.
+4. Preservar a literalidade do campo `de`, como em qualquer análise SysDoc.
+5. Validar o resultado com `sysdoc validate`.
+
+O RF8 define dois níveis de acoplamento, ambos produzindo o **mesmo** `dados_consolidados.json` aprovado pelo validador:
+
+- **Nível artefato** (o fluxo acima): qualquer harness que leia `.sysdoc/cache/` + `checklists/dvi.yaml` e escreva o JSON está acoplado — nenhuma integração de código é exigida.
+- **Nível código**: protocolo Python `AnalysisAgent` (`sysdoc_dvi/agente.py`), com implementação de referência via cliente Anthropic, acionado pelo orquestrador `sysdoc-dvi`.
+
+`sysdoc-dvi run [pasta] --tipo geral|tic` é o **caminho automatizado**: configura modelos econômico/forte, filtra o checklist, mapeia as peças do projeto, executa cada item com retomada por checkpoint, roda a síntese pelo modelo forte, faz o grounding check do campo `de`, grava o JSON, chama `sysdoc validate` + `sysdoc render` e produz um relatório de execução em `output/`.
+
+A CLI `sysdoc` (`prepare`, `validate`, `render`, `publish`, `create`, `status`, `compare`, `analyze`) permanece estritamente determinística e **nunca** chama modelo. Quem chama modelo é o binário separado `sysdoc-dvi` — orquestrador (nível artefato) ou harness (nível artefato também, via leitura direta do YAML). Ver `sysdoc-dvi --help` para `run`, `relatorio` e `config`.
+
 ## Ferramentas de CLI (Apenas para o Agente)
 
 Você executará estes comandos via shell para orquestrar o processo:

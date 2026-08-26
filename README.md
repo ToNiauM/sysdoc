@@ -23,7 +23,8 @@ A separação garante reprodutibilidade: o mesmo JSON, validado pelo mesmo valid
 8. [Estrutura de um projeto](#estrutura-de-um-projeto)
 9. [Schema canônico e regras de validação](#schema-canônico-e-regras-de-validação)
 10. [Restrições do projeto](#restrições-do-projeto)
-11. [Documentação adicional](#documentação-adicional)
+11. [Motor de análise DVI (`sysdoc-dvi`)](#motor-de-análise-dvi-sysdoc-dvi)
+12. [Documentação adicional](#documentação-adicional)
 
 ---
 
@@ -350,6 +351,61 @@ Para documentar a ausência de uma cláusula esperada, use o marcador `[OMISSÃO
 - Todo campo gerado pela IA usa norma culta do português brasileiro com acentuação correta. Exceção exclusiva: o campo `de`.
 - Não invente artigos de lei, números de acórdão, números SEI, valores monetários, datas ou cláusulas. Quando a base for insuficiente, classifique o item como `pendente`.
 - Hierarquia normativa para fundamentação: lei ou norma aplicável > regulamento vinculante > modelo oficial > referência técnica confiável > texto atual do documento.
+
+---
+
+## Motor de análise DVI (`sysdoc-dvi`)
+
+O motor de análise DVI (Diligência de Verificação de Instrução) é um **binário separado**, `sysdoc-dvi`, distinto da CLI `sysdoc` — ele é o único componente do projeto que chama modelo de linguagem. A CLI `sysdoc` continua 100% determinística.
+
+### Pré-requisito: configurar os modelos
+
+Antes do primeiro `sysdoc-dvi run`, configure o par de modelos econômico/forte:
+
+```bash
+sysdoc-dvi config --economico openrouter/deepseek-chat --forte anthropic/claude-opus-5
+sysdoc-dvi config --listar
+```
+
+O mapeamento fica em `~/.sysdoc/config.json` (nunca versionado). Alternativa: editar o arquivo à mão, ou usar as variáveis de ambiente `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`.
+
+### Rodando a análise
+
+```bash
+sysdoc-dvi run [pasta] --tipo geral|tic
+```
+
+`--tipo geral` roda a aplicabilidade padrão de qualquer contratação; `--tipo tic` inclui também os itens específicos de contratação de TIC. O pipeline: lê o mapeamento de modelos → filtra `checklists/dvi.yaml` por `aplicabilidade`/`ativo` → roda `sysdoc prepare` se o cache não existir → mapeia as peças do projeto (ETP, TR, MCP, Mapa de Riscos) → executa cada item do checklist com retomada por checkpoint → roda a síntese final (`parecer_executivo`, `parecer_documento`) no modelo forte → grava `dados_consolidados.json` → `sysdoc validate` → `sysdoc render` → grava um relatório de execução em `output/`. `sysdoc-dvi relatorio [pasta]` reimprime o último relatório sem reexecutar.
+
+### O que cada tipo de verificação faz
+
+| Tipo | O que faz |
+|------|-----------|
+| `presenca` | Chamada a LLM (contexto restrito à peça, temperatura 0) verificando se um elemento obrigatório está presente no documento. |
+| `julgamento` | Chamada a LLM fundamentada exclusivamente em `base_legal_texto` do item — citar norma fora dessa base reclassifica o item como `pendente`. |
+| `calculo` | LLM extrai a tabela de dados (valores, quantidades) em schema fechado; funções Python puras recalculam média, mediana e unitário × quantidade e comparam com o valor declarado, com tolerância configurável. |
+| `vigencia` | Lookup determinístico em `normas/vigencia.yaml` — o modelo nunca responde sobre vigência de memória. Norma ausente da tabela vira item `pendente`. |
+| `mecanica` | Funções Python puras sobre o texto extraído (numeração sequencial, presença de CATMAT/CATSER, menção × presença de cronograma físico-financeiro). |
+
+### Onde ficam checklist e tabela de vigência
+
+- `checklists/dvi.yaml` — itens de análise DVI, fonte canônica (ver `skills/sysdoc/SKILL.md`).
+- `normas/vigencia.yaml` — tabela de vigência de normativos, com override por projeto em `referencias/`.
+
+### Editar ou desativar um item sem tocar em código
+
+Cada item do checklist é uma entrada YAML com `id`, `aplicabilidade`, `peca`, `tipo`, `pergunta`, `base_legal_texto`, `referencia`, `severidade_default`, `modelo_alvo` e `ativo`. Para desativar um item, defina `ativo: false` — nenhuma alteração de código é necessária. Editar pergunta, base legal ou severidade também é só editar o YAML.
+
+### Passo manual seguinte
+
+Depois de revisar o JSON/HTML gerado:
+
+```bash
+sysdoc create dvi [pasta]
+sysdoc deploy [pasta]
+```
+
+`sysdoc create dvi` gera o DVI em DOCX (minuta para assinatura, nunca documento final automático). Os artefatos gerados a partir da 1.5.0 seguem o padrão de nomes `xx_nome_tipo_data.extensao`, onde `xx` é o contador de produção daquele tipo de artefato no projeto (nunca reutilizado) — exemplo canônico: `01_processo-042_dvi_2026-08-26.docx`.
 
 ---
 
