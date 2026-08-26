@@ -212,7 +212,7 @@ def _verificar_fundamentacao(resultado: ResultadoItem, item: ItemChecklist) -> R
             continue
         novo_parecer = (
             f"{resultado.parecer} [FUNDAMENTAÇÃO FORA DA BASE LEGAL: citação '{citacao}' não "
-            "consta em base_legal_texto nem em referencia deste item; item reclassificado "
+            "consta na base legal nem na referência deste item; item reclassificado "
             "como pendente]"
         ).strip()
         return replace(

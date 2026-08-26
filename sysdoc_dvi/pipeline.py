@@ -40,6 +40,7 @@ from pathlib import Path
 import sysdoc
 from sysdoc_dvi import despacho, provedores
 from sysdoc_dvi.agente import AgenteLLM
+from sysdoc_dvi.autocorrecao import autocorrigir_json
 from sysdoc_dvi.checklist import ErroChecklist, carregar_checklist, filtrar_itens, hash_checklist
 from sysdoc_dvi.checkpoint import carregar_checkpoint, limpar_checkpoint, registrar_item
 from sysdoc_dvi.config import ConfigDvi, ErroConfiguracaoModelos, carregar_config_dvi
@@ -213,6 +214,7 @@ def _gravar_relatorio(
     tabela_vigencia: dict,
     limiar_dias: int,
     duracao_total_s: float,
+    correcoes: list[str] | None = None,
 ) -> Path:
     relatorio = montar_relatorio(
         resultados,
@@ -223,6 +225,8 @@ def _gravar_relatorio(
         tabela_vigencia=tabela_vigencia,
         limiar_dias_vigencia=limiar_dias,
     )
+    for correcao in correcoes or []:
+        relatorio.setdefault("avisos", []).append(f"autocorreção de acentuação: {correcao}")
     paths.output.mkdir(parents=True, exist_ok=True)
     data = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     destino = sysdoc.proximo_nome_artefato(paths.output, paths.root.name, "relatorio", data, ".json")
@@ -376,6 +380,16 @@ def _executar_run(
 
     print("8) Validando (sysdoc validate)...")
     rc_validate = sysdoc.validate(projeto, str(dados_path))
+    correcoes: list[str] = []
+    if rc_validate != 0:
+        correcoes = autocorrigir_json(paths.root, dados_path)
+        if correcoes:
+            print(
+                f"   Autocorreção determinística: {len(correcoes)} termo(s) sem "
+                "acentuação corrigido(s); revalidando..."
+            )
+            rc_validate = sysdoc.validate(projeto, str(dados_path))
+
     if rc_validate != 0:
         print("   Validação falhou; JSON e relatório preservados para inspeção.")
         _gravar_relatorio(
@@ -388,6 +402,7 @@ def _executar_run(
             tabela_vigencia,
             config.limiar_curadoria_dias,
             time.monotonic() - inicio,
+            correcoes=correcoes,
         )
         return rc_validate
 
@@ -406,6 +421,7 @@ def _executar_run(
         tabela_vigencia,
         config.limiar_curadoria_dias,
         time.monotonic() - inicio,
+        correcoes=correcoes,
     )
 
     limpar_checkpoint(paths.root)
