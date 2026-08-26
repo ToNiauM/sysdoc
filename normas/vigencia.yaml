@@ -45,3 +45,51 @@ normas:
     status: pendente_de_conferencia
     substituida_por: null
     conferida_em: "2026-08-26"
+
+  - norma: "Instrução Normativa SEGES/ME nº 81, de 25 de novembro de 2022"
+    aliases: ["IN SEGES/ME 81/2022", "IN 81/2022"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "Portaria SEGES nº 938, de 2 de fevereiro de 2022"
+    aliases: ["Portaria SEGES 938/2022", "Portaria SEGES nº 938/2022"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "IN SEGES nº 77/2022"
+    aliases: ["IN SEGES/ME 77/2022", "IN 77/2022"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "IN nº 05/2017"
+    aliases: ["IN 05/2017", "IN SEGES/MP 05/2017"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "Decreto nº 11.462/2023"
+    aliases: ["Decreto 11.462/2023", "Decreto nº 11.462, de 31 de março de 2023"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "Portaria STI/MP nº 46, de 28 de setembro de 2016"
+    aliases: ["Portaria STI/MP 46/2016", "Portaria STI/MP nº 46/2016"]
+    status: pendente_de_conferencia
+    substituida_por: null
+    conferida_em: "2026-08-26"
+
+  - norma: "Portaria PRES CFC nº 266, de 26 de junho de 2025"
+    aliases: ["Portaria PRES CFC 266/2025", "Portaria PRES CFC nº 266/2025"]
+    status: substituida
+    substituida_por: "Resolução CFC nº 1.799/26"
+    conferida_em: "2026-08-26"
+
+  - norma: "Resolução CFC nº 1.799/26"
+    aliases: ["Resolução CFC 1.799/26", "Resolução CFC nº 1.799, de 2026"]
+    status: vigente
+    substituida_por: null
+    conferida_em: "2026-08-26"
