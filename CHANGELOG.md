@@ -8,6 +8,7 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 ### Alterado
 
+- **Padrão de nomes de artefatos `xx_nome_tipo_data.extensao`** (`sysdoc.py`, `templates/render_analise.py`, `tests/test_nomes_artefatos.py`, decisões D-08/D-09 da Fase 5): `publish` (JSON versionado), `render` (HTML) e `create` (DOCX) agora nomeiam a saída com um contador de produção por (projeto, tipo) — `01_processo-042_dvi_2026-08-26.docx`, regerar produz `02_...`, nunca sobrescreve nem reutiliza número. `modelo_ia` sai do nome do arquivo e permanece apenas nos metadados do JSON. `status`, `deploy` e `compare` continuam reconhecendo artefatos com nome legado (`analise_[modelo]_[data].html`, `dados_consolidados_[modelo]_[data].json`, `tr_[modelo]_[data].docx`) junto dos novos. Funções órfãs `resolve_next_json_archive`, `resolve_next_output` e `resolve_next_docx_output` removidas de `sysdoc.py`; `resolve_next_filename` removida de `templates/render_analise.py` em favor de `proximo_nome_artefato` replicada nos dois módulos (o renderer roda isolado como subprocesso, sem importar `sysdoc.py`).
 - **Flags `config --vps` e `--path`** (`sysdoc.py`, `tests/test_cli.py`, `AGENTS.md`, `README.md`, `skills/sysdoc/SKILL.md`): substitui as flags antigas `-vps`/`-path` (sintaxe não-POSIX) por `--vps`/`--path`. `--vps-host` e `--vps-path` permanecem como aliases ocultos para retrocompatibilidade. Help do `sysdoc config` agora exibe apenas as formas canônicas.
 
 ---

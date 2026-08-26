@@ -679,7 +679,11 @@ def status() -> int:
         docs_count = len(supported_files(paths.documentos) or legacy_document_files(paths))
         refs_count = len(list_reference_files(paths))
         has_json = (directory / "dados_consolidados.json").is_file()
-        html_count = len(list(paths.output.glob("analise_*.html")) + list(directory.glob("analise_*.html")))
+        html_files = (
+            set(paths.output.glob("analise_*.html")) | set(directory.glob("analise_*.html"))
+            | set(paths.output.glob("*_analise_*.html")) | set(directory.glob("*_analise_*.html"))
+        )
+        html_count = len(html_files)
         prepared = paths.context.is_file()
         if not any([docs_count, refs_count, has_json, html_count]):
             continue
@@ -752,16 +756,12 @@ def publish(project: str, json_arg: str | None = None) -> int:
         return validation
 
     data = json.loads(json_path.read_text(encoding="utf-8"))
-    model = slug(data.get("modelo_ia", "modelo"))
     date = extract_date(data.get("data_análise", ""))
     payload = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
     paths.output.mkdir(parents=True, exist_ok=True)
-    archive = resolve_next_json_archive(paths.output, model, date, payload)
-    if archive.exists():
-        print(f"JSON versionado já existe: {rel(archive)}")
-    else:
-        archive.write_text(payload, encoding="utf-8")
-        print(f"JSON versionado: {rel(archive)}")
+    archive = proximo_nome_artefato(paths.output, paths.root.name, "dados", date, ".json")
+    archive.write_text(payload, encoding="utf-8")
+    print(f"JSON versionado: {rel(archive)}")
     return render(project, str(json_path))
 
 
@@ -769,7 +769,8 @@ def deploy(project: str) -> int:
     """Envia o último HTML gerado para a VPS garantindo índice único (index{X}.html)."""
     paths = project_paths(project)
     htmls = sorted(
-        list(paths.output.glob("analise_*.html")) + list(paths.root.glob("analise_*.html")),
+        list(paths.output.glob("analise_*.html")) + list(paths.root.glob("analise_*.html"))
+        + list(paths.output.glob("*_analise_*.html")) + list(paths.root.glob("*_analise_*.html")),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -861,29 +862,19 @@ def all_command(project: str, instruction: str = "") -> int:
     return 0
 
 
-def resolve_next_json_archive(project_dir: Path, model: str, date: str, payload: str) -> Path:
-    stem = f"dados_consolidados_{model}_{date}"
-    first = project_dir / f"{stem}.json"
-    if not first.exists() or first.read_text(encoding="utf-8", errors="replace") == payload:
-        return first
-    index = 2
-    while True:
-        candidate = project_dir / f"{stem}_{index}.json"
-        if not candidate.exists() or candidate.read_text(encoding="utf-8", errors="replace") == payload:
-            return candidate
-        index += 1
-
-
-def resolve_next_output(output_dir: Path, stem: str, suffix: str) -> Path:
-    first = output_dir / f"{stem}{suffix}"
-    if not first.exists():
-        return first
-    index = 2
-    while True:
-        candidate = output_dir / f"{stem}_{index}{suffix}"
-        if not candidate.exists():
-            return candidate
-        index += 1
+def proximo_nome_artefato(destino: Path, projeto: str, tipo: str, data: str, extensao: str) -> Path:
+    projeto_slug = slug(projeto)
+    tipo_slug = slug(tipo)
+    padrao = re.compile(rf"^(\d{{2}})_{re.escape(projeto_slug)}_{re.escape(tipo_slug)}_")
+    maior = 0
+    if destino.is_dir():
+        for item in destino.iterdir():
+            match = padrao.match(item.name)
+            if match:
+                maior = max(maior, int(match.group(1)))
+    contador = maior + 1
+    nome = f"{contador:02d}_{projeto_slug}_{tipo_slug}_{data}{extensao}"
+    return destino / nome
 
 
 def flatten_json(data: object, prefix: str = "") -> dict[str, str]:
@@ -957,19 +948,6 @@ def build_pending_text(pending: list[dict]) -> str:
         f"{item.get('id', '?')}: trecho original não localizado para substituição exata."
         for item in pending
     )
-
-
-def resolve_next_docx_output(project_dir: Path, prefix: str, model: str, date: str) -> Path:
-    stem = f"{prefix}_{model}_{date}"
-    candidate = project_dir / f"{stem}.docx"
-    if not candidate.exists():
-        return candidate
-    index = 2
-    while True:
-        candidate = project_dir / f"{stem}_{index}.docx"
-        if not candidate.exists():
-            return candidate
-        index += 1
 
 
 def find_docx_template(paths: ProjectPaths, tipo: str, template_arg: str | None = None) -> Path:
@@ -1101,10 +1079,9 @@ def create(project: str, tipo: str, json_arg: str | None = None, template_arg: s
         values["json"] = rel(json_path)
         values["template"] = rel(template)
 
-    model = slug(data.get("modelo_ia", "modelo"))
     date = extract_date(data.get("data_análise", data.get("data_analise", "")))
     paths.output.mkdir(parents=True, exist_ok=True)
-    output = resolve_next_docx_output(paths.root, slug(tipo), model, date)
+    output = proximo_nome_artefato(paths.root, paths.root.name, slug(tipo), date, ".docx")
     render_docx_template(template, output, values)
     print(f"DOCX gerado: {rel(output)}")
     if tipo.lower() == "tr" and pending:
@@ -1179,7 +1156,10 @@ def extract_date(value: str) -> str:
 def compare(project: str) -> int:
     """Lista JSONs versionados de um projeto e compara itens, classificações e riscos (M3-C)."""
     paths = project_paths(project)
-    jsons = sorted(set(paths.root.glob("dados_consolidados_*.json")) | set(paths.output.glob("dados_consolidados_*.json")))
+    jsons = sorted(
+        set(paths.root.glob("dados_consolidados_*.json")) | set(paths.output.glob("dados_consolidados_*.json"))
+        | set(paths.root.glob("*_dados_*.json")) | set(paths.output.glob("*_dados_*.json"))
+    )
     if not jsons:
         print("Nenhuma versão encontrada. Rode 'sysdoc publish' para versionar.")
         return 1
