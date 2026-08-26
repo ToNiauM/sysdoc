@@ -120,3 +120,14 @@ None - no external service configuration required.
 ---
 *Phase: 05-motor-analise-checklist*
 *Completed: 2026-08-26*
+
+## Self-Check: PASSED
+
+- FOUND: `sysdoc_dvi/verificacoes/calculo.py`
+- FOUND: `tests/fixtures/mcp_sintetico.json`
+- FOUND: `tests/test_dvi_calculo.py`
+- FOUND: `.planning/phases/05-motor-analise-checklist/05-05-SUMMARY.md`
+- FOUND commit: `a0e51db` (test — RED)
+- FOUND commit: `0aa3fe5` (feat — GREEN)
+- FOUND commit: `a2b5089` (test — fixture)
+- FOUND commit: `f2dc578` (test — CA2 coverage)
