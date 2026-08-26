@@ -1082,7 +1082,7 @@ def _assert_safe_zip_entries(source: zipfile.ZipFile, template: Path) -> None:
 
 def render_docx_template(template: Path, output: Path, values: dict[str, str]) -> None:
     replacements = {
-        f"{{{{{key}}}}}": xml_escape(value)
+        f"{{{{{key}}}}}": xml_escape(value).replace("\n", "<w:br/>")
         for key, value in values.items()
     }
     with zipfile.ZipFile(template, "r") as source, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
