@@ -370,6 +370,16 @@ sysdoc-dvi config --listar
 
 O mapeamento fica em `~/.sysdoc/config.json` (nunca versionado). Alternativa: editar o arquivo à mão, ou usar as variáveis de ambiente `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`.
 
+Opcionalmente, registre o preço de cada alvo (USD por 1 milhão de tokens de entrada/saída) para que o relatório de execução calcule o custo real em vez de custo zero:
+
+```bash
+sysdoc-dvi config --preco openrouter/deepseek-chat 0.28 0.42
+sysdoc-dvi config --preco anthropic/claude-opus-5 15 75
+sysdoc-dvi config --listar
+```
+
+O preço configurado tem precedência sobre a tabela embutida (vazia por padrão — nenhum preço é assumido) e pode ser repetido para registrar vários alvos numa só chamada de `config`. Alvo sem preço registrado mantém custo zerado no relatório, com um aviso que já traz o comando `sysdoc-dvi config --preco <alvo> <entrada> <saida>` pronto para copiar.
+
 ### Rodando a análise
 
 ```bash
@@ -377,6 +387,10 @@ sysdoc-dvi run [pasta] --tipo geral|tic
 ```
 
 `--tipo geral` roda a aplicabilidade padrão de qualquer contratação; `--tipo tic` inclui também os itens específicos de contratação de TIC. O pipeline: lê o mapeamento de modelos → filtra `checklists/dvi.yaml` por `aplicabilidade`/`ativo` → roda `sysdoc prepare` se o cache não existir → mapeia as peças do projeto (ETP, TR, MCP, Mapa de Riscos) → executa cada item do checklist com retomada por checkpoint → roda a síntese final (`parecer_executivo`, `parecer_documento`) no modelo forte → grava `dados_consolidados.json` → `sysdoc validate` → `sysdoc render` → grava um relatório de execução em `output/`. `sysdoc-dvi relatorio [pasta]` reimprime o último relatório sem reexecutar.
+
+### Mapeamento de peças (ETP, TR, MCP, Mapa de Riscos)
+
+O caminho canônico é um **único PDF do processo inteiro** em `documentos/`. Nesse caso, `sysdoc prepare` tenta fatiar deterministicamente as peças por cabeçalho em linha própria (ex.: "ESTUDO TÉCNICO PRELIMINAR", "TERMO DE REFERÊNCIA", "MAPA DE RISCOS"), gravando cada fatia em `.sysdoc/cache/textos/documentos/{PECA}.txt`. Peça sem cabeçalho inequívoco (ambíguo ou ausente) usa o arquivo inteiro do processo em vez de abortar. O bloco `pecas:` de `.sysdoc/config.yaml` deixou de ser obrigatório nesse fluxo; continua disponível como override manual de precedência absoluta (sempre sobre o arquivo inteiro, nunca sobre uma fatia). `sysdoc-dvi run` imprime a origem de cada peça mapeada (`fatiamento`, `arquivo-inteiro`, `override`, `ancora` ou `nome`) no passo 4 e no relatório de execução.
 
 ### O que cada tipo de verificação faz
 

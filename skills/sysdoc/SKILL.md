@@ -59,6 +59,8 @@ O RF8 define dois níveis de acoplamento, ambos produzindo o **mesmo** `dados_co
 
 `sysdoc-dvi run [pasta] --tipo geral|tic` é o **caminho automatizado**: configura modelos econômico/forte, filtra o checklist, mapeia as peças do projeto, executa cada item com retomada por checkpoint, roda a síntese pelo modelo forte, faz o grounding check do campo `de`, grava o JSON, chama `sysdoc validate` + `sysdoc render` e produz um relatório de execução em `output/`.
 
+O caminho canônico é **um único PDF do processo inteiro** em `documentos/`. Quando `sysdoc prepare` encontra exatamente um documento (fora do layout legado `ETP.txt`/`TR.txt`), ele tenta fatiar deterministicamente as peças por cabeçalho inequívoco em linha própria (ETP, TR, MCP, Mapa de Riscos), gravando cada fatia em `.sysdoc/cache/textos/documentos/{PECA}.txt`. Peça sem fronteira inequívoca (ambígua ou fora do texto) usa o arquivo inteiro do processo — nunca aborta. O bloco `pecas:` em `.sysdoc/config.yaml` deixou de ser necessário nesse caso; continua disponível como override de precedência absoluta, sempre apontando para o arquivo inteiro. A origem de cada peça (`fatiamento`, `arquivo-inteiro`, `override`, `ancora`, `nome`) aparece no passo 4 do `run` e no relatório de execução.
+
 A CLI `sysdoc` (`prepare`, `validate`, `render`, `publish`, `create`, `status`, `compare`, `analyze`) permanece estritamente determinística e **nunca** chama modelo. Quem chama modelo é o binário separado `sysdoc-dvi` — orquestrador (nível artefato) ou harness (nível artefato também, via leitura direta do YAML). Ver `sysdoc-dvi --help` para `run`, `relatorio` e `config`.
 
 ## Ferramentas de CLI (Apenas para o Agente)

@@ -358,7 +358,13 @@ class TestAbort:
         with pytest.raises(ErroMapeamentoPeca):
             mapear_pecas(projeto, exigidas={"ETP"})
 
-    def test_nunca_devolve_mapeamento_parcial_silencioso(self, tmp_path):
+    def test_documento_unico_nunca_devolve_mapeamento_parcial_silencioso(self, tmp_path):
+        """Desde P1 (fatiador determinístico), um projeto com exatamente UM
+        documento real nunca aborta por peça não localizada: a peça cai no
+        fallback `arquivo-inteiro` sobre esse único documento (ver
+        `tests/test_dvi_fatiador.py::TestMapeamentoSemConfig`). O caminho de
+        abort por mapeamento parcial permanece coberto abaixo para projetos
+        com dois ou mais documentos reais."""
         projeto = tmp_path / "Projeto"
         _escrever_texto_cache(projeto, "ETP.txt", "Estudo Técnico Preliminar")
         _escrever_manifest(
@@ -371,6 +377,37 @@ class TestAbort:
                     {"ETP": 3, "TR": 0, "MCP": 0, "RISCOS": 0, "PROCESSO": 0},
                     "ETP",
                 )
+            ],
+        )
+
+        resultado = mapear_pecas(projeto, exigidas={"ETP", "TR", "MCP", "RISCOS"})
+
+        assert resultado["ETP"].origem == "ancora"
+        for peca in ("TR", "MCP", "RISCOS"):
+            assert resultado[peca].origem == "arquivo-inteiro"
+            assert resultado[peca].label == "ETP"
+
+    def test_multi_arquivo_ainda_aborta_em_mapeamento_parcial(self, tmp_path):
+        projeto = tmp_path / "Projeto"
+        _escrever_texto_cache(projeto, "ETP.txt", "Estudo Técnico Preliminar")
+        _escrever_texto_cache(projeto, "TR.txt", "Termo de Referência")
+        _escrever_manifest(
+            projeto,
+            [
+                _entrada(
+                    "ETP",
+                    "documentos/ETP.pdf",
+                    ".sysdoc/cache/textos/documentos/ETP.txt",
+                    {"ETP": 3, "TR": 0, "MCP": 0, "RISCOS": 0, "PROCESSO": 0},
+                    "ETP",
+                ),
+                _entrada(
+                    "TR",
+                    "documentos/TR.pdf",
+                    ".sysdoc/cache/textos/documentos/TR.txt",
+                    {"ETP": 0, "TR": 3, "MCP": 0, "RISCOS": 0, "PROCESSO": 0},
+                    "TR",
+                ),
             ],
         )
 

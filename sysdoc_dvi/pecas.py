@@ -3,9 +3,11 @@ Mapeamento de peças (RF3).
 
 Localiza ETP, TR, MCP, RISCOS e PROCESSO entre os textos extraídos pelo
 `sysdoc prepare`, usando as âncoras textuais gravadas em `manifest.json`
-(ver `sysdoc.detectar_ancoras`), com override manual em `.sysdoc/config.yaml`
-(chave `pecas`) e abort explícito — via `ErroMapeamentoPeca` — quando uma
-peça exigida não é localizada.
+(ver `sysdoc.detectar_ancoras`), as fatias virtuais gravadas pelo fatiador
+de documento único (`sysdoc.escrever_fatias_virtuais`), override manual em
+`.sysdoc/config.yaml` (chave `pecas`), fallback para o arquivo inteiro em
+projeto de documento único e abort explícito — via `ErroMapeamentoPeca` —
+quando uma peça exigida não é localizada por nenhum dos caminhos acima.
 
 Mitigação do risco nº 1 do PRD: nenhum item pode ser avaliado contra a
 peça errada.
@@ -175,6 +177,8 @@ def mapear_pecas(
     entradas_documentos = [
         item for item in manifest.get("files", []) if item.get("category") == "documentos"
     ]
+    entradas_reais = [item for item in entradas_documentos if not item.get("virtual")]
+    entradas_virtuais = [item for item in entradas_documentos if item.get("virtual")]
 
     resultado: dict[str, PecaMapeada] = {}
     pecas_a_resolver = (set(overrides_efetivos) | set(exigidas)) & PECAS_VALIDAS
@@ -182,11 +186,25 @@ def mapear_pecas(
     for peca in pecas_a_resolver:
         if peca in overrides_efetivos:
             resultado[peca] = _resolver_por_override(
-                projeto, peca, overrides_efetivos[peca], entradas_documentos
+                projeto, peca, overrides_efetivos[peca], entradas_reais
             )
             continue
 
-        vencedor_ancora = _resolver_por_ancora(peca, entradas_documentos)
+        entrada_fatiada = next(
+            (item for item in entradas_virtuais if item.get("peca") == peca), None
+        )
+        if entrada_fatiada is not None:
+            caminho = _resolver_caminho_cache(projeto, entrada_fatiada)
+            resultado[peca] = PecaMapeada(
+                peca=peca,
+                label=entrada_fatiada["label"],
+                caminho=caminho,
+                origem="fatiamento",
+                score=0,
+            )
+            continue
+
+        vencedor_ancora = _resolver_por_ancora(peca, entradas_reais)
         if vencedor_ancora is not None:
             entrada, score = vencedor_ancora
             caminho = _resolver_caminho_cache(projeto, entrada)
@@ -199,7 +217,7 @@ def mapear_pecas(
             )
             continue
 
-        entrada_por_nome = _resolver_por_nome(peca, entradas_documentos)
+        entrada_por_nome = _resolver_por_nome(peca, entradas_reais)
         if entrada_por_nome is not None:
             caminho = _resolver_caminho_cache(projeto, entrada_por_nome)
             resultado[peca] = PecaMapeada(
@@ -211,10 +229,22 @@ def mapear_pecas(
             )
             continue
 
+        if len(entradas_reais) == 1:
+            unica = entradas_reais[0]
+            caminho = _resolver_caminho_cache(projeto, unica)
+            resultado[peca] = PecaMapeada(
+                peca=peca,
+                label=unica["label"],
+                caminho=caminho,
+                origem="arquivo-inteiro",
+                score=0,
+            )
+            continue
+
         if peca in exigidas:
             raise ErroMapeamentoPeca(
                 f"peça obrigatória '{peca}' não localizada entre os documentos preparados. "
-                f"Arquivos disponíveis: {_listar_candidatos(entradas_documentos, peca)}. "
+                f"Arquivos disponíveis: {_listar_candidatos(entradas_reais, peca)}. "
                 f"Declare manualmente em .sysdoc/config.yaml:\n{_remedio_pecas_yaml(peca)}"
             )
 

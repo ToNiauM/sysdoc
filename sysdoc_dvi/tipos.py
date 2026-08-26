@@ -61,6 +61,7 @@ class ResultadoItem:
     falha_estruturada: str | None = None
     falha_grounding: bool = False
     de_rejeitado: str | None = None
+    reancorado: bool = False
 
 
 class AnalysisAgent(Protocol):

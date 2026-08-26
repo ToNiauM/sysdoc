@@ -316,6 +316,9 @@ def _executar_run(
     pecas_exigidas = {item.peca for item in itens}
     print(f"4) Mapeando peças exigidas: {', '.join(sorted(pecas_exigidas)) or 'nenhuma'}...")
     pecas_mapeadas = mapear_pecas(paths.root, pecas_exigidas)
+    for peca in sorted(pecas_mapeadas):
+        mapeada = pecas_mapeadas[peca]
+        print(f"   {peca}: {mapeada.label} (origem={mapeada.origem})")
     textos = {
         peca: mapeada.caminho.read_text(encoding="utf-8") for peca, mapeada in pecas_mapeadas.items()
     }

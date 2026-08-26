@@ -8,9 +8,10 @@ qualquer chamada a modelo de linguagem; este entry point é quem chama.
 
 `run` delega a `sysdoc_dvi.pipeline.executar_run`; `relatorio` reimprime o
 último relatório de execução gravado em `output/` sem reexecutar nada;
-`config` grava/lista o mapeamento de modelos econômico/forte em
-`~/.sysdoc/config.json` (seção `dvi`), sempre com permissão restrita
-(diretório 0700, arquivo 0600) e sem nunca ecoar uma chave de API (T-05-46).
+`config` grava/lista o mapeamento de modelos econômico/forte e os preços por
+alvo (`--preco`, USD por 1 milhão de tokens) em `~/.sysdoc/config.json`
+(seção `dvi`), sempre com permissão restrita (diretório 0700, arquivo 0600)
+e sem nunca ecoar uma chave de API (T-05-46).
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ import textwrap
 from pathlib import Path
 
 from sysdoc_dvi import __version__
-from sysdoc_dvi.config import PROVEDORES_VALIDOS
+from sysdoc_dvi.config import PROVEDORES_VALIDOS, ErroConfiguracaoModelos, _validar_alvo
 
 VERSION = __version__
 
@@ -47,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
               sysdoc-dvi run Processo042 --tipo tic --forte
               sysdoc-dvi relatorio Processo042
               sysdoc-dvi config --listar
+              sysdoc-dvi config --preco openrouter/deepseek-chat 0.28 0.42
             """
         ),
     )
@@ -111,6 +113,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Lista o mapeamento de modelos configurado.",
     )
+    config_parser.add_argument(
+        "--preco",
+        dest="precos",
+        nargs=3,
+        action="append",
+        metavar=("ALVO", "ENTRADA", "SAIDA"),
+        help=(
+            "Registra o preço do alvo 'provedor/modelo' em USD por 1 milhão de "
+            "tokens de entrada e de saída. Pode ser repetido."
+        ),
+    )
 
     parser.add_argument("--version", action="version", version=f"SysDoc DVI {VERSION}")
     return parser
@@ -169,10 +182,28 @@ def relatorio(project: str) -> int:
     return 0
 
 
+def _validar_preco(alvo: str, entrada_txt: str, saida_txt: str) -> tuple[str, float, float]:
+    _validar_alvo(alvo, "preço")
+    try:
+        entrada = float(entrada_txt)
+        saida = float(saida_txt)
+    except ValueError as exc:
+        raise ErroConfiguracaoModelos(
+            f"preço inválido para o alvo '{alvo}': entrada='{entrada_txt}' saída='{saida_txt}' "
+            "(esperado número >= 0, em USD por 1 milhão de tokens)"
+        ) from exc
+    if entrada < 0 or saida < 0:
+        raise ErroConfiguracaoModelos(
+            f"preço inválido para o alvo '{alvo}': entrada e saída devem ser >= 0"
+        )
+    return alvo, entrada, saida
+
+
 def config(
     economico: str | None = None,
     forte: str | None = None,
     listar: bool = False,
+    precos: list[list[str]] | None = None,
 ) -> int:
     path = _config_path_padrao()
     dados: dict = {}
@@ -196,20 +227,44 @@ def config(
             var_ambiente = _VAR_AMBIENTE_POR_PROVEDOR[provedor]
             presente = bool(api_keys.get(provedor)) or bool(os.environ.get(var_ambiente))
             print(f"    - {provedor}: {'configurada' if presente else 'ausente'}")
+        precos_registrados = secao_dvi.get("precos") if isinstance(secao_dvi.get("precos"), dict) else {}
+        print("  preços (USD por 1M tokens):")
+        if precos_registrados:
+            for alvo in sorted(precos_registrados):
+                preco = precos_registrados[alvo] if isinstance(precos_registrados[alvo], dict) else {}
+                print(
+                    f"    - {alvo}: entrada {preco.get('entrada')}, saída {preco.get('saida')}"
+                )
+        else:
+            print("    <nenhum preço registrado>")
         return 0
 
-    if economico is None and forte is None:
+    if economico is None and forte is None and not precos:
         print(
-            "Nada para atualizar: use --economico/--forte para definir o mapeamento "
-            "ou --listar para consultar o que já está configurado."
+            "Nada para atualizar: use --economico/--forte/--preco para definir o "
+            "mapeamento ou --listar para consultar o que já está configurado."
         )
         return 1
+
+    precos_validados: list[tuple[str, float, float]] = []
+    if precos:
+        for alvo, entrada_txt, saida_txt in precos:
+            try:
+                precos_validados.append(_validar_preco(alvo, entrada_txt, saida_txt))
+            except ErroConfiguracaoModelos as exc:
+                print(str(exc))
+                return 1
 
     secao_dvi = dict(dados.get("dvi") or {})
     if economico:
         secao_dvi["economico"] = economico
     if forte:
         secao_dvi["forte"] = forte
+    if precos_validados:
+        precos_existentes = dict(secao_dvi.get("precos") or {})
+        for alvo, entrada, saida in precos_validados:
+            precos_existentes[alvo] = {"entrada": entrada, "saida": saida}
+        secao_dvi["precos"] = precos_existentes
     dados["dvi"] = secao_dvi
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -226,6 +281,10 @@ def config(
     print(f"Configuração de modelos gravada em {path}.")
     print(f"  econômico: {secao_dvi.get('economico') or '<mantido>'}")
     print(f"  forte: {secao_dvi.get('forte') or '<mantido>'}")
+    if precos_validados:
+        print("  preços atualizados:")
+        for alvo, entrada, saida in precos_validados:
+            print(f"    - {alvo}: entrada {entrada}, saída {saida}")
     return 0
 
 
@@ -250,7 +309,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "relatorio":
         return relatorio(args.project)
     if args.command == "config":
-        return config(economico=args.economico, forte=args.forte, listar=args.listar)
+        return config(
+            economico=args.economico,
+            forte=args.forte,
+            listar=args.listar,
+            precos=args.precos,
+        )
     parser.error("comando inválido")
     return 2
 
