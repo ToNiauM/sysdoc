@@ -92,10 +92,30 @@
 **Goal:** Entregar um motor de análise dirigido por checklist tipado e data-driven (`checklists/*.yaml`), executável por orquestrador via API ou por qualquer harness agêntico, com verificações determinísticas em Python (cálculo, vigência, mecânica), grounding check do campo `de`, síntese dedicada de pareceres e saída DVI em DOCX via `sysdoc create dvi` — preservando a CLI determinística sem chamadas a LLM.
 **Requirements**: PRD em `.planning/phases/05-motor-analise-checklist/PRD.md` (RF1–RF10, RNF1–RNF5)
 **Depends on:** Phase 4
-**Plans:** 0 plans
+**Plans:** 15 plans em 5 ondas
+
+**Onda 1:** fundação do pacote `sysdoc_dvi` + checklist tipado; padrão de nomes de artefatos; evolução do contrato de dados.
+**Onda 2:** tabela de vigência; auditoria de cálculo; verificações mecânicas + grounding; mapeamento de peças; camada de provedores.
+**Onda 3:** despacho por tipo; síntese de pareceres; montagem/relatório/checkpoint; `sysdoc create dvi`; conversão dos prompts DVI em checklist.
+**Onda 4:** pipeline `sysdoc-dvi run`.
+**Onda 5:** documentação canônica, CHANGELOG 1.5.0 e verificação com processos reais.
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 5 to break down)
+- [ ] 05-01-PLAN.md — Fundação do motor: pacote `sysdoc_dvi`, contratos, loader do checklist, entry point `sysdoc-dvi`
+- [ ] 05-02-PLAN.md — Padrão de nomes de artefatos `xx_nome_tipo_data.extensao` em publish/render/create
+- [ ] 05-03-PLAN.md — Contrato de dados 1.1: `origem_verificacao`, `checklist_id`, `checklist_hash`, `schema_version` e rastreabilidade
+- [ ] 05-04-PLAN.md — Tabela `normas/vigencia.yaml` e verificação determinística de vigência
+- [ ] 05-05-PLAN.md — Auditoria aritmética da pesquisa de preços com memória de cálculo
+- [ ] 05-06-PLAN.md — Verificações mecânicas e grounding check do campo `de`
+- [ ] 05-07-PLAN.md — Mapeamento de peças por âncoras no manifest, com override e abort
+- [ ] 05-08-PLAN.md — Camada multi-provedor, configuração de modelos e `AgenteLLM`
+- [ ] 05-09-PLAN.md — Prompts Jinja e despacho por tipo de verificação
+- [ ] 05-10-PLAN.md — Síntese dedicada dos pareceres executivo e por documento
+- [ ] 05-11-PLAN.md — Montagem do `dados_consolidados.json`, relatório de execução e checkpoint
+- [ ] 05-12-PLAN.md — `sysdoc create dvi` (DOCX a partir de template institucional)
+- [ ] 05-13-PLAN.md — Conversão dos prompts DVI em `checklists/dvi.yaml` e seed da tabela de vigência
+- [ ] 05-14-PLAN.md — Pipeline `sysdoc-dvi run`, `relatorio` e `config`
+- [ ] 05-15-PLAN.md — Documentação canônica, CHANGELOG 1.5.0 e verificação com processos reais
 
 ---
 
