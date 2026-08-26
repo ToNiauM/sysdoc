@@ -2,6 +2,10 @@
 """
 Validador determinístico do JSON consolidado SysDoc.
 
+Contrato: schema_version 1.1 (aditivo e retrocompatível — campos novos são
+opcionais: `origem_verificacao`, `checklist_id` por item; `schema_version`,
+`checklist_hash` na raiz).
+
 Uso:
     python templates/validate_sysdoc.py Projeto/dados_consolidados.json
 """
@@ -57,6 +61,7 @@ ENUMS = {
     "severidade": {"crítica", "alta", "média", "baixa", "informativa"},
     "risco_jurídico": {"bloqueante", "relevante", "menor", "informativo"},
     "status_delic": {"confirmado", "novo", "divergente", None},
+    "origem_verificacao": {"llm", "deterministico", "lookup"},
     "classificação_documento": {
         "aprovado",
         "aprovado_com_ressalvas",
@@ -397,6 +402,13 @@ def validate_generated_language(errors, data):
                 validate_portuguese_accents(errors, item.get(key), f"itens[{index}].{key}")
 
 
+def validate_audit_metadata(errors, data):
+    if "schema_version" in data and not isinstance(data.get("schema_version"), str):
+        errors.append("raiz: schema_version deve ser string")
+    if "checklist_hash" in data and not re.fullmatch(r"[0-9a-f]{64}", str(data.get("checklist_hash") or "")):
+        errors.append("raiz: checklist_hash inválido; deve ser um hash hexadecimal de 64 caracteres")
+
+
 def validate_ids(errors, itens, doc):
     doc_itens = [item for item in itens if item.get("documento") == doc]
     for index, item in enumerate(doc_itens, start=1):
@@ -431,6 +443,7 @@ def validate(path, project_dir=None):
     validate_modelo_ia(errors, data)
     validate_generated_language(errors, data)
     validate_document_paths(errors, data, project_dir)
+    validate_audit_metadata(errors, data)
 
     projeto = data.get("projeto", {})
     if isinstance(projeto, dict):
@@ -488,9 +501,12 @@ def validate(path, project_dir=None):
         elif not re.fullmatch(rf"{documento}-\d{{3}}", str(item_id or "")):
             errors.append(f"{label}: id `{item_id}` não segue o padrão {documento}-NNN")
 
-        for enum_key in ("classificação", "severidade", "risco_jurídico", "status_delic"):
+        for enum_key in ("classificação", "severidade", "risco_jurídico", "status_delic", "origem_verificacao"):
             if enum_key in item and item.get(enum_key) not in ENUMS[enum_key]:
                 errors.append(f"{label}: {enum_key} inválido `{item.get(enum_key)}`")
+
+        if "checklist_id" in item and not re.fullmatch(r"DVI-(GER|TIC|AMB)-\d{3}", str(item.get("checklist_id") or "")):
+            errors.append(f"{label}: checklist_id inválido `{item.get('checklist_id')}`; use o padrão DVI-(GER|TIC|AMB)-NNN")
 
         if not isinstance(item.get("número"), int):
             errors.append(f"{label}: número deve ser inteiro")
