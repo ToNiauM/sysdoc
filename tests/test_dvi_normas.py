@@ -259,6 +259,26 @@ class TestVerificacaoVigencia:
         assert resultado.risco_jurídico == "relevante"
         assert "Resolução CFC 1.799/2026" in resultado.parecer
 
+    def test_norma_suspensa_gera_pendente_sem_certificar_vigencia(self, tmp_path):
+        tabela = self._tabela(tmp_path, [dict(VALID_ENTRY, status="suspensa")])
+        texto = "Aplica-se a Lei nº 14.133/2021 a este processo."
+        resultado = verificar_item_vigencia(_item(), texto, tabela)
+        assert resultado.classificação == "pendente"
+        assert resultado.risco_jurídico == "informativo"
+        assert "suspensa" in resultado.parecer
+        assert "vigente conforme tabela curada" not in resultado.parecer
+
+    def test_norma_pendente_de_conferencia_gera_pendente_sem_certificar_vigencia(self, tmp_path):
+        tabela = self._tabela(
+            tmp_path, [dict(VALID_ENTRY, status="pendente_de_conferencia")]
+        )
+        texto = "Aplica-se a Lei nº 14.133/2021 a este processo."
+        resultado = verificar_item_vigencia(_item(), texto, tabela)
+        assert resultado.classificação == "pendente"
+        assert resultado.risco_jurídico == "informativo"
+        assert "não conferida" in resultado.parecer
+        assert "vigente conforme tabela curada" not in resultado.parecer
+
     def test_norma_nao_catalogada_gera_pendente(self, tmp_path):
         tabela = self._tabela(tmp_path, [dict(VALID_ENTRY)])
         texto = "Aplica-se a Portaria nº 999/2099 a este processo."

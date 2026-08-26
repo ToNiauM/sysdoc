@@ -5,7 +5,11 @@ tipo `vigencia` (RF4, RF7; D-10..D-13 de 05-CONTEXT.md).
 Vigência de normativo é respondida exclusivamente pela tabela curada em
 `normas/vigencia.yaml` (com override opcional por projeto), nunca por
 consulta a modelo de linguagem. Norma citada e ausente da tabela vira item
-`pendente` com a mensagem "norma não catalogada".
+`pendente` com a mensagem "norma não catalogada". Apenas `status: vigente`
+produz `conforme`; entradas com status `suspensa` ou
+`pendente_de_conferencia` degradam para `pendente` com mensagem honesta
+pedindo conferência manual — a verificação nunca certifica o que a tabela
+não afirma.
 """
 
 from __future__ import annotations
@@ -213,6 +217,29 @@ def verificar_item_vigencia(
             )
 
     for citacao, entrada in resolucoes:
+        if entrada is not None and entrada["status"] == "suspensa":
+            return ResultadoItem(
+                checklist_id=item.id,
+                origem_verificacao="lookup",
+                documento=documento,
+                seção=seção,
+                de=citacao,
+                para=citacao,
+                parecer=(
+                    f"A citação '{citacao}' refere-se a norma com status 'suspensa' na "
+                    "tabela curada; confirmar manualmente a vigência antes de fundamentar "
+                    "qualquer conclusão nesta norma."
+                ),
+                fundamento=(
+                    f"Tabela curada de vigência (origem={entrada['origem']}), "
+                    f"status={entrada['status']}, conferida_em={entrada['conferida_em']}"
+                ),
+                classificação="pendente",
+                severidade=severidade,
+                risco_jurídico="informativo",
+            )
+
+    for citacao, entrada in resolucoes:
         if entrada is None:
             return ResultadoItem(
                 checklist_id=item.id,
@@ -231,7 +258,50 @@ def verificar_item_vigencia(
                 risco_jurídico="informativo",
             )
 
+    for citacao, entrada in resolucoes:
+        if entrada is not None and entrada["status"] == "pendente_de_conferencia":
+            return ResultadoItem(
+                checklist_id=item.id,
+                origem_verificacao="lookup",
+                documento=documento,
+                seção=seção,
+                de=citacao,
+                para=citacao,
+                parecer=(
+                    f"A citação '{citacao}' refere-se a norma ainda não conferida pela "
+                    "curadoria humana (status 'pendente_de_conferencia'); confirmar a "
+                    "vigência manualmente."
+                ),
+                fundamento=(
+                    f"Tabela curada de vigência (origem={entrada['origem']}), "
+                    f"status={entrada['status']}, conferida_em={entrada['conferida_em']}"
+                ),
+                classificação="pendente",
+                severidade=severidade,
+                risco_jurídico="informativo",
+            )
+
     citacao, entrada = resolucoes[0]
+    if entrada["status"] != "vigente":
+        return ResultadoItem(
+            checklist_id=item.id,
+            origem_verificacao="lookup",
+            documento=documento,
+            seção=seção,
+            de=citacao,
+            para=citacao,
+            parecer=(
+                f"A citação '{citacao}' refere-se a norma com status "
+                f"'{entrada['status']}' não conferido; confirmar a vigência manualmente."
+            ),
+            fundamento=(
+                f"Tabela curada de vigência (origem={entrada['origem']}), "
+                f"status={entrada['status']}, conferida_em={entrada['conferida_em']}"
+            ),
+            classificação="pendente",
+            severidade=severidade,
+            risco_jurídico="informativo",
+        )
     return ResultadoItem(
         checklist_id=item.id,
         origem_verificacao="lookup",
