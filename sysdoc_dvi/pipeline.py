@@ -77,6 +77,19 @@ def _contar_palavras(texto: object) -> int:
     return len(_CONTAGEM_PALAVRAS.findall(str(texto or "")))
 
 
+def derivar_modelo_ia(alvo: str) -> str:
+    """Deriva o slug de `modelo_ia` a partir do alvo `provedor/modelo`.
+
+    Alvos de OpenRouter podem ter prefixo de fornecedor e sufixo de variante
+    (ex.: `openrouter/z-ai/glm-5.2:free`): usa-se sempre o último segmento do
+    caminho e os caracteres fora do domínio do validador (`[a-z0-9._-]`) são
+    substituídos por hífen, preservando um slug real e válido do modelo.
+    """
+    slug = str(alvo or "").rsplit("/", 1)[-1].strip().lower()
+    slug = re.sub(r"[^a-z0-9._-]+", "-", slug)
+    return slug.strip("._-")
+
+
 def _texto_placeholder(campo: str, resultado: ResultadoItem) -> str:
     motivo = str(resultado.falha_estruturada or resultado.parecer or "").strip()
     if campo in ("de", "para"):
@@ -292,7 +305,7 @@ def _executar_run(
     )
 
     documentos_analisados = sorted({resultado.documento for resultado in resultados})
-    modelo_ia = config.forte.partition("/")[2] or config.forte
+    modelo_ia = derivar_modelo_ia(config.forte) or config.forte
     data_analise = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     print("7) Montando dados_consolidados.json...")

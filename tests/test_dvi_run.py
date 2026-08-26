@@ -16,6 +16,8 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -380,6 +382,27 @@ class TestRetomada:
         assert rc2 == 0
         assert agente_2.chamadas == ["DVI-GER-003"]
         assert len(agente_2.chamadas) < len(agente_1.chamadas)
+
+
+class TestDerivacaoModeloIa:
+    @pytest.mark.parametrize(
+        ("alvo", "esperado"),
+        [
+            ("anthropic/claude-opus-4", "claude-opus-4"),
+            ("openrouter/deepseek/deepseek-chat", "deepseek-chat"),
+            ("openrouter/z-ai/glm-5.2:free", "glm-5.2-free"),
+            ("openai/gpt-5", "gpt-5"),
+        ],
+    )
+    def test_deriva_slug_valido_para_alvos_com_prefixo_de_fornecedor(self, alvo, esperado):
+        import validate_sysdoc
+
+        slug = pipeline.derivar_modelo_ia(alvo)
+
+        assert slug == esperado
+        erros: list[str] = []
+        validate_sysdoc.validate_modelo_ia(erros, {"modelo_ia": slug})
+        assert erros == []
 
 
 class TestCli:
