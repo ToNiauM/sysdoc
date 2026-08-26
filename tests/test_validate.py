@@ -304,6 +304,47 @@ class TestTraceability:
         errors = validate(str(json_file), str(tmp_path))
         assert any("não foi rastreado" in e for e in errors)
 
+    def test_de_citado_de_outra_peca_rastreia_na_uniao_do_cache(self, tmp_path):
+        cache_dir = tmp_path / ".sysdoc" / "cache" / "textos" / "documentos"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "ETP.txt").write_text(
+            "O objeto é a aquisição de material de expediente.", encoding="utf-8"
+        )
+        (cache_dir / "TR.txt").write_text(
+            "O termo define obrigações da contratada.", encoding="utf-8"
+        )
+        (cache_dir / "Mapa_de_Riscos.txt").write_text(
+            "O risco de descontinuidade do fornecimento foi classificado como alto "
+            "no mapa de riscos da contratação.",
+            encoding="utf-8",
+        )
+        item_riscos = _base_item(
+            "TR", 1, de="risco de descontinuidade do fornecimento foi classificado como alto"
+        )
+        data = _base_data(itens=[_base_item("ETP", 1, de="aquisição de material de expediente"), item_riscos])
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert not any("não foi rastreado" in e for e in errors)
+
+    def test_sem_pecas_extras_uniao_nao_afrouxa_rastreabilidade(self, tmp_path):
+        cache_dir = tmp_path / ".sysdoc" / "cache" / "textos" / "documentos"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "ETP.txt").write_text(
+            "O objeto é a aquisição de material de expediente.", encoding="utf-8"
+        )
+        (cache_dir / "TR.txt").write_text(
+            "O termo define obrigações da contratada.", encoding="utf-8"
+        )
+        item_fabricado = _base_item(
+            "TR", 1, de="risco de descontinuidade do fornecimento foi classificado como alto"
+        )
+        data = _base_data(itens=[_base_item("ETP", 1, de="aquisição de material de expediente"), item_fabricado])
+        json_file = tmp_path / "dados_consolidados.json"
+        json_file.write_text(json.dumps(data), encoding="utf-8")
+        errors = validate(str(json_file), str(tmp_path))
+        assert any("não foi rastreado" in e for e in errors)
+
 
 # ---------------------------------------------------------------------------
 # sysdoc — funções utilitárias

@@ -336,6 +336,20 @@ def load_source_texts(project_dir):
     return sources
 
 
+def load_union_source_text(project_dir, sources):
+    documentos_dir = project_dir / ".sysdoc" / "cache" / "textos" / "documentos"
+    if not documentos_dir.is_dir():
+        return None
+    extras = []
+    for path in sorted(documentos_dir.glob("*.txt")):
+        if path.stem in ("ETP", "TR"):
+            continue
+        extras.append(path.read_text(encoding="utf-8", errors="replace"))
+    if not extras:
+        return None
+    return "\n".join(list(sources.values()) + extras)
+
+
 def validate_document_paths(errors, data, project_dir):
     docs = data.get("documentos_analisados")
     if isinstance(docs, str):
@@ -364,14 +378,18 @@ def validate_traceability(errors, data, project_dir):
     sources = load_source_texts(project_dir)
     if not sources:
         return
+    union_source = load_union_source_text(project_dir, sources)
     for index, item in enumerate(data.get("itens", []), start=1):
         if not isinstance(item, dict):
             continue
         doc = item.get("documento")
         if doc not in sources:
             continue
-        if not is_traceable(item.get("de"), sources[doc]):
-            errors.append(f"itens[{index}]: campo `de` não foi rastreado no texto extraído de {doc}; rode `python sysdoc.py prepare {project_dir.name}` e confira o trecho literal")
+        if is_traceable(item.get("de"), sources[doc]):
+            continue
+        if union_source is not None and is_traceable(item.get("de"), union_source):
+            continue
+        errors.append(f"itens[{index}]: campo `de` não foi rastreado no texto extraído de {doc}; rode `python sysdoc.py prepare {project_dir.name}` e confira o trecho literal")
 
 
 def validate_generated_language(errors, data):
