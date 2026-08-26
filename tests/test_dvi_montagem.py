@@ -597,3 +597,8 @@ class TestCheckpoint:
         arquivos_cache = list((tmp_path / ".sysdoc" / "cache").iterdir())
         nomes_temporarios = [f for f in arquivos_cache if f.name.endswith(".tmp")]
         assert nomes_temporarios == []
+
+
+def test_secao_vazia_recebe_fallback_deterministico():
+    dados = _montar([_resultado(seção="  ")])
+    assert dados["itens"][0]["seção"] == "Documento — seção não identificada"

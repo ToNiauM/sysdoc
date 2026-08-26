@@ -117,7 +117,7 @@ def _montar_item(resultado: ResultadoItem, documento: str, numero: int) -> dict:
         "número": numero,
         "item": _titulo_item(resultado),
         "documento": documento,
-        "seção": resultado.seção,
+        "seção": (resultado.seção or "").strip() or "Documento — seção não identificada",
         "de": resultado.de,
         "para": resultado.para,
         "parecer": resultado.parecer,
