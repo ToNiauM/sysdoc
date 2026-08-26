@@ -100,7 +100,7 @@
 **Goal:** Entregar um motor de análise dirigido por checklist tipado e data-driven (`checklists/*.yaml`), executável por orquestrador via API ou por qualquer harness agêntico, com verificações determinísticas em Python (cálculo, vigência, mecânica), grounding check do campo `de`, síntese dedicada de pareceres e saída DVI em DOCX via `sysdoc create dvi` — preservando a CLI determinística sem chamadas a LLM.
 **Requirements**: PRD em `.planning/phases/05-motor-analise-checklist/PRD.md` (RF1–RF10, RNF1–RNF5)
 **Depends on:** Phase 4
-**Plans:** 3/15 plans executed
+**Plans:** 8/15 plans executed
 
 **Onda 1:** fundação do pacote `sysdoc_dvi` + checklist tipado; padrão de nomes de artefatos; evolução do contrato de dados.
 **Onda 2:** tabela de vigência; auditoria de cálculo; verificações mecânicas + grounding; mapeamento de peças; camada de provedores.
@@ -117,11 +117,11 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-04-PLAN.md — Tabela `normas/vigencia.yaml` e verificação determinística de vigência
-- [ ] 05-05-PLAN.md — Auditoria aritmética da pesquisa de preços com memória de cálculo
-- [ ] 05-06-PLAN.md — Verificações mecânicas e grounding check do campo `de`
-- [ ] 05-07-PLAN.md — Mapeamento de peças por âncoras no manifest, com override e abort
-- [ ] 05-08-PLAN.md — Camada multi-provedor, configuração de modelos e `AgenteLLM`
+- [x] 05-04-PLAN.md — Tabela `normas/vigencia.yaml` e verificação determinística de vigência
+- [x] 05-05-PLAN.md — Auditoria aritmética da pesquisa de preços com memória de cálculo
+- [x] 05-06-PLAN.md — Verificações mecânicas e grounding check do campo `de`
+- [x] 05-07-PLAN.md — Mapeamento de peças por âncoras no manifest, com override e abort
+- [x] 05-08-PLAN.md — Camada multi-provedor, configuração de modelos e `AgenteLLM`
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
