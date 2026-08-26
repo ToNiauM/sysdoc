@@ -562,3 +562,96 @@ class TestAgente:
 
         assert len(resultados) == 3
         assert resultados[2].falha_estruturada is not None
+
+
+LINHAS_TABELA = [
+    {
+        "descricao": "Combustível automotivo comum",
+        "unidade": "litro",
+        "quantidade": "5",
+        "cotacoes": [
+            {"fonte": "Fornecedor A", "valor_unitario": "50.00"},
+            {"fonte": "Fornecedor B", "valor_unitario": "52.00"},
+            {"fonte": "Fornecedor C", "valor_unitario": "48.00"},
+        ],
+        "metodo_declarado": "media",
+        "unitario_declarado": "60.00",
+        "total_declarado": "250.00",
+    }
+]
+
+
+class TestAgenteCalculo:
+    def _fake_chamar_modelo(self, conteudo):
+        from sysdoc_dvi.provedores import RespostaModelo
+        from sysdoc_dvi.tipos import UsoModelo
+
+        def _fake(alvo, prompt, **kwargs):
+            return RespostaModelo(
+                conteudo=conteudo,
+                bruto=json.dumps(conteudo, ensure_ascii=False),
+                uso=UsoModelo(
+                    provedor="openrouter", modelo="deepseek-chat",
+                    tokens_entrada=1, tokens_saida=1, custo_estimado=0.0, duracao_s=0.0,
+                ),
+            )
+
+        return _fake
+
+    def test_calculo_serializa_lista_extraida_no_campo_para(self, monkeypatch):
+        monkeypatch.setattr(
+            "sysdoc_dvi.agente.chamar_modelo", self._fake_chamar_modelo(list(LINHAS_TABELA))
+        )
+        agente = AgenteLLM(_config(), montar_prompt=lambda nome, **kw: "prompt")
+
+        resultado = agente.executar_item(_item("calculo"), "contexto")
+
+        assert resultado.classificação == "pendente"
+        assert json.loads(resultado.para) == LINHAS_TABELA
+        assert resultado.falha_estruturada is None
+
+    def test_calculo_aceita_objeto_com_chave_linhas(self, monkeypatch):
+        monkeypatch.setattr(
+            "sysdoc_dvi.agente.chamar_modelo",
+            self._fake_chamar_modelo({"linhas": list(LINHAS_TABELA)}),
+        )
+        agente = AgenteLLM(_config(), montar_prompt=lambda nome, **kw: "prompt")
+
+        resultado = agente.executar_item(_item("calculo"), "contexto")
+
+        assert json.loads(resultado.para) == LINHAS_TABELA
+
+    def test_calculo_com_conteudo_nao_lista_vira_pendente_com_falha(self, monkeypatch):
+        monkeypatch.setattr(
+            "sysdoc_dvi.agente.chamar_modelo", self._fake_chamar_modelo(dict(CONTEUDO_VALIDO))
+        )
+        agente = AgenteLLM(_config(), montar_prompt=lambda nome, **kw: "prompt")
+
+        resultado = agente.executar_item(_item("calculo"), "contexto")
+
+        assert resultado.classificação == "pendente"
+        assert resultado.falha_estruturada is not None
+        assert "lista" in resultado.falha_estruturada
+
+    def test_calculo_ponta_a_ponta_com_resposta_http_em_lista(self, tmp_path, monkeypatch):
+        from sysdoc_dvi import despacho
+
+        _configurar_home(
+            tmp_path, monkeypatch, api_keys={"openrouter": "sk-test-openrouter-000"}
+        )
+        spy = _PostSpy([_FakeResponse(payload=_payload_openai_like(LINHAS_TABELA))])
+        monkeypatch.setattr("sysdoc_dvi.provedores.requests.post", spy)
+
+        agente = AgenteLLM(
+            _config(),
+            montar_prompt=lambda nome, **kw: "prompt",
+            schemas_por_tipo=despacho.SCHEMAS_POR_TIPO,
+        )
+        resultado = despacho.executar_item(
+            _item("calculo"), {"ETP": "tabela de preços da pesquisa"}, agente, tabela_vigencia={}
+        )
+
+        assert resultado.origem_verificacao == "deterministico"
+        assert resultado.classificação == "risco"
+        assert resultado.falha_estruturada is None
+        assert "60.00" in resultado.parecer

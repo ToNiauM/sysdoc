@@ -9,10 +9,18 @@ kwargs, cada template usando os que precisa. `item.tipo` fora do mapa
 indevido, sem exceção. Falha de provedor, mesmo após o retry embutido em
 `provedores.chamar_modelo`, também nunca propaga (D-17): vira item
 `pendente` com `falha_estruturada` preenchida.
+
+Contrato de `tipo="calculo"` (ver docstring de `sysdoc_dvi.despacho`): a
+resposta estruturada do provedor é uma lista de linhas
+(`SCHEMA_TABELA_PRECOS`); o agente devolve essa lista serializada em JSON no
+campo `para` do `ResultadoItem`, sem veredicto formado — a aritmética é
+sempre refeita pelo despacho (`auditar_tabela_precos`).
 """
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
 from typing import Callable
 
 from sysdoc_dvi.config import ConfigDvi
@@ -103,6 +111,36 @@ class AgenteLLM:
             return _resultado_pendente(item, str(exc))
 
         conteudo = resposta.conteudo
+
+        if item.tipo == "calculo":
+            if isinstance(conteudo, list):
+                linhas = conteudo
+            elif isinstance(conteudo, dict) and isinstance(conteudo.get("linhas"), list):
+                linhas = conteudo["linhas"]
+            else:
+                return replace(
+                    _resultado_pendente(
+                        item,
+                        "extração de preços devolveu conteúdo estruturado que não é uma "
+                        f"lista de linhas (tipo recebido: {type(conteudo).__name__})",
+                    ),
+                    uso=resposta.uso,
+                )
+            return ResultadoItem(
+                checklist_id=item.id,
+                origem_verificacao="llm",
+                documento=item.documento_saida,
+                seção="",
+                de="",
+                para=json.dumps(linhas, ensure_ascii=False),
+                parecer="",
+                fundamento="",
+                classificação="pendente",
+                severidade=item.severidade_default,
+                risco_jurídico="informativo",
+                uso=resposta.uso,
+            )
+
         return ResultadoItem(
             checklist_id=item.id,
             origem_verificacao="llm",

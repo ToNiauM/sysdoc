@@ -10,6 +10,10 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 - **README — seção "Exemplo didático: do zero ao deploy nos dois fluxos"**: passo a passo comentado de um mesmo projeto fictício percorrendo o fluxo original (agente de IA via `sysdoc analyze` → `publish` → `create tr` → `deploy`) e o novo fluxo DVI (`sysdoc-dvi config` → `run --tipo tic` → `relatorio` → `create dvi` → `deploy`), com tabela comparativa de quando usar cada um.
 
+### Corrigido
+
+- **CR-01 — itens `calculo` no `AgenteLLM`** (`sysdoc_dvi/agente.py`): a resposta estruturada da extração de preços é uma lista (`SCHEMA_TABELA_PRECOS`) e derrubava `executar_item` (`'list' object has no attribute 'get'`), degradando todo item `calculo` para `pendente`. O agente agora serializa a lista extraída em JSON no campo `para`, cumprindo o contrato documentado em `despacho.py`; conteúdo estruturado que não é lista vira `pendente` com `falha_estruturada` explícita.
+
 ---
 
 ## [1.5.0] — 2026-08-26
