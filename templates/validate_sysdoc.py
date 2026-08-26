@@ -318,10 +318,12 @@ def load_source_texts(project_dir):
     sources = {}
     candidates = {
         "ETP": [
+            project_dir / ".sysdoc" / "cache" / "textos" / "documentos" / "ETP.txt",
             project_dir / ".sysdoc" / "cache" / "textos" / "ETP.txt",
             project_dir / "ETP.txt",
         ],
         "TR": [
+            project_dir / ".sysdoc" / "cache" / "textos" / "documentos" / "TR.txt",
             project_dir / ".sysdoc" / "cache" / "textos" / "TR.txt",
             project_dir / "TR.txt",
         ],
