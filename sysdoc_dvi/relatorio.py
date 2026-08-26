@@ -158,6 +158,15 @@ def renderizar_relatorio(relatorio: dict, projeto: str = "") -> str:
     linhas.append(f"4) Falhas de grounding: {falhas_grounding.get('total', 0)}")
     linhas.append(f"5) Falhas estruturadas: {falhas_estruturadas.get('total', 0)}")
 
+    pecas_mapeadas = relatorio.get("pecas_mapeadas") or {}
+    linhas.append("6) Peças mapeadas:")
+    if pecas_mapeadas:
+        for peca in sorted(pecas_mapeadas):
+            info = pecas_mapeadas[peca]
+            linhas.append(f"    - {peca}: {info.get('label')} ({info.get('origem')})")
+    else:
+        linhas.append("    (nenhuma)")
+
     avisos = relatorio.get("avisos") or []
     if avisos:
         linhas.append("")

@@ -61,6 +61,145 @@ KEY_TERMS = [
     "cooperativas",
 ]
 
+PECA_TITULOS: dict[str, list[str]] = {
+    "ETP": ["estudo tecnico preliminar"],
+    "TR": ["termo de referencia"],
+    "MCP": ["mapa comparativo de precos", "pesquisa de precos", "mapa de precos"],
+    "RISCOS": ["mapa de riscos", "matriz de riscos", "mapa de gerenciamento de riscos"],
+}
+
+MIN_CHARS_FATIA = 2000
+RAZAO_AMBIGUIDADE_FATIA = 0.5
+
+_PREFIXO_NUMERACAO = re.compile(r"^[\d\.\-–—\)º°§\*#\|\s]+")
+_SUFIXO_PONTUACAO = re.compile(r"[\.\,;:!?\-–—]+$")
+
+
+def _remover_prefixo_numeracao(texto: str) -> str:
+    return _PREFIXO_NUMERACAO.sub("", texto)
+
+
+def _remover_sufixo_pontuacao(texto: str) -> str:
+    return _SUFIXO_PONTUACAO.sub("", texto).strip()
+
+
+def _texto_sem_prefixo_e_pontuacao(texto: str) -> str:
+    return _remover_sufixo_pontuacao(_remover_prefixo_numeracao(texto))
+
+
+def _linha_e_cabecalho(linha: str) -> bool:
+    stripped = linha.strip()
+    if not stripped or len(stripped) > 80:
+        return False
+    restante = _texto_sem_prefixo_e_pontuacao(stripped)
+    letras = re.findall(r"[^\W\d_]", restante, flags=re.UNICODE)
+    if len(letras) < 3:
+        return False
+    if restante == restante.upper() and restante != restante.lower():
+        return True
+    palavras = restante.split()
+    if not palavras:
+        return False
+    tem_palavra_significativa = False
+    for palavra in palavras:
+        if len(palavra) >= 4:
+            tem_palavra_significativa = True
+            if not palavra[0].isupper():
+                return False
+    return tem_palavra_significativa
+
+
+def detectar_fronteiras_pecas(texto: str) -> list[tuple[int, str]]:
+    fronteiras: list[tuple[int, str]] = []
+    offset = 0
+    for linha in (texto or "").splitlines(keepends=True):
+        linha_sem_quebra = linha.splitlines()[0] if linha.splitlines() else ""
+        stripped = linha_sem_quebra.strip()
+        if stripped and _linha_e_cabecalho(linha_sem_quebra):
+            restante = _texto_sem_prefixo_e_pontuacao(stripped)
+            normalizado = _normalizar_ancora(restante)
+            for peca, titulos in PECA_TITULOS.items():
+                casou = False
+                for titulo in titulos:
+                    if normalizado == titulo:
+                        casou = True
+                    elif normalizado.startswith(titulo):
+                        resto = normalizado[len(titulo):]
+                        if resto and not resto[0].isalnum():
+                            casou = True
+                    if casou:
+                        break
+                if casou:
+                    fronteiras.append((offset, peca))
+                    break
+        offset += len(linha)
+    fronteiras.sort(key=lambda item: item[0])
+    return fronteiras
+
+
+def fatiar_texto_por_pecas(texto: str) -> dict[str, tuple[int, int]]:
+    fronteiras = detectar_fronteiras_pecas(texto or "")
+    if not fronteiras:
+        return {}
+
+    candidatas: dict[str, list[tuple[int, int, int]]] = {}
+    for indice, (offset, peca) in enumerate(fronteiras):
+        fim = fronteiras[indice + 1][0] if indice + 1 < len(fronteiras) else len(texto)
+        tamanho = fim - offset
+        candidatas.setdefault(peca, []).append((offset, fim, tamanho))
+
+    resultado: dict[str, tuple[int, int]] = {}
+    for peca, intervalos in candidatas.items():
+        validas = []
+        for inicio, fim, tamanho in intervalos:
+            if tamanho < MIN_CHARS_FATIA:
+                continue
+            ancoras = detectar_ancoras(texto[inicio:fim])
+            if ancoras.get(peca, 0) < 2:
+                continue
+            validas.append((inicio, fim, tamanho))
+        if not validas:
+            continue
+        validas.sort(key=lambda item: item[2], reverse=True)
+        maior = validas[0]
+        if len(validas) > 1 and validas[1][2] >= RAZAO_AMBIGUIDADE_FATIA * maior[2]:
+            continue
+        resultado[peca] = (maior[0], maior[1])
+    return resultado
+
+
+def escrever_fatias_virtuais(paths: "ProjectPaths", entrada_base: dict, texto: str) -> list[dict]:
+    fatias = fatiar_texto_por_pecas(texto)
+    entradas: list[dict] = []
+    for peca in sorted(fatias):
+        inicio, fim = fatias[peca]
+        fatia_texto = texto[inicio:fim]
+        out_path = paths.documents_cache / f"{sanitize_filename(peca)}.txt"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(fatia_texto, encoding="utf-8")
+        ancoras = detectar_ancoras(fatia_texto)
+        entradas.append(
+            {
+                "label": peca,
+                "category": "documentos",
+                "source": entrada_base["source"],
+                "cache": str(out_path.resolve().relative_to(paths.root.resolve())),
+                "sha256": entrada_base["sha256"],
+                "chars": len(fatia_texto),
+                "words": count_words(fatia_texto),
+                "ancoras": ancoras,
+                "peca_sugerida": peca_sugerida(ancoras),
+                "virtual": True,
+                "peca": peca,
+                "origem": "fatiamento",
+                "offset_inicio": inicio,
+                "offset_fim": fim,
+                "base_label": entrada_base["label"],
+            }
+        )
+    return entradas
+
+
 PECA_ANCORAS: dict[str, list[str]] = {
     "ETP": [
         "estudo técnico preliminar",
@@ -459,7 +598,14 @@ def render_context(paths: ProjectPaths, manifest: dict, texts: dict[str, str]) -
     values = detect_values(texts)
     obj = detect_object(texts)
 
-    document_items = [item for item in manifest["files"] if item.get("category") == "documentos"]
+    document_items = [
+        item for item in manifest["files"]
+        if item.get("category") == "documentos" and not item.get("virtual")
+    ]
+    virtual_items = [
+        item for item in manifest["files"]
+        if item.get("category") == "documentos" and item.get("virtual")
+    ]
     reference_items = [item for item in manifest["files"] if item.get("category") == "referencias"]
 
     lines: list[str] = []
@@ -493,6 +639,17 @@ def render_context(paths: ProjectPaths, manifest: dict, texts: dict[str, str]) -
     lines.append(f"- Processo: {process}")
     lines.append(f"- Objeto provável: {obj}")
     lines.append(f"- Valores encontrados: {', '.join(values) if values else 'não identificados'}")
+    lines.append("")
+    lines.append("## Peças Fatiadas")
+    lines.append("")
+    if virtual_items:
+        for item in virtual_items:
+            lines.append(
+                f"- {item['label']}: offsets {item['offset_inicio']}-{item['offset_fim']} "
+                f"de {item['base_label']} ({item['chars']} caracteres)"
+            )
+    else:
+        lines.append("- Nenhuma peça fatiada; peças ausentes usam o arquivo inteiro.")
     lines.append("")
     lines.append("## Mapa De Seções")
     lines.append("")
@@ -543,14 +700,25 @@ def prepare(project: str) -> int:
     texts: dict[str, str] = {}
 
     document_sources = supported_files(paths.documentos) or legacy_document_files(paths)
+    document_entries: list[dict] = []
     for index, source in enumerate(document_sources, start=1):
         label = source.stem.upper() if source.stem.lower() in {"etp", "tr"} else f"DOC-{index:02d}_{source.stem}"
         item = write_extracted_text(paths, source, label, "documentos")
         manifest["files"].append(item)
+        document_entries.append(item)
         cache_path = Path(item["cache"])
         if not cache_path.is_absolute():
             cache_path = paths.documents_cache / cache_path.name
         texts[label] = cache_path.read_text(encoding="utf-8")
+
+    if len(document_entries) == 1 and document_entries[0]["label"] not in {"ETP", "TR"}:
+        entrada_unica = document_entries[0]
+        fatias = escrever_fatias_virtuais(paths, entrada_unica, texts[entrada_unica["label"]])
+        manifest["files"].extend(fatias)
+        if fatias:
+            print(f"Peças fatiadas do documento único: {', '.join(item['peca'] for item in fatias)}")
+        else:
+            print("Fatiamento de peças: nenhuma fronteira inequívoca; as peças usarão o arquivo inteiro.")
 
     for index, source in enumerate(list_reference_files(paths), start=1):
         label = f"REF-{index:02d}_{source.stem}"

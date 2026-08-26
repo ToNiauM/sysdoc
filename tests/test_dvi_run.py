@@ -232,6 +232,12 @@ class TestAbortSemPeca:
         home_dir = _preparar_home(tmp_path)
         monkeypatch.setenv("HOME", str(home_dir))
         projeto = _criar_projeto(tmp_path, "ProjetoSemPeca", com_tr=False)
+        (projeto / "documentos" / "OUTRO.txt").write_text(
+            "Documento adicional sem relação com nenhuma peça reconhecível, apenas para "
+            "garantir que o projeto tenha mais de um documento real e o fallback de "
+            "arquivo inteiro (P1) não se aplique neste teste de abort.",
+            encoding="utf-8",
+        )
         checklist_path = _escrever_checklist(tmp_path)
         monkeypatch.chdir(tmp_path)
 
