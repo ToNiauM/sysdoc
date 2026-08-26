@@ -168,6 +168,19 @@ def chave_do_provedor(provedor: str, config_path: Path | None = None) -> str:
     return chave
 
 
+def _preco_valido(bruto: object) -> dict[str, float] | None:
+    if not isinstance(bruto, dict):
+        return None
+    try:
+        entrada = float(bruto.get("entrada"))
+        saida = float(bruto.get("saida"))
+    except (TypeError, ValueError):
+        return None
+    if entrada < 0 or saida < 0:
+        return None
+    return {"entrada": entrada, "saida": saida}
+
+
 def carregar_precos_dvi(config_path: Path | None = None) -> dict:
     path = config_path or _config_path_padrao()
     dados = _ler_json(path, exigir_existencia=False)
@@ -175,4 +188,11 @@ def carregar_precos_dvi(config_path: Path | None = None) -> dict:
     if not isinstance(secao_dvi, dict):
         return {}
     precos = secao_dvi.get("precos")
-    return precos if isinstance(precos, dict) else {}
+    if not isinstance(precos, dict):
+        return {}
+    resultado: dict[str, dict[str, float]] = {}
+    for alvo, bruto in precos.items():
+        preco = _preco_valido(bruto)
+        if preco is not None:
+            resultado[str(alvo)] = preco
+    return resultado

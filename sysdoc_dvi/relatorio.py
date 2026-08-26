@@ -99,7 +99,8 @@ def _avisos_precos(tokens_por_modelo: dict, custo_por_modelo: dict) -> list[str]
         if total_tokens > 0 and custo_por_modelo.get(alvo, 0.0) == 0.0:
             avisos.append(
                 f"Alvo '{alvo}' não possui preço registrado; custo estimado ficou "
-                "zerado apesar de tokens consumidos."
+                "zerado apesar de tokens consumidos. Registre o preço com: "
+                f"sysdoc-dvi config --preco {alvo} <entrada_usd_1M> <saida_usd_1M>"
             )
     return avisos
 

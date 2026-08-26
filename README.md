@@ -370,6 +370,16 @@ sysdoc-dvi config --listar
 
 O mapeamento fica em `~/.sysdoc/config.json` (nunca versionado). Alternativa: editar o arquivo à mão, ou usar as variáveis de ambiente `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`.
 
+Opcionalmente, registre o preço de cada alvo (USD por 1 milhão de tokens de entrada/saída) para que o relatório de execução calcule o custo real em vez de custo zero:
+
+```bash
+sysdoc-dvi config --preco openrouter/deepseek-chat 0.28 0.42
+sysdoc-dvi config --preco anthropic/claude-opus-5 15 75
+sysdoc-dvi config --listar
+```
+
+O preço configurado tem precedência sobre a tabela embutida (vazia por padrão — nenhum preço é assumido) e pode ser repetido para registrar vários alvos numa só chamada de `config`. Alvo sem preço registrado mantém custo zerado no relatório, com um aviso que já traz o comando `sysdoc-dvi config --preco <alvo> <entrada> <saida>` pronto para copiar.
+
 ### Rodando a análise
 
 ```bash
