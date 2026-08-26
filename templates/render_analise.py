@@ -183,19 +183,19 @@ def extract_date_for_filename(data_analise):
     return datetime.now(tz).strftime("%Y-%m-%d")
 
 
-def resolve_next_filename(projeto_dir, data):
-    modelo_ia = get_field(data, "modelo_ia", "nome_modelo_ia", "modelo") or "gpt-5"
-    data_analise = get_field(data, "data_análise", "data_analise")
-    stem = f"analise_{slug_filename_part(modelo_ia)}_{extract_date_for_filename(data_analise)}"
-    base = Path(projeto_dir) / f"{stem}.html"
-    if not base.exists():
-        return base
-    n = 2
-    while True:
-        candidate = Path(projeto_dir) / f"{stem}_{n}.html"
-        if not candidate.exists():
-            return candidate
-        n += 1
+def proximo_nome_artefato(destino, projeto, tipo, data, extensao):
+    projeto_slug = slug_filename_part(projeto)
+    tipo_slug = slug_filename_part(tipo)
+    padrao = re.compile(rf"^(\d{{2}})_{re.escape(projeto_slug)}_{re.escape(tipo_slug)}_")
+    maior = 0
+    if destino.is_dir():
+        for item in destino.iterdir():
+            match = padrao.match(item.name)
+            if match:
+                maior = max(maior, int(match.group(1)))
+    contador = maior + 1
+    nome = f"{contador:02d}_{projeto_slug}_{tipo_slug}_{data}{extensao}"
+    return destino / nome
 
 
 def render(data):
@@ -508,7 +508,12 @@ def main():
     html = render(data)
 
     if projeto_dir:
-        out_path = resolve_next_filename(projeto_dir, data)
+        destino = Path(projeto_dir)
+        projeto = destino.parent.name if destino.name == "output" else destino.name
+        data_analise = get_field(data, "data_análise", "data_analise")
+        out_path = proximo_nome_artefato(
+            destino, projeto, "analise", extract_date_for_filename(data_analise), ".html"
+        )
         out_path.write_text(html, encoding="utf-8")
         print(f"HTML gerado: {out_path}", file=sys.stderr)
     else:
