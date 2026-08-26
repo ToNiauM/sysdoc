@@ -38,6 +38,6 @@ skills/sysdoc/SKILL.md
 
 4. **Português brasileiro** — todos os campos gerados devem usar norma culta e acentuação correta. Preserve literalidade apenas no campo `de`.
 
-5. **Análise DVI por checklist** — para análise DVI (Diligência de Verificação de Instrução), leia `checklists/dvi.yaml` (fonte canônica dos itens, ver `skills/sysdoc/SKILL.md`) em vez de aplicar as lentes genéricas acima. O binário `sysdoc-dvi run [pasta] --tipo geral|tic` executa o pipeline completo automatizado; como harness, você pode operar no nível artefato lendo o mesmo YAML diretamente.
+5. **Análise DVI por checklist** — para análise DVI (Documento de Verificação Inicial), leia `checklists/dvi.yaml` (fonte canônica dos itens, ver `skills/sysdoc/SKILL.md`) em vez de aplicar as lentes genéricas acima. O binário `sysdoc-dvi run [pasta] --tipo geral|tic` executa o pipeline completo automatizado; como harness, você pode operar no nível artefato lendo o mesmo YAML diretamente.
 
 Qualquer divergência entre este wrapper e `skills/sysdoc/SKILL.md` — prevalece o canônico neutro.

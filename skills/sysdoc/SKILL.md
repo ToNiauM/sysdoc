@@ -42,7 +42,7 @@ O usuário acionará você (o Agente de IA) através de "Macro Comandos". Quando
 
 ## Análise DVI por checklist
 
-`checklists/dvi.yaml` é a **fonte canônica** dos itens de análise DVI (Diligência de Verificação de Instrução). Este `SKILL.md` nunca duplica IDs, perguntas ou base legal de item — apenas referencia o YAML. Isso evita drift entre a documentação e o checklist real (risco nº 3 do PRD da Fase 5).
+`checklists/dvi.yaml` é a **fonte canônica** dos itens de análise DVI (Documento de Verificação Inicial). Este `SKILL.md` nunca duplica IDs, perguntas ou base legal de item — apenas referencia o YAML. Isso evita drift entre a documentação e o checklist real (risco nº 3 do PRD da Fase 5).
 
 Qualquer harness (nível artefato do RF8) que queira operar a análise DVI deve:
 

@@ -1,6 +1,6 @@
 versao: "1.1"
 descricao: >-
-  Checklist DVI (Diligência de Verificação de Instrução) — conversão completa
+  Checklist DVI (Documento de Verificação Inicial) — conversão completa
   dos dois prompts DVI monolíticos (`referencias/prompts-dvi/dvi_geral.md` e
   `referencias/prompts-dvi/dvi_tic.md`, insumo do dono do produto) em itens
   tipados, cobrindo os cinco tipos de verificação (presenca, julgamento,
