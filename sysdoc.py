@@ -346,7 +346,12 @@ def write_extracted_text(paths: ProjectPaths, source: Path, label: str, category
         "label": label,
         "category": category,
         "source": rel(source),
-        "cache": rel(out_path),
+        # Relativo à raiz do projeto (não ao cwd): `sysdoc_dvi.pecas.mapear_pecas`
+        # resolve este campo como `paths.root / entrada["cache"]`, e o comando
+        # típico (`sysdoc prepare Projeto` executado a partir do diretório pai)
+        # faz `rel()` devolver um caminho já prefixado com o nome do projeto,
+        # o que duplicaria o prefixo se usado aqui.
+        "cache": str(out_path.resolve().relative_to(paths.root.resolve())),
         "sha256": sha256(source),
         "chars": len(text),
         "words": count_words(text),
