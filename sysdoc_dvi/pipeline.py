@@ -98,8 +98,10 @@ def _texto_placeholder(campo: str, resultado: ResultadoItem) -> str:
             "pendente de verificação humana"
         )
     if campo == "parecer":
-        detalhe = motivo or "sem detalhamento adicional disponível"
-        return f"Item pendente de verificação humana: {detalhe}"
+        return (
+            "Item pendente de verificação humana; o detalhamento da falha "
+            "consta no relatório de execução."
+        )
     return "Fundamentação não disponível; item classificado como pendente para revisão humana."
 
 

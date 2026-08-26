@@ -252,7 +252,7 @@ def verificar_item_vigencia(
                     f"A citação '{citacao}' corresponde a norma não catalogada "
                     "na tabela de vigência."
                 ),
-                fundamento="normas/vigencia.yaml não contém entrada correspondente a esta citação",
+                fundamento="A tabela curada de vigência de normativos não contém entrada correspondente a esta citação",
                 classificação="pendente",
                 severidade=severidade,
                 risco_jurídico="informativo",
