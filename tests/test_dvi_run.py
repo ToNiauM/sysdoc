@@ -274,6 +274,65 @@ class TestRunCompleto:
         assert not (projeto_dir / ".sysdoc" / "cache" / "dvi_checkpoint.json").is_file()
 
 
+class AgenteAlucinado(AgenteFalso):
+    """Agente que fabrica o `de` de um único item; os demais permanecem literais."""
+
+    def __init__(self, id_alucinado: str):
+        super().__init__()
+        self._id_alucinado = id_alucinado
+
+    def executar_item(self, item, contexto):
+        resultado = super().executar_item(item, contexto)
+        if item.id != self._id_alucinado:
+            return resultado
+        return replace(
+            resultado,
+            de="cláusula fabricada sobre garantia decenal inexistente no documento",
+            classificação="risco",
+            risco_jurídico="relevante",
+            severidade="alta",
+        )
+
+
+class TestGroundingNaoDerrubaRun:
+    def test_de_fabricado_vira_pendente_e_o_run_completa_com_html(self, tmp_path, monkeypatch):
+        home_dir = _preparar_home(tmp_path)
+        monkeypatch.setenv("HOME", str(home_dir))
+        projeto_dir = _criar_projeto(tmp_path, "ProjetoAlucinado")
+        checklist_path = _escrever_checklist(tmp_path)
+        monkeypatch.chdir(tmp_path)
+
+        trecho_fabricado = "cláusula fabricada sobre garantia decenal inexistente no documento"
+        agente = AgenteAlucinado("DVI-GER-001")
+        rc = pipeline.executar_run(
+            "ProjetoAlucinado", tipo="geral", checklist=str(checklist_path), agente=agente
+        )
+
+        assert rc == 0
+        dados = json.loads(
+            (projeto_dir / "dados_consolidados.json").read_text(encoding="utf-8")
+        )
+        item_alucinado = next(
+            item for item in dados["itens"] if item.get("checklist_id") == "DVI-GER-001"
+        )
+        assert item_alucinado["classificação"] == "pendente"
+        assert item_alucinado["de"].startswith("[OMISSÃO]")
+        assert trecho_fabricado not in item_alucinado["de"]
+
+        htmls = list((projeto_dir / "output").glob("*.html"))
+        assert htmls, "HTML não foi gerado apesar da degradação para pendente"
+
+        relatorios = sorted((projeto_dir / "output").glob("*_relatorio_*.json"))
+        assert relatorios
+        relatorio = json.loads(relatorios[-1].read_text(encoding="utf-8"))
+        assert relatorio["falhas_grounding"]["total"] == 1
+        assert relatorio["falhas_grounding"]["itens"] == ["DVI-GER-001"]
+        assert (
+            relatorio["falhas_grounding"]["trechos_rejeitados"]["DVI-GER-001"]
+            == trecho_fabricado
+        )
+
+
 class TestRetomada:
     def test_segunda_execucao_pula_itens_ja_resolvidos(self, tmp_path, monkeypatch):
         home_dir = _preparar_home(tmp_path)

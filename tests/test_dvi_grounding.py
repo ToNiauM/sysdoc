@@ -13,6 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "templates"))
 
 from sysdoc_dvi.grounding import (  # noqa: E402
     LIMIAR_GROUNDING_DEFAULT,
@@ -130,9 +131,25 @@ class TestCA3:
 
         assert reclassificado.classificação == "pendente"
         assert reclassificado.falha_grounding is True
-        assert reclassificado.de == de_original
+        assert reclassificado.de.startswith("[OMISSÃO]")
+        assert de_original not in reclassificado.de
+        assert reclassificado.de_rejeitado == de_original
         assert "pendente" in reclassificado.parecer.lower()
         assert "rejeitado" in reclassificado.parecer.lower()
+
+    def test_de_reescrito_apos_rejeicao_e_aceito_pelo_validador_e_pelo_proprio_gate(self):
+        import validate_sysdoc
+
+        resultado = _resultado(
+            de="cláusula inexistente sobre garantia estendida de dez anos",
+            classificação="risco",
+            origem="llm",
+        )
+        reclassificado = aplicar_grounding(resultado, TEXTO_PECA)
+
+        ancorado, score = verificar_trecho(reclassificado.de, TEXTO_PECA)
+        assert (ancorado, score) == (True, 1.0)
+        assert validate_sysdoc.is_traceable(reclassificado.de, TEXTO_PECA)
 
     def test_trecho_literal_nao_altera_resultado(self):
         resultado = _resultado(

@@ -6,7 +6,12 @@ trazer, no campo `de`, um trecho literal localizável no texto extraído da
 peça indicada. Este módulo valida essa ancoragem com correspondência
 aproximada (`difflib.SequenceMatcher`, biblioteca padrão — nenhuma
 dependência nova) e reclassifica como `pendente` quando o trecho não é
-encontrado, preservando o `de` original para o relatório de execução (RF9).
+encontrado. O `de` rejeitado NUNCA segue para o JSON final (o validador
+imutável o acusaria como não rastreável e derrubaria a análise inteira,
+violando RF9): o campo `de` é reescrito com o marcador `[OMISSÃO]`
+reconhecido por `verificar_trecho` e por `validate_sysdoc.is_traceable`, e o
+trecho original fica preservado em `de_rejeitado`, consumido apenas pelo
+relatório de execução (RF9).
 
 A lógica aqui é deliberadamente mais estrita que `templates/validate_sysdoc.py`
 (`is_traceable`) — não a substitui.
@@ -111,6 +116,11 @@ def aplicar_grounding(
 
     return replace(
         resultado,
+        de=(
+            f"{_MARCADOR_OMISSAO} trecho citado pelo modelo não localizado no texto "
+            "extraído da peça"
+        ),
+        de_rejeitado=resultado.de,
         classificação="pendente",
         risco_jurídico="informativo",
         falha_grounding=True,

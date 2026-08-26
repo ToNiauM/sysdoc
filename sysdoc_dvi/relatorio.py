@@ -37,8 +37,14 @@ def _contagem(itens: list[ResultadoItem], campo: str) -> dict[str, int]:
 
 
 def _falhas_grounding(itens: list[ResultadoItem]) -> dict:
-    afetados = [item.checklist_id for item in itens if item.falha_grounding]
-    return {"total": len(afetados), "itens": afetados}
+    afetados = [item for item in itens if item.falha_grounding]
+    return {
+        "total": len(afetados),
+        "itens": [item.checklist_id for item in afetados],
+        "trechos_rejeitados": {
+            item.checklist_id: item.de_rejeitado for item in afetados if item.de_rejeitado
+        },
+    }
 
 
 def _falhas_estruturadas(itens: list[ResultadoItem]) -> dict:

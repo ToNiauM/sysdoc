@@ -369,7 +369,23 @@ class TestRelatorio:
             _resultado(checklist_id="DVI-GER-031", falha_grounding=False),
         ]
         relatorio = montar_relatorio(itens, CHECKLIST_HASH, "1.1", 1.0)
-        assert relatorio["falhas_grounding"] == {"total": 1, "itens": ["DVI-GER-030"]}
+        assert relatorio["falhas_grounding"] == {
+            "total": 1,
+            "itens": ["DVI-GER-030"],
+            "trechos_rejeitados": {},
+        }
+
+    def test_falhas_grounding_registram_trecho_rejeitado(self):
+        from dataclasses import replace
+
+        rejeitado = replace(
+            _resultado(checklist_id="DVI-GER-030", falha_grounding=True),
+            de_rejeitado="trecho fabricado pelo modelo",
+        )
+        relatorio = montar_relatorio([rejeitado], CHECKLIST_HASH, "1.1", 1.0)
+        assert relatorio["falhas_grounding"]["trechos_rejeitados"] == {
+            "DVI-GER-030": "trecho fabricado pelo modelo"
+        }
 
     def test_falhas_estruturadas_listadas(self):
         itens = [

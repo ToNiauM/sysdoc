@@ -60,6 +60,7 @@ class ResultadoItem:
     uso: UsoModelo | None = None
     falha_estruturada: str | None = None
     falha_grounding: bool = False
+    de_rejeitado: str | None = None
 
 
 class AnalysisAgent(Protocol):
