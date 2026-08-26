@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: Phase 3 — Integração Agentes IA, pronta para `$gsd-discuss-phase 3`
+current_phase: 5
 status: ready_to_discuss
 stopped_at: Phase 5 context gathered
-last_updated: "2026-08-26T14:12:05.957Z"
+last_updated: "2026-08-26T14:12:55.255Z"
 progress:
   total_phases: 5
   completed_phases: 1
@@ -17,7 +17,7 @@ progress:
 # STATE — SysDoc
 
 **Project:** SysDoc - Sistema de Análise de Documentação de Licitação
-**Current Phase:** Phase 3 — Integração Agentes IA, pronta para `$gsd-discuss-phase 3`
+**Current Phase:** 5
 **Mode:** standard
 
 ## Project Reference

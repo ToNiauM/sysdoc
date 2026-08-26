@@ -100,7 +100,7 @@
 **Goal:** Entregar um motor de análise dirigido por checklist tipado e data-driven (`checklists/*.yaml`), executável por orquestrador via API ou por qualquer harness agêntico, com verificações determinísticas em Python (cálculo, vigência, mecânica), grounding check do campo `de`, síntese dedicada de pareceres e saída DVI em DOCX via `sysdoc create dvi` — preservando a CLI determinística sem chamadas a LLM.
 **Requirements**: PRD em `.planning/phases/05-motor-analise-checklist/PRD.md` (RF1–RF10, RNF1–RNF5)
 **Depends on:** Phase 4
-**Plans:** 15 plans em 5 ondas
+**Plans:** 3/15 plans executed
 
 **Onda 1:** fundação do pacote `sysdoc_dvi` + checklist tipado; padrão de nomes de artefatos; evolução do contrato de dados.
 **Onda 2:** tabela de vigência; auditoria de cálculo; verificações mecânicas + grounding; mapeamento de peças; camada de provedores.
@@ -111,9 +111,9 @@
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Fundação do motor: pacote `sysdoc_dvi`, contratos, loader do checklist, entry point `sysdoc-dvi`
-- [ ] 05-02-PLAN.md — Padrão de nomes de artefatos `xx_nome_tipo_data.extensao` em publish/render/create
-- [ ] 05-03-PLAN.md — Contrato de dados 1.1: `origem_verificacao`, `checklist_id`, `checklist_hash`, `schema_version` e rastreabilidade
+- [x] 05-01-PLAN.md — Fundação do motor: pacote `sysdoc_dvi`, contratos, loader do checklist, entry point `sysdoc-dvi`
+- [x] 05-02-PLAN.md — Padrão de nomes de artefatos `xx_nome_tipo_data.extensao` em publish/render/create
+- [x] 05-03-PLAN.md — Contrato de dados 1.1: `origem_verificacao`, `checklist_id`, `checklist_hash`, `schema_version` e rastreabilidade
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
