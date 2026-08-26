@@ -1,10 +1,24 @@
-versao: "1.0"
+versao: "1.1"
 descricao: >-
-  Checklist DVI (Diligência de Verificação de Instrução) — semente data-driven
-  cobrindo os cinco tipos de verificação (presenca, julgamento, calculo,
-  vigencia, mecanica) e as três aplicabilidades (geral, tic, ambos). Itens com
-  base legal ainda não conferida literalmente entram como ativo: false e
-  base_legal_texto: pendente (nunca artigo/inciso inventado).
+  Checklist DVI (Diligência de Verificação de Instrução) — conversão completa
+  dos dois prompts DVI monolíticos (`referencias/prompts-dvi/dvi_geral.md` e
+  `referencias/prompts-dvi/dvi_tic.md`, insumo do dono do produto) em itens
+  tipados, cobrindo os cinco tipos de verificação (presenca, julgamento,
+  calculo, vigencia, mecanica) e as três aplicabilidades (geral, tic, ambos).
+  Itens presentes com o mesmo conteúdo substantivo nos dois prompts entram
+  como aplicabilidade "ambos" (DVI-AMB-*), nunca duplicados. Itens com base
+  legal ainda não transcrita literalmente no prompt-fonte entram como
+  ativo: false e base_legal_texto: pendente (nunca artigo/inciso inventado,
+  conforme CLAUDE.md). As seções "RESULTADO" (formato de relatório) dos
+  prompts-fonte não viram itens — já são atendidas pela síntese existente
+  (sysdoc_dvi/sintese.py). A instrução de "eliminar os indícios de texto
+  feito por IA" dos prompts-fonte NÃO foi implementada: o SysDoc registra
+  deliberadamente `modelo_ia` nos metadados do JSON (exigido pelo validador)
+  e o DVI é uma minuta assistida por IA para revisão humana — escrita em
+  norma culta natural, sem ocultação de autoria (ver SUMMARY do plano
+  05-13). A observação "Se tiver algum DVI ao final do processo,
+  desconsidere" é orientação de mapeamento de peças, não um item de
+  checklist.
 atualizado_em: "2026-08-26"
 
 itens:
@@ -45,11 +59,19 @@ itens:
       Os valores de média, mediana e o cálculo unitário × quantidade da
       pesquisa de preços conferem com os valores declarados no Mapa
       Comparativo de Preços?
-    base_legal_texto: pendente
-    referencia: "Lei 14.133/2021, art. 23; IN SEGES/ME 65/2021 (pesquisa de preços)"
+    base_legal_texto: >-
+      "Auditoria de Cálculos: Verifique, como se fosse um experiente
+      matemático, a exatidão de todos os cálculos de média ou mediana
+      usados para a estimativa de preços no MCP. Concluída a etapa 2, faça
+      uma nova conferência de todos os cálculos, com o objetivo de eliminar
+      erros." (seção MAPA COMPARATIVO DE PREÇOS, idêntica em dvi_geral.md e
+      dvi_tic.md). A dupla conferência instruída no prompt-fonte é satisfeita
+      pela natureza determinística e reprodutível do motor de cálculo
+      (decimal.Decimal), que não depende de nova rodada de modelo.
+    referencia: "IN SEGES/ME 65/2021"
     severidade_default: crítica
     modelo_alvo: economico
-    ativo: false
+    ativo: true
     parametros:
       tolerancia_absoluta: 0.01
 
@@ -61,27 +83,452 @@ itens:
     pergunta: >-
       Os normativos citados no processo continuam vigentes, sem revogação ou
       substituição posterior não refletida no texto?
-    base_legal_texto: pendente
-    referencia: "normas/vigencia.yaml (tabela curada de vigência normativa)"
+    base_legal_texto: >-
+      "Antes, confirme se o(s) normativo(s) referenciado(s) segue(m)
+      vigente(s); caso revogado(s) ou alterado(s), informe a(s) norma(s)
+      vigente(s) aplicável(is)." (seção ESTUDO TÉCNICO PRELIMINAR, idêntica
+      em dvi_geral.md e dvi_tic.md).
+    referencia: "Padrão interno: lookup dinâmico na tabela curada de vigência normativa (RF7) — não é uma norma única fixa"
     severidade_default: alta
     modelo_alvo: economico
-    ativo: false
+    ativo: true
     parametros: {}
 
   - id: DVI-GER-001
-    aplicabilidade: geral
+    aplicabilidade: ambos
     peca: TR
     tipo: mecanica
     pergunta: >-
       As seções e subseções do TR seguem numeração sequencial contínua, sem
       lacunas ou repetições?
     base_legal_texto: >-
-      Verificação de padronização documental interna: as seções e subseções
-      do instrumento devem seguir numeração sequencial contínua, sem saltos,
-      repetições ou lacunas, garantindo rastreabilidade e remissão cruzada
-      corretas dentro do próprio documento.
-    referencia: "Padrão redacional interno de TR/ETP do órgão"
+      "Verifique se a numeração sequencial dos itens está correta."
+      (idêntica em dvi_geral.md TR §23 e dvi_tic.md TR §23; a mesma
+      instrução aparece também para o ETP no prompt geral, ver DVI-GER-017).
+    referencia: "Padrão interno: numeração sequencial de seções do TR"
     severidade_default: baixa
+    modelo_alvo: economico
+    ativo: true
+    parametros:
+      verificacao: numeracao
+
+  - id: DVI-GER-002
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso I do art. 9º da IN SEGES/ME 58/2022
+      (descrição da necessidade da contratação)?
+    base_legal_texto: "I - descrição da necessidade da contratação;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-003
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso II do art. 9º da IN SEGES/ME
+      58/2022 (descrição dos requisitos da contratação)?
+    base_legal_texto: "II - descrição dos requisitos da contratação;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-004
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso III do art. 9º da IN SEGES/ME
+      58/2022 (levantamento de mercado)?
+    base_legal_texto: "III - levantamento de mercado;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-005
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso IV do art. 9º da IN SEGES/ME
+      58/2022 (descrição da solução como um todo)?
+    base_legal_texto: "IV - descrição da solução como um todo;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-006
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso V do art. 9º da IN SEGES/ME 58/2022
+      (estimativa das quantidades a serem contratadas)?
+    base_legal_texto: "V - estimativa das quantidades a serem contratadas;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-007
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso VI do art. 9º da IN SEGES/ME
+      58/2022 (estimativa do valor da contratação)?
+    base_legal_texto: "VI - estimativa do valor da contratação;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-008
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso VII do art. 9º da IN SEGES/ME
+      58/2022 (justificativas para o parcelamento ou não da solução)?
+    base_legal_texto: "VII - justificativas para o parcelamento ou não da solução;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-009
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso VIII do art. 9º da IN SEGES/ME
+      58/2022 (contratações correlatas e/ou interdependentes)?
+    base_legal_texto: "VIII - contratações correlatas e/ou interdependentes;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-010
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso IX do art. 9º da IN SEGES/ME
+      58/2022 (demonstrativo da previsão da contratação no Plano de
+      Contratações Anual)?
+    base_legal_texto: >-
+      "IX - demonstrativo da previsão da contratação no Plano de
+      Contratações Anual;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-011
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso X do art. 9º da IN SEGES/ME 58/2022
+      (posicionamento conclusivo sobre a adequação da contratação)?
+    base_legal_texto: >-
+      "X - posicionamento conclusivo sobre a adequação da contratação;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-012
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso XI do art. 9º da IN SEGES/ME
+      58/2022 (possíveis impactos ambientais e respectivas medidas de
+      tratamento)?
+    base_legal_texto: >-
+      "XI - possíveis impactos ambientais e respectivas medidas de
+      tratamento;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-013
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso XII do art. 9º da IN SEGES/ME
+      58/2022 (providências a serem adotadas pela Administração previamente
+      à celebração do contrato)?
+    base_legal_texto: >-
+      "XII - providências a serem adotadas pela Administração previamente à
+      celebração do contrato;"
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-014
+    aplicabilidade: geral
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso XIII do art. 9º da IN SEGES/ME
+      58/2022 (declaração de viabilidade ou não da contratação)?
+    base_legal_texto: "XIII - declaração de viabilidade ou não da contratação."
+    referencia: "IN SEGES/ME 58/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-015
+    aplicabilidade: geral
+    peca: ETP
+    tipo: julgamento
+    pergunta: >-
+      O ETP realiza análise de riscos que possam impactar a contratação,
+      justifica adequadamente a escolha de solução tecnológica, mão de
+      obra, regime de execução, vigência e modalidade contratual, e explica
+      o custo global da solução no ciclo de vida do contrato?
+    base_legal_texto: >-
+      "Avalie se o ETP: Realiza análise de riscos que possam impactar a
+      contratação; Justifica adequadamente a escolha de solução
+      tecnológica, mão de obra, regime de execução, vigência e modalidade
+      contratual; Explica o custo global da solução no ciclo de vida do
+      contrato, especialmente em contratos de longa duração." (dvi_geral.md,
+      ESTUDO TÉCNICO PRELIMINAR §4).
+    referencia: "Padrão interno: análise de riscos e justificativas de solução do ETP"
+    severidade_default: alta
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-016
+    aplicabilidade: geral
+    peca: ETP
+    tipo: julgamento
+    pergunta: >-
+      Há pontos de conflito entre o ETP e a jurisprudência do TCU ou com a
+      Lei 14.133/2021 (arts. 11, 18, 19, 23, 26, 40, 45, 106 e 107) e, em
+      serviços contínuos com dedicação de mão de obra, com a IN nº 05/2017?
+    base_legal_texto: pendente
+    referencia: >-
+      Lei 14.133/2021, arts. 11, 18, 19, 23, 26, 40, 45, 106, 107; IN nº
+      05/2017 (jurisprudência do TCU e normativos citados sem transcrição
+      literal disponível no prompt-fonte)
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: false
+    parametros: {}
+
+  - id: DVI-GER-017
+    aplicabilidade: geral
+    peca: ETP
+    tipo: mecanica
+    pergunta: >-
+      As seções e subseções do ETP seguem numeração sequencial contínua,
+      sem lacunas ou repetições?
+    base_legal_texto: >-
+      "Verificar se a numeração sequencial dos itens está correta." (seção
+      ESTUDO TÉCNICO PRELIMINAR §6, dvi_geral.md — o prompt TIC não repete
+      esta verificação para o ETP).
+    referencia: "Padrão interno: numeração sequencial de seções do ETP"
+    severidade_default: baixa
+    modelo_alvo: economico
+    ativo: true
+    parametros:
+      verificacao: numeracao
+
+  - id: DVI-GER-018
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso I do art. 9º da IN SEGES/ME 81/2022
+      (definição do objeto: natureza, quantitativos, prazo contratual e
+      prorrogação; especificação preferencialmente via Catálogo Eletrônico
+      de Padronização; locais de entrega e critérios de recebimento;
+      garantias e manutenção/assistência técnica)?
+    base_legal_texto: >-
+      "I. Definição do objeto, incluindo: a) natureza, quantitativos, prazo
+      contratual e possibilidade de prorrogação; b) especificação do
+      bem/serviço, preferencialmente com base no Catálogo Eletrônico de
+      Padronização (Portaria SEGES nº 938/2022), considerando requisitos de
+      qualidade, rendimento, compatibilidade, durabilidade e segurança; c)
+      locais de entrega e critérios para recebimento provisório e
+      definitivo; d) garantias e condições de manutenção/assistência
+      técnica, quando aplicável."
+    referencia: "IN SEGES/ME 81/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-019
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso II do art. 9º da IN SEGES/ME
+      81/2022 (fundamentação da contratação, com referência ao ETP)?
+    base_legal_texto: >-
+      "II. Fundamentação da contratação, com referência aos Estudos
+      Técnicos Preliminares (ETP) ou, na impossibilidade de divulgação
+      integral, com extrato das partes não sigilosas."
+    referencia: "IN SEGES/ME 81/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-020
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso III do art. 9º da IN SEGES/ME
+      81/2022 (descrição da solução completa, considerando o ciclo de vida
+      do objeto)?
+    base_legal_texto: >-
+      "III. Descrição da solução completa, considerando todo o ciclo de
+      vida do objeto e, quando possível, arranjos inovadores em economia
+      circular."
+    referencia: "IN SEGES/ME 81/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-021
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso IV do art. 9º da IN SEGES/ME
+      81/2022 (requisitos da contratação)?
+    base_legal_texto: "IV. Requisitos da contratação."
+    referencia: "IN SEGES/ME 81/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-022
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso V do art. 9º da IN SEGES/ME 81/2022
+      (modelo de execução do objeto)?
+    base_legal_texto: >-
+      "V. Modelo de execução do objeto: como o contrato gerará os
+      resultados esperados."
+    referencia: "IN SEGES/ME 81/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-023
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso VI do art. 9º da IN SEGES/ME
+      81/2022 (modelo de gestão do contrato)?
+    base_legal_texto: >-
+      "VI. Modelo de gestão do contrato: como será o acompanhamento e a
+      fiscalização."
+    referencia: "IN SEGES/ME 81/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-024
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso VII do art. 9º da IN SEGES/ME
+      81/2022 (critérios de medição e pagamento)?
+    base_legal_texto: "VII. Critérios de medição e pagamento."
+    referencia: "IN SEGES/ME 81/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-025
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso VIII do art. 9º da IN SEGES/ME
+      81/2022 (forma e critérios de seleção do fornecedor, com
+      justificativa do critério de julgamento adotado)?
+    base_legal_texto: >-
+      "VIII. Forma e critérios de seleção do fornecedor, com justificativa
+      do critério de julgamento adotado, especialmente quando técnica e
+      preço (art. 36, §1º, da Lei 14.133/2021)."
+    referencia: "IN SEGES/ME 81/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-026
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso IX do art. 9º da IN SEGES/ME
+      81/2022 (estimativa de preços com base na IN SEGES nº 65/2021,
+      incluindo preços referenciais, memória de cálculo, metodologia e
+      fontes)?
+    base_legal_texto: >-
+      "IX. Estimativa de preços: com base na IN SEGES nº 65/2021, incluindo
+      preços referenciais, memória de cálculo, metodologia e fontes."
+    referencia: "IN SEGES/ME 65/2021"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-GER-027
+    aplicabilidade: geral
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso X do art. 9º da IN SEGES/ME 81/2022
+      (adequação orçamentária, exceto em caso de registro de preços)?
+    base_legal_texto: >-
+      "X. Adequação orçamentária, exceto em caso de registro de preços."
+    referencia: "IN SEGES/ME 81/2022"
+    severidade_default: alta
     modelo_alvo: economico
     ativo: true
     parametros: {}
@@ -98,4 +545,864 @@ itens:
     severidade_default: média
     modelo_alvo: economico
     ativo: false
+    parametros: {}
+
+  - id: DVI-TIC-002
+    aplicabilidade: tic
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso I do art. 11 da IN SGD/ME 94/2022
+      (definição e especificação das necessidades de negócio e
+      tecnológicas, e dos requisitos necessários e suficientes à escolha da
+      solução de TIC, com quantitativo motivado, justificado e com forma de
+      cálculo)?
+    base_legal_texto: >-
+      "I - definição e especificação das necessidades de negócio e
+      tecnológicas, e dos requisitos necessários e suficientes à escolha da
+      solução de TIC, contendo de forma detalhada, motivada e justificada,
+      inclusive quanto à forma de cálculo, o quantitativo de bens e
+      serviços necessários para a sua composição;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-003
+    aplicabilidade: tic
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso II do art. 11 da IN SGD/ME 94/2022
+      (análise comparativa de soluções, considerando aspecto econômico e
+      aspectos qualitativos: necessidades similares em outros órgãos,
+      alternativas de mercado, softwares da Portaria STI/MP 46/2016,
+      políticas/padrões de governo — ePing, eMag, ePwg, Design System,
+      ICP-Brasil, e-ARQ Brasil —, adequação do ambiente, modelos de
+      prestação, tipos de solução, aquisição como bem ou serviço, ampliação
+      ou substituição da solução implantada, e métricas de prestação e
+      pagamento)?
+    base_legal_texto: >-
+      "II - análise comparativa de soluções, que deve considerar, além do
+      aspecto econômico, os aspectos qualitativos em termos de benefícios
+      para o alcance dos objetivos da contratação, observando: a)
+      necessidades similares em outros órgãos ou entidades da Administração
+      Pública e as soluções adotadas; b) as alternativas do mercado; c) a
+      existência de softwares disponíveis conforme descrito na Portaria
+      STI/MP nº 46, de 28 de setembro de 2016, e suas atualizações; d) as
+      políticas, os modelos e os padrões de governo, a exemplo dos Padrões
+      de Interoperabilidade de Governo Eletrônico - ePing, Modelo de
+      Acessibilidade em Governo Eletrônico - eMag, Padrões Web em Governo
+      Eletrônico - ePwg, padrões de Design System de governo,
+      Infraestrutura de Chaves Públicas Brasileira - ICP-Brasil e Modelo de
+      Requisitos para Sistemas Informatizados de Gestão Arquivística de
+      Documentos - e-ARQ Brasil, quando aplicáveis; e) as necessidades de
+      adequação do ambiente do órgão ou entidade para viabilizar a execução
+      contratual; f) os diferentes modelos de prestação do serviço; g) os
+      diferentes tipos de soluções em termos de especificação, composição
+      ou características dos bens e serviços integrantes; h) a
+      possibilidade de aquisição na forma de bens ou contratação como
+      serviço; i) a ampliação ou substituição da solução implantada; e j)
+      as diferentes métricas de prestação do serviço e de pagamento;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-004
+    aplicabilidade: tic
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso III do art. 11 da IN SGD/ME
+      94/2022 (análise comparativa de custos: custo total de propriedade —
+      TCO — e memória de cálculo que referencie preços e custos)?
+    base_legal_texto: >-
+      "III - análise comparativa de custos, que deverá considerar apenas as
+      soluções técnica e funcionalmente viáveis, incluindo: a) cálculo dos
+      custos totais de propriedade (Total Cost Ownership - TCO) por meio da
+      obtenção dos custos inerentes ao ciclo de vida dos bens e serviços de
+      cada solução, a exemplo dos valores de aquisição dos ativos, insumos,
+      garantia técnica estendida, manutenção, migração e treinamento; e b)
+      memória de cálculo que referencie os preços e os custos utilizados na
+      análise, com vistas a permitir a verificação da origem dos dados;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-005
+    aplicabilidade: tic
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso IV do art. 11 da IN SGD/ME 94/2022
+      (estimativa do custo total da contratação)?
+    base_legal_texto: "IV - estimativa do custo total da contratação; e"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-006
+    aplicabilidade: tic
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP contém o elemento do inciso V do art. 11 da IN SGD/ME 94/2022
+      (declaração da viabilidade da contratação, com justificativa da
+      solução escolhida em termos de eficácia, eficiência, efetividade e
+      economicidade)?
+    base_legal_texto: >-
+      "V - declaração da viabilidade da contratação, contendo a
+      justificativa da solução escolhida, que deverá abranger a
+      identificação dos benefícios a serem alcançados em termos de
+      eficácia, eficiência, efetividade e economicidade."
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-007
+    aplicabilidade: tic
+    peca: ETP
+    tipo: julgamento
+    pergunta: >-
+      Há alguma jurisprudência, em especial do TCU, que possa ser ponto de
+      atenção no ETP analisado?
+    base_legal_texto: pendente
+    referencia: >-
+      Jurisprudência do TCU — sem dispositivo ou acórdão específico
+      transcrito no prompt-fonte
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: false
+    parametros: {}
+
+  - id: DVI-TIC-008
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso I do art. 12 da IN SGD/ME 94/2022
+      (definição do objeto da contratação, conforme art. 13)?
+    base_legal_texto: "I - definição do objeto da contratação, conforme art. 13;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-009
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso II do art. 12 da IN SGD/ME 94/2022
+      (código(s) CATMAT/CATSER relacionado(s) a cada item da contratação)?
+    base_legal_texto: >-
+      "II - código(s) do Catálogo de Materiais - Catmat ou do Catálogo de
+      Serviços - Catser relacionado(s) a cada item da contratação,
+      disponíveis no Portal de Compras do Governo federal;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-010
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso III do art. 12 da IN SGD/ME 94/2022
+      (descrição da solução de TIC, conforme art. 14)?
+    base_legal_texto: "III - descrição da solução de TIC, conforme art. 14;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-011
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso IV do art. 12 da IN SGD/ME 94/2022
+      (justificativa para contratação da solução, conforme art. 15)?
+    base_legal_texto: "IV - justificativa para contratação da solução, conforme art. 15;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-012
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso V do art. 12 da IN SGD/ME 94/2022
+      (especificação dos requisitos da contratação, conforme art. 16)?
+    base_legal_texto: "V - especificação dos requisitos da contratação, conforme art. 16;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-013
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso VI do art. 12 da IN SGD/ME 94/2022
+      (definição das responsabilidades da contratante, da contratada e do
+      órgão gerenciador da Ata de Registro de Preços, quando aplicável,
+      conforme art. 17)?
+    base_legal_texto: >-
+      "VI - definição das responsabilidades da contratante, da contratada e
+      do órgão gerenciador da Ata de Registro de Preços, quando aplicável,
+      conforme art. 17;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-014
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso VII do art. 12 da IN SGD/ME 94/2022
+      (modelo de execução e gestão do contrato, conforme arts. 18 e 19)?
+    base_legal_texto: "VII - Modelo de Execução e Gestão do Contrato, conforme arts. 18 e 19;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-015
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso VIII do art. 12 da IN SGD/ME 94/2022
+      (estimativas de preços da contratação, conforme art. 20)?
+    base_legal_texto: "VIII - estimativas de preços da contratação, conforme art. 20;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-016
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso IX do art. 12 da IN SGD/ME 94/2022
+      (adequação orçamentária e cronograma físico-financeiro, conforme art.
+      21)?
+    base_legal_texto: >-
+      "IX - adequação orçamentária e cronograma físico-financeiro, conforme
+      art. 21;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-017
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso X do art. 12 da IN SGD/ME 94/2022
+      (regime de execução do contrato, conforme art. 22)?
+    base_legal_texto: "X - regime de execução do contrato, conforme art. 22;"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-018
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso XI do art. 12 da IN SGD/ME 94/2022
+      (critérios técnicos para seleção do fornecedor, conforme art. 23)?
+    base_legal_texto: "XI - critérios técnicos para seleção do fornecedor, conforme art. 23; e"
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-019
+    aplicabilidade: tic
+    peca: TR
+    tipo: presenca
+    pergunta: >-
+      O TR contém o elemento do inciso XII do art. 12 da IN SGD/ME 94/2022
+      (índice de correção monetária, quando for o caso, conforme art. 24)?
+    base_legal_texto: >-
+      "XII - índice de correção monetária, quando for o caso, conforme art.
+      24."
+    referencia: "IN SGD/ME 94/2022"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-005
+    aplicabilidade: ambos
+    peca: ETP
+    documento_saida: ETP
+    tipo: calculo
+    pergunta: >-
+      Os cálculos de média, mediana, valores unitários e totais do ETP
+      foram executados corretamente, com dados atualizados e coerentes com
+      as fontes utilizadas e memória de cálculo suficiente para auditoria?
+    base_legal_texto: >-
+      "Verifique se: Todos os cálculos de média, mediana, valores unitários
+      e totais foram executados corretamente; Os dados estão atualizados e
+      coerentes com as fontes utilizadas (ex: SINAPI, CCT, Banco de Preços
+      em Saúde, Painel de Preços, etc.); Há memória de cálculo suficiente
+      para permitir auditoria; Os quantitativos estimados estão alinhados à
+      real necessidade da Administração." (dvi_geral.md, ESTUDO TÉCNICO
+      PRELIMINAR §3). O prompt TIC reitera de forma mais sucinta:
+      "Auditoria de Cálculos: Verifique a exatidão de todos os cálculos de
+      média ou mediana usados para a estimativa de preços no ETP."
+      (dvi_tic.md, ESTUDO TÉCNICO PRELIMINAR §3).
+    referencia: "IN SEGES/ME 65/2021"
+    severidade_default: crítica
+    modelo_alvo: economico
+    ativo: true
+    parametros:
+      tolerancia_absoluta: 0.01
+
+  - id: DVI-AMB-006
+    aplicabilidade: ambos
+    peca: ETP
+    documento_saida: ETP
+    tipo: julgamento
+    pergunta: >-
+      Para os elementos do ETP, o conteúdo é pertinente ao título do
+      tópico, a profundidade técnica é adequada, a linguagem é clara,
+      objetiva e legalmente embasada, e as justificativas apresentadas são
+      suficientes e coerentes?
+    base_legal_texto: >-
+      "Para cada item acima, avalie se: O conteúdo é pertinente ao título
+      do tópico; A profundidade técnica está adequada; A linguagem está
+      clara, objetiva e legalmente embasada; As justificativas apresentadas
+      são suficientes e coerentes." (dvi_geral.md, ESTUDO TÉCNICO
+      PRELIMINAR §2). O prompt TIC reitera de forma mais sucinta: "Para
+      cada um dos itens acima, avalie se o conteúdo apresentado no ETP é
+      pertinente e adequado ao título do respectivo tópico." (dvi_tic.md,
+      ESTUDO TÉCNICO PRELIMINAR §2).
+    referencia: >-
+      Padrão interno: pertinência e adequação do conteúdo do ETP frente aos
+      títulos dos tópicos
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-007
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: mecanica
+    pergunta: "O TR contém código(s) CATMAT/CATSER relacionado(s) aos itens da contratação?"
+    base_legal_texto: >-
+      "Verifique a existência (ou aponte ausência) de códigos CATMAT/CATSER."
+      (dvi_geral.md, TERMO DE REFERÊNCIA §2). O prompt TIC reitera:
+      "Códigos CATMAT/CATSER: Verifique a existência (ou aponte a ausência)
+      dos códigos CATMAT/CATSER relacionados a cada item da contratação."
+      (dvi_tic.md, TERMO DE REFERÊNCIA §3).
+    referencia: "Padrão interno: verificação de existência de código CATMAT/CATSER no TR"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros:
+      verificacao: catalogo
+
+  - id: DVI-AMB-008
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      O conteúdo inserido no TR corresponde corretamente aos títulos dos
+      tópicos, garantindo coesão entre o enunciado e a informação prestada?
+    base_legal_texto: >-
+      "Avalie se o conteúdo inserido no TR corresponde corretamente aos
+      títulos dos tópicos acima, garantindo coesão entre o enunciado e a
+      informação prestada." (dvi_geral.md, TERMO DE REFERÊNCIA §3). O
+      prompt TIC reitera: "Para cada um dos itens acima, avalie se o
+      conteúdo apresentado no TR é pertinente e adequado ao título do
+      respectivo tópico." (dvi_tic.md, TERMO DE REFERÊNCIA §2).
+    referencia: "Padrão interno: pertinência e adequação do conteúdo do TR frente aos títulos dos tópicos"
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-009
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: calculo
+    pergunta: >-
+      Os cálculos utilizados na estimativa de preços do TR (médias,
+      medianas e o cálculo unitário × quantidade) estão corretos?
+    base_legal_texto: >-
+      "Analise a exatidão dos cálculos utilizados para a estimativa de
+      preços, como médias, medianas, desvios e outras fórmulas aplicáveis,
+      incluindo a conferência de valor unitário x quantidade. Indique
+      qualquer inconsistência." (dvi_geral.md, TERMO DE REFERÊNCIA §4). O
+      prompt TIC reitera: "Verifique a exatidão de todos os cálculos de
+      média ou mediana usados para a estimativa de preços, incluindo a
+      conferência de valor unitário x quantidade." (dvi_tic.md, TERMO DE
+      REFERÊNCIA §4).
+    referencia: "IN SEGES/ME 65/2021"
+    severidade_default: crítica
+    modelo_alvo: economico
+    ativo: true
+    parametros:
+      tolerancia_absoluta: 0.01
+
+  - id: DVI-AMB-010
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      As exigências de habilitação/qualificação técnica são proporcionais,
+      pertinentes ao objeto e não restritivas à competitividade, com
+      especificação adequada dos serviços a serem comprovados por atestado,
+      evitando exigências excessivas?
+    base_legal_texto: >-
+      "Verifique se as exigências de habilitação técnica são proporcionais,
+      pertinentes ao objeto e não restritivas à competitividade, nos termos
+      da Lei nº 14.133/2021 e da jurisprudência do TCU. Confirme se há
+      especificação adequada dos serviços a serem comprovados por atestado,
+      evitando exigências excessivas." (dvi_geral.md, TERMO DE REFERÊNCIA
+      §5). O prompt TIC reitera: "Verifique se as condições de qualificação
+      técnica possuem caráter restritivo ou desnecessário, visando evitar
+      exigências excessivas. Verifique ainda se a exigência é compatível
+      com o objeto da licitação e se há especificação adequada dos serviços
+      a serem comprovados por atestado." (dvi_tic.md, TERMO DE REFERÊNCIA
+      §5).
+    referencia: "Lei 14.133/2021"
+    severidade_default: alta
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-011
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      As condições de pagamento do TR observam os prazos e limites
+      previstos no art. 7º da IN SEGES nº 77/2022 em relação ao valor
+      estimado da contratação?
+    base_legal_texto: pendente
+    referencia: >-
+      IN SEGES nº 77/2022, art. 7º (prazos e limites específicos não
+      transcritos no prompt-fonte)
+    severidade_default: alta
+    modelo_alvo: forte
+    ativo: false
+    parametros: {}
+
+  - id: DVI-AMB-012
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      Há exigências no TR em desacordo com jurisprudência consolidada do
+      TCU ou com diretrizes normativas da Administração Pública Federal?
+    base_legal_texto: pendente
+    referencia: >-
+      Jurisprudência do TCU (https://licitacoesecontratos.tcu.gov.br/) —
+      sem acórdão específico transcrito no prompt-fonte para este item
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: false
+    parametros: {}
+
+  - id: DVI-AMB-013
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      A garantia contratual, quando aplicável, observa o limite de 5% do
+      valor anual do contrato, inclusive em contratos plurianuais, e — em
+      serviços de engenharia — o TR contempla a garantia adicional do
+      licitante vencedor cuja proposta for inferior a 85% do valor orçado
+      pela Administração?
+    base_legal_texto: >-
+      "a) Garantia contratual: verifique a previsão, quando aplicável, dos
+      tipos aceitos e percentuais, observando o limite de 5% do valor anual
+      do contrato, inclusive nos contratos de vigência plurianual. b)
+      Garantia adicional: em se tratando de serviços de engenharia, o TR
+      deve contemplar a garantia adicional do licitante vencedor cuja
+      proposta for inferior a 85% do valor orçado pela Administração (art.
+      59, § 5º, da Lei nº 14.133/2021)." (dvi_geral.md e dvi_tic.md, seção
+      "Garantia Contratual e Garantia Adicional", conteúdo idêntico).
+    referencia: "Lei 14.133/2021"
+    severidade_default: alta
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-014
+    aplicabilidade: ambos
+    peca: PROCESSO
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      Há conflito ou inconsistência entre o ETP e o TR quanto a
+      quantitativos, prazos, modalidade e critérios de julgamento, valores
+      estimados, justificativas para parcelamento e descrição da solução?
+    base_legal_texto: >-
+      "Verifique se há conflito ou inconsistência entre ETP e TR quanto a:
+      Quantitativos; Prazos; Modalidade e critérios de julgamento; Valores
+      estimados; Justificativas para parcelamento ou não; Descrição da
+      solução. Aponte divergências, omissões e recomende ajustes para
+      garantir a coerência entre os documentos." (dvi_geral.md, TERMO DE
+      REFERÊNCIA §9). O prompt TIC reitera com o mesmo conjunto de
+      dimensões: "verifique se há conflito entre o TR e o Estudo Técnico
+      Preliminar... identifique possíveis diferenças entre quantitativos,
+      prazos de vigência contratual e de entrega, valores estimados,
+      modalidade e critérios de julgamento e descrição da solução."
+      (dvi_tic.md, TERMO DE REFERÊNCIA §21).
+    referencia: >-
+      Padrão interno: coerência ETP×TR (quantitativos, prazos, modalidade e
+      critério de julgamento, valores estimados, descrição da solução)
+    severidade_default: alta
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-015
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      Quando previsto o Sistema de Registro de Preços, estão presentes as
+      situações que autorizam sua adoção? Em caso de adesão a ata SRP, há
+      justificativa de que a adesão não configura aquisição irregular de
+      subconjunto de itens de grupo adjudicado por preço global, e o valor
+      aderido corresponde ao menor lance ofertado na licitação?
+    base_legal_texto: >-
+      "a) Quando previsto o Sistema de Registro de Preços, verifique se
+      estão presentes as situações que autorizam a sua adoção, nos termos
+      do art. 3º do Decreto nº 11.462/2023. b) No caso de adesão a ata SRP:
+      verifique se há justificativa evidenciando que a adesão não configura
+      aquisição irregular de subconjunto de itens pertencentes a grupo
+      adjudicado por preço global, especialmente em relação àqueles cujos
+      preços unitários adjudicados ao vencedor do lote não correspondam ao
+      menor preço válido apurado na disputa individual do item. Confirme se
+      o valor aderido é, de fato, o menor lance ofertado na licitação,
+      ainda que a adesão seja por grupo, nos termos do entendimento firmado
+      pelo TCU no Acórdão nº 1.872/2018 (Plenário)." (dvi_geral.md, TERMO
+      DE REFERÊNCIA §10; conteúdo repetido em dvi_tic.md, TERMO DE
+      REFERÊNCIA §22, com a mesma redação, omitindo apenas "Plenário" ao
+      citar o Acórdão).
+    referencia: "Decreto nº 11.462/2023"
+    severidade_default: alta
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-016
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: presenca
+    pergunta: "Consta a aprovação formal do TR pela autoridade competente?"
+    base_legal_texto: >-
+      "Verifique se consta a aprovação formal do TR pela autoridade
+      competente." (idêntica em dvi_geral.md, TERMO DE REFERÊNCIA §11, e
+      dvi_tic.md, TERMO DE REFERÊNCIA §18).
+    referencia: "Padrão interno: aprovação formal do TR pela autoridade competente"
+    severidade_default: baixa
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-017
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: presenca
+    pergunta: >-
+      Estão definidos e adequados o prazo de vigência contratual e o prazo
+      de entrega, execução ou instalação (e, quando aplicável, o prazo de
+      pagamento nos termos do art. 7º da IN SEGES nº 77/2022)?
+    base_legal_texto: >-
+      "Verifique se estão definidos e adequados: Prazo de vigência
+      contratual; Prazo de entrega, execução ou instalação; Prazo de
+      pagamento (art. 7º da IN SEGES nº 77/2022)." (dvi_geral.md, TERMO DE
+      REFERÊNCIA §12). O prompt TIC reitera o núcleo comum: "Verifique se
+      estão definidos e adequados o prazo de vigência contratual e o prazo
+      de entrega, execução ou instalação." (dvi_tic.md, TERMO DE REFERÊNCIA
+      §7).
+    referencia: "Padrão interno: prazos de vigência, entrega/execução e pagamento do TR"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-018
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      Os índices de reajuste estão indicados corretamente (data-base,
+      periodicidade e legislação aplicável), sem dispensa indevida da
+      cláusula de reajuste sob a justificativa de vigência contratual
+      inferior a 12 meses?
+    base_legal_texto: >-
+      "Verifique se os índices de reajuste estão indicados corretamente,
+      observando a data-base vinculada ao orçamento estimado, a
+      periodicidade e a legislação aplicável. Nunca aponte a dispensa ou
+      inaplicabilidade de cláusula de reajuste sob a justificativa de que a
+      vigência do contrato é inferior a 12 meses (atente-se ao Art. 25, §
+      7º da Lei 14.133/21). O reajuste deve ser previsto em todos os
+      casos." (idêntica em dvi_geral.md, TERMO DE REFERÊNCIA §13, e
+      dvi_tic.md, TERMO DE REFERÊNCIA §8).
+    referencia: "Lei 14.133/2021"
+    severidade_default: alta
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-019
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      As obrigações da contratada e da contratante estão claras,
+      pertinentes ao objeto e suficientemente descritas?
+    base_legal_texto: >-
+      "Verifique se as obrigações da contratada e da contratante estão
+      claras, pertinentes ao objeto e suficientemente descritas." (idêntica
+      em dvi_geral.md, TERMO DE REFERÊNCIA §14, e dvi_tic.md, TERMO DE
+      REFERÊNCIA §9).
+    referencia: "Padrão interno: obrigações da contratada e contratante claras, pertinentes e suficientemente descritas"
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-020
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      Existe cláusula de sanção observando o modelo/padrão indicado pela
+      PROJUR e, havendo referência à Portaria PRES CFC nº 266, de 26 de
+      junho de 2025, ela foi substituída pela Resolução CFC nº 1.799/26?
+    base_legal_texto: >-
+      "Verifique a existência da cláusula de sanção, observando o
+      modelo/padrão indicado pela PROJUR. Onde tiver alguma referência a
+      Portaria PRES CFC n.º 266, de 26 de junho de 2025, peça para alterar
+      para a Resolução CFC nº 1.799/26." (idêntica em dvi_geral.md, TERMO
+      DE REFERÊNCIA §15, e dvi_tic.md, TERMO DE REFERÊNCIA §10).
+    referencia: >-
+      Padrão interno: cláusula de sanção conforme modelo/padrão PROJUR (com
+      substituição da citação da Portaria PRES CFC nº 266/2025 pela
+      Resolução CFC nº 1.799/26, quando aplicável)
+    severidade_default: alta
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-021
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      O ajuste se dará por Minuta de Contrato ou Ordem de Fornecimento (OF)
+      e, havendo vigência plurianual, há a devida justificativa?
+    base_legal_texto: >-
+      "Verifique se o ajuste se dará por Minuta de Contrato ou por Ordem de
+      Fornecimento (OF). Havendo vigência plurianual, confirme a devida
+      justificativa (art. 106, I, da Lei nº 14.133/2021)." (idêntica em
+      dvi_geral.md, TERMO DE REFERÊNCIA §16, e dvi_tic.md, TERMO DE
+      REFERÊNCIA §12).
+    referencia: "Lei 14.133/2021"
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-022
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: presenca
+    pergunta: "O TR inclui modelo de proposta comercial ou de planilha de custos?"
+    base_legal_texto: >-
+      "Verifique a inclusão de modelo de proposta comercial ou de planilha
+      de custos." (idêntica em dvi_geral.md, TERMO DE REFERÊNCIA §17, e
+      dvi_tic.md, TERMO DE REFERÊNCIA §13).
+    referencia: "Padrão interno: inclusão de modelo de proposta comercial/planilha de custos no TR"
+    severidade_default: baixa
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-023
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      Está definida a exigência de prova de conceito (POC) ou apresentação
+      de amostra e, em caso positivo, há critérios objetivos e prazos para
+      avaliação e — quando realizada após a habilitação — justificativa
+      para a inversão de fase?
+    base_legal_texto: >-
+      "Verifique se está definida a exigência de prova de conceito (POC) ou
+      apresentação de amostra. Em caso positivo, confirme se há critérios
+      objetivos e prazos para avaliação e, quando a POC/amostra for
+      realizada após a habilitação, se está justificada a inversão de
+      fase." (idêntica em dvi_geral.md, TERMO DE REFERÊNCIA §18, e
+      dvi_tic.md, TERMO DE REFERÊNCIA §14).
+    referencia: "Padrão interno: prova de conceito (POC) ou amostra — critérios objetivos, prazos e justificativa de inversão de fase"
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-024
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      Se prevista a subcontratação, as regras estão em conformidade com a
+      legislação aplicável?
+    base_legal_texto: pendente
+    referencia: >-
+      Lei 14.133/2021 (regras de subcontratação — dispositivo não
+      especificado no prompt-fonte)
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: false
+    parametros: {}
+
+  - id: DVI-AMB-025
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      Há possibilidade de adoção da cota reservada de 25% e, caso não
+      adotada, existe a respectiva justificativa?
+    base_legal_texto: >-
+      "Verifique a possibilidade de adoção da cota reservada de 25% e, caso
+      não adotada, a existência da respectiva justificativa." (idêntica em
+      dvi_geral.md, TERMO DE REFERÊNCIA §20, e dvi_tic.md, TERMO DE
+      REFERÊNCIA §16).
+    referencia: "Lei 14.133/2021"
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-026
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: mecanica
+    pergunta: >-
+      O TR faz menção ao cronograma físico-financeiro e este de fato consta
+      do documento?
+    base_legal_texto: >-
+      "Verifique se o TR faz menção ao cronograma físico-financeiro e se
+      este de fato consta do documento." (idêntica em dvi_geral.md, TERMO
+      DE REFERÊNCIA §21, e dvi_tic.md, TERMO DE REFERÊNCIA §17).
+    referencia: "Padrão interno: menção × presença de cronograma físico-financeiro no TR"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: true
+    parametros:
+      verificacao: cronograma
+
+  - id: DVI-AMB-027
+    aplicabilidade: ambos
+    peca: TR
+    documento_saida: TR
+    tipo: julgamento
+    pergunta: >-
+      O documento observa a padronização de margens, fonte, espaçamento e
+      numeração, e está adequado para impressão e publicação?
+    base_legal_texto: pendente
+    referencia: >-
+      Fora de escopo desta fase — verificação de formatação visual requer o
+      DOCX original, não o texto extraído (RF4, PRD §4). Instrução idêntica
+      em dvi_geral.md, TERMO DE REFERÊNCIA §22, e dvi_tic.md, TERMO DE
+      REFERÊNCIA §19.
+    severidade_default: baixa
+    modelo_alvo: forte
+    ativo: false
+    parametros: {}
+
+  - id: DVI-AMB-028
+    aplicabilidade: ambos
+    peca: MCP
+    documento_saida: ETP
+    tipo: vigencia
+    pergunta: >-
+      O MCP contém a Instrução Normativa que rege a pesquisa de preços e
+      ela está vigente e em consonância com a Lei nº 14.133/2021?
+    base_legal_texto: >-
+      "Verificação de Conformidade Legal: Se o documento contém a
+      Instrução Normativa que rege a pesquisa e se a mesma está vigente e
+      em consonância com a Lei nº 14.133/2021" (idêntica em dvi_geral.md e
+      dvi_tic.md, seção MAPA COMPARATIVO DE PREÇOS §1).
+    referencia: "Padrão interno: lookup dinâmico na tabela curada de vigência normativa (RF7) — verificação aplicada ao MCP"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-AMB-029
+    aplicabilidade: ambos
+    peca: RISCOS
+    documento_saida: ETP
+    tipo: julgamento
+    pergunta: "Os riscos apontados no Mapa de Riscos estão adequados ao processo?"
+    base_legal_texto: >-
+      "Verifique se os riscos apontados estão adequados ao processo."
+      (idêntica em dvi_geral.md e dvi_tic.md, seção MAPA DE RISCOS).
+    referencia: "Lei 14.133/2021"
+    severidade_default: média
+    modelo_alvo: forte
+    ativo: true
     parametros: {}
