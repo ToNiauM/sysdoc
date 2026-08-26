@@ -35,6 +35,7 @@ TEMPLATES = ROOT / "templates"
 IGNORED_DIRS = {".git", ".claude", "backup", "skills", "templates"}
 TEXT_SUFFIXES = {".txt", ".md"}
 SUPPORTED_REFERENCE_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
+RESERVED_TEMPLATE_NAMES = {"dvi": {"dvi.docx", "modelo_dvi.docx", "template_dvi.docx"}}
 DEFAULT_LLM_MODEL = "openai/gpt-4o-mini"
 MAX_LLM_CONTEXT_CHARS = int(os.environ.get("SYSDOC_MAX_LLM_CONTEXT_CHARS", "700000"))
 
@@ -185,6 +186,23 @@ def init_config(project: str | Path) -> int:
         },
     )
     return 0
+
+
+def seed_dvi_template(paths: ProjectPaths) -> Path | None:
+    reservados = RESERVED_TEMPLATE_NAMES["dvi"]
+    if paths.referencias.is_dir():
+        for existente in paths.referencias.glob("*.docx"):
+            if existente.name.lower() in reservados or "dvi" in existente.stem.lower():
+                return None
+
+    origem = TEMPLATES / "dvi_base.docx"
+    if not origem.is_file():
+        return None
+
+    destino = paths.referencias / "dvi.docx"
+    paths.referencias.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(origem, destino)
+    return destino
 
 
 def sha256(path: Path) -> str:
@@ -1150,7 +1168,22 @@ def _select_reference_template(
     for path in docx_files:
         if tipo_norm in path.stem.lower():
             return path
-    return docx_files[0]
+
+    candidatos_finais = [
+        path
+        for path in docx_files
+        if not any(
+            path.name.lower() in nomes_reservados
+            for tipo_reservado, nomes_reservados in RESERVED_TEMPLATE_NAMES.items()
+            if tipo_reservado != tipo_norm
+        )
+    ]
+    if not candidatos_finais:
+        raise SystemExit(
+            f"Nenhum template .docx encontrado em {rel(paths.referencias)}. "
+            "Adicione modelos de referência em referencias/ ou use --template."
+        )
+    return candidatos_finais[0]
 
 
 def create(project: str, tipo: str, json_arg: str | None = None, template_arg: str | None = None) -> int:
@@ -1262,11 +1295,14 @@ def ensure_project_structure(project: str | Path) -> ProjectPaths:
 def init_command(project: str) -> int:
     """Cria ou completa a estrutura base de um projeto SysDoc."""
     paths = ensure_project_structure(project)
+    template_dvi = seed_dvi_template(paths)
     print(f"Estrutura SysDoc pronta em: {paths.root}")
     print(f"  Configuração: {rel(paths.config)}")
     print(f"  Documentos: {rel(paths.documentos)}")
     print(f"  Referencias: {rel(paths.referencias)}")
     print(f"  Output: {rel(paths.output)}")
+    if template_dvi is not None:
+        print(f"  Template DVI: {rel(template_dvi)}")
     print(f"  Proximo passo: copie os arquivos a analisar para {paths.documentos}")
     return 0
 
