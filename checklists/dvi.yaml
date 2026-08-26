@@ -1,0 +1,101 @@
+versao: "1.0"
+descricao: >-
+  Checklist DVI (Diligência de Verificação de Instrução) — semente data-driven
+  cobrindo os cinco tipos de verificação (presenca, julgamento, calculo,
+  vigencia, mecanica) e as três aplicabilidades (geral, tic, ambos). Itens com
+  base legal ainda não conferida literalmente entram como ativo: false e
+  base_legal_texto: pendente (nunca artigo/inciso inventado).
+atualizado_em: "2026-08-26"
+
+itens:
+  - id: DVI-AMB-001
+    aplicabilidade: ambos
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP descreve a necessidade da contratação, considerado o problema a
+      ser resolvido sob a perspectiva do interesse público?
+    base_legal_texto: pendente
+    referencia: "Lei 14.133/2021, art. 18, §1º, I"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: false
+    parametros: {}
+
+  - id: DVI-AMB-002
+    aplicabilidade: ambos
+    peca: TR
+    tipo: julgamento
+    pergunta: >-
+      O critério de julgamento adotado é adequado ao objeto, à modalidade e
+      ao regime de execução escolhidos para a contratação?
+    base_legal_texto: pendente
+    referencia: "Lei 14.133/2021, critérios de julgamento do certame"
+    severidade_default: alta
+    modelo_alvo: forte
+    ativo: false
+    parametros: {}
+
+  - id: DVI-AMB-003
+    aplicabilidade: ambos
+    peca: MCP
+    documento_saida: ETP
+    tipo: calculo
+    pergunta: >-
+      Os valores de média, mediana e o cálculo unitário × quantidade da
+      pesquisa de preços conferem com os valores declarados no Mapa
+      Comparativo de Preços?
+    base_legal_texto: pendente
+    referencia: "Lei 14.133/2021, art. 23; IN SEGES/ME 65/2021 (pesquisa de preços)"
+    severidade_default: crítica
+    modelo_alvo: economico
+    ativo: false
+    parametros:
+      tolerancia_absoluta: 0.01
+
+  - id: DVI-AMB-004
+    aplicabilidade: ambos
+    peca: PROCESSO
+    documento_saida: TR
+    tipo: vigencia
+    pergunta: >-
+      Os normativos citados no processo continuam vigentes, sem revogação ou
+      substituição posterior não refletida no texto?
+    base_legal_texto: pendente
+    referencia: "normas/vigencia.yaml (tabela curada de vigência normativa)"
+    severidade_default: alta
+    modelo_alvo: economico
+    ativo: false
+    parametros: {}
+
+  - id: DVI-GER-001
+    aplicabilidade: geral
+    peca: TR
+    tipo: mecanica
+    pergunta: >-
+      As seções e subseções do TR seguem numeração sequencial contínua, sem
+      lacunas ou repetições?
+    base_legal_texto: >-
+      Verificação de padronização documental interna: as seções e subseções
+      do instrumento devem seguir numeração sequencial contínua, sem saltos,
+      repetições ou lacunas, garantindo rastreabilidade e remissão cruzada
+      corretas dentro do próprio documento.
+    referencia: "Padrão redacional interno de TR/ETP do órgão"
+    severidade_default: baixa
+    modelo_alvo: economico
+    ativo: true
+    parametros: {}
+
+  - id: DVI-TIC-001
+    aplicabilidade: tic
+    peca: ETP
+    tipo: presenca
+    pergunta: >-
+      O ETP demonstra o alinhamento da contratação de TIC ao Plano Diretor de
+      Tecnologia da Informação e Comunicação (PDTIC) vigente?
+    base_legal_texto: pendente
+    referencia: "IN SGD/ME 94/2022 (contratações de soluções de TIC)"
+    severidade_default: média
+    modelo_alvo: economico
+    ativo: false
+    parametros: {}
