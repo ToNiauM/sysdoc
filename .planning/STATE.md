@@ -73,6 +73,7 @@ See: .planning/PROJECT.md
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260826-o2d | Melhorias DX motor DVI: autocorreção de acentuação pós-validação (P2), progresso por item no run (P4), template DVI base semeado pelo init (P6) | 2026-08-26 | b376b5f | [260826-o2d-melhorias-dx-motor-dvi-autocorre-o-p-s-v](./quick/260826-o2d-melhorias-dx-motor-dvi-autocorre-o-p-s-v/) |
+| 260826-p65 | Motor DVI: fatiador determinístico de peças no prepare (P1), re-ancoragem determinística do campo `de` antes de degradar (P3), preços de modelos configuráveis por alvo (P5) | 2026-08-26 | 8af987b | [260826-p65-motor-dvi-fatiador-deterministico-de-pec](./quick/260826-p65-motor-dvi-fatiador-deterministico-de-pec/) |
 
 ## Session Continuity
 
@@ -86,4 +87,4 @@ Phase 3: Integração Agentes IA. Próximo passo recomendado: `$gsd-discuss-phas
 
 ---
 
-*Last updated: 2026-08-26 — Completed quick task 260826-o2d: melhorias DX motor DVI (P2+P4+P6)*
+*Last updated: 2026-08-26 — Completed quick task 260826-p65: fatiador de peças, re-ancoragem e preços (P1+P3+P5)*
