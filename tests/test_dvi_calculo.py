@@ -151,3 +151,146 @@ class TestTolerancia:
             tolerancia_relativa=Decimal("0.5"),
         )
         assert resultado_tolerante.conforme is True
+
+
+class TestAuditoria:
+    def test_conforme_true_quando_nao_ha_divergencia(self):
+        resultado = auditar_tabela_precos([_linha()])
+        assert resultado.conforme is True
+        assert resultado.divergencias == []
+        assert resultado.memoria_calculo == ""
+
+    def test_metodo_invalido_gera_divergencia_de_campo_metodo(self):
+        linha = _linha(metodo_declarado="moda")
+        resultado = auditar_tabela_precos([linha])
+        assert resultado.conforme is False
+        assert len(resultado.divergencias) == 1
+        assert resultado.divergencias[0].campo == "metodo"
+
+    def test_lista_vazia_de_cotacoes_levanta_erro_citando_descricao(self):
+        linha = LinhaTabela(
+            descricao="Item sem cotação",
+            unidade="unid",
+            quantidade=Decimal("1"),
+            cotacoes=[],
+            metodo_declarado="media",
+            unitario_declarado=Decimal("10.00"),
+            total_declarado=Decimal("10.00"),
+        )
+        with pytest.raises(ErroTabelaPrecos) as exc_info:
+            auditar_tabela_precos([linha])
+        assert "Item sem cotação" in str(exc_info.value)
+
+    def test_memoria_calculo_cita_cotacoes_metodo_e_valores(self):
+        linha = _linha(
+            descricao="Item com divergência",
+            quantidade=Decimal("5"),
+            valores_cotados=(Decimal("50.00"), Decimal("52.00"), Decimal("48.00")),
+            unitario_declarado=Decimal("60.00"),
+        )
+        resultado = auditar_tabela_precos([linha])
+        assert "Item com divergência" in resultado.memoria_calculo
+        assert "media" in resultado.memoria_calculo
+        assert "50.00" in resultado.memoria_calculo
+        assert "60.00" in resultado.memoria_calculo
+
+    def test_entrada_em_float_e_rejeitada_com_erro_tabela_precos(self):
+        linha = LinhaTabela(
+            descricao="Item com float",
+            unidade="unid",
+            quantidade=Decimal("1"),
+            cotacoes=[Cotacao(fonte="Fornecedor A", valor_unitario=10.0)],
+            metodo_declarado="media",
+            unitario_declarado=Decimal("10.00"),
+            total_declarado=Decimal("10.00"),
+        )
+        with pytest.raises(ErroTabelaPrecos):
+            auditar_tabela_precos([linha])
+
+    def test_limite_de_linhas_excedido_levanta_erro(self):
+        linhas = [_linha(descricao=f"Item {indice}") for indice in range(3)]
+        with pytest.raises(ErroTabelaPrecos):
+            auditar_tabela_precos(linhas, max_linhas=2)
+
+    def test_limite_de_cotacoes_por_linha_excedido_levanta_erro(self):
+        linha = _linha(
+            valores_cotados=(Decimal("10.00"), Decimal("10.00"), Decimal("10.00"))
+        )
+        with pytest.raises(ErroTabelaPrecos):
+            auditar_tabela_precos([linha], max_cotacoes_por_linha=2)
+
+
+class TestErrosPlantados:
+    @staticmethod
+    def _carregar_fixture():
+        dados = json.loads(FIXTURE_MCP_SINTETICO.read_text(encoding="utf-8"))
+        linhas = []
+        esperado = {}
+        for bruto in dados["linhas"]:
+            cotacoes = [
+                Cotacao(fonte=c["fonte"], valor_unitario=Decimal(c["valor_unitario"]))
+                for c in bruto["cotacoes"]
+            ]
+            linha = LinhaTabela(
+                descricao=bruto["descricao"],
+                unidade=bruto["unidade"],
+                quantidade=Decimal(bruto["quantidade"]),
+                cotacoes=cotacoes,
+                metodo_declarado=bruto["metodo_declarado"],
+                unitario_declarado=Decimal(bruto["unitario_declarado"]),
+                total_declarado=Decimal(bruto["total_declarado"]),
+            )
+            linhas.append(linha)
+            esperado[bruto["descricao"]] = bruto["divergencia_esperada"]
+        return linhas, esperado
+
+    def test_cada_erro_plantado_produz_divergencia_do_campo_esperado(self):
+        linhas, esperado = self._carregar_fixture()
+        resultado = auditar_tabela_precos(linhas)
+        divergencias_por_linha = {d.linha: d for d in resultado.divergencias}
+
+        for descricao, divergencia_esperada in esperado.items():
+            if divergencia_esperada is None:
+                continue
+            assert descricao in divergencias_por_linha, (
+                f"linha '{descricao}' deveria ter gerado divergência e não gerou"
+            )
+            assert divergencias_por_linha[descricao].campo == divergencia_esperada["campo"]
+
+    def test_linhas_de_controle_nao_produzem_apontamento(self):
+        linhas, esperado = self._carregar_fixture()
+        resultado = auditar_tabela_precos(linhas)
+        divergencias_por_linha = {d.linha: d for d in resultado.divergencias}
+
+        for descricao, divergencia_esperada in esperado.items():
+            if divergencia_esperada is not None:
+                continue
+            assert descricao not in divergencias_por_linha, (
+                f"linha de controle '{descricao}' não deveria gerar divergência"
+            )
+
+    def test_contagem_de_divergencias_igual_a_contagem_de_erros_plantados(self):
+        linhas, esperado = self._carregar_fixture()
+        resultado = auditar_tabela_precos(linhas)
+        erros_plantados = sum(1 for valor in esperado.values() if valor is not None)
+        assert len(resultado.divergencias) == erros_plantados
+
+    def test_memoria_calculo_menciona_descricao_declarado_e_recalculado_de_cada_linha_divergente(
+        self,
+    ):
+        linhas, esperado = self._carregar_fixture()
+        resultado = auditar_tabela_precos(linhas)
+
+        for divergencia in resultado.divergencias:
+            assert divergencia.linha in resultado.memoria_calculo
+            assert str(divergencia.declarado) in resultado.memoria_calculo
+            assert str(divergencia.recalculado) in resultado.memoria_calculo
+
+    def test_zero_falso_positivo_e_zero_falso_negativo(self):
+        linhas, esperado = self._carregar_fixture()
+        resultado = auditar_tabela_precos(linhas)
+        descricoes_divergentes_detectadas = {d.linha for d in resultado.divergencias}
+        descricoes_divergentes_esperadas = {
+            descricao for descricao, valor in esperado.items() if valor is not None
+        }
+        assert descricoes_divergentes_detectadas == descricoes_divergentes_esperadas
