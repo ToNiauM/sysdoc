@@ -100,7 +100,7 @@
 **Goal:** Entregar um motor de análise dirigido por checklist tipado e data-driven (`checklists/*.yaml`), executável por orquestrador via API ou por qualquer harness agêntico, com verificações determinísticas em Python (cálculo, vigência, mecânica), grounding check do campo `de`, síntese dedicada de pareceres e saída DVI em DOCX via `sysdoc create dvi` — preservando a CLI determinística sem chamadas a LLM.
 **Requirements**: PRD em `.planning/phases/05-motor-analise-checklist/PRD.md` (RF1–RF10, RNF1–RNF5)
 **Depends on:** Phase 4
-**Plans:** 8/15 plans executed
+**Plans:** 13/15 plans executed
 
 **Onda 1:** fundação do pacote `sysdoc_dvi` + checklist tipado; padrão de nomes de artefatos; evolução do contrato de dados.
 **Onda 2:** tabela de vigência; auditoria de cálculo; verificações mecânicas + grounding; mapeamento de peças; camada de provedores.
@@ -125,11 +125,11 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-09-PLAN.md — Prompts Jinja e despacho por tipo de verificação
-- [ ] 05-10-PLAN.md — Síntese dedicada dos pareceres executivo e por documento
-- [ ] 05-11-PLAN.md — Montagem do `dados_consolidados.json`, relatório de execução e checkpoint
-- [ ] 05-12-PLAN.md — `sysdoc create dvi` (DOCX a partir de template institucional)
-- [ ] 05-13-PLAN.md — Conversão dos prompts DVI em `checklists/dvi.yaml` e seed da tabela de vigência
+- [x] 05-09-PLAN.md — Prompts Jinja e despacho por tipo de verificação
+- [x] 05-10-PLAN.md — Síntese dedicada dos pareceres executivo e por documento
+- [x] 05-11-PLAN.md — Montagem do `dados_consolidados.json`, relatório de execução e checkpoint
+- [x] 05-12-PLAN.md — `sysdoc create dvi` (DOCX a partir de template institucional)
+- [x] 05-13-PLAN.md — Conversão dos prompts DVI em `checklists/dvi.yaml` e seed da tabela de vigência
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
