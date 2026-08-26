@@ -4,6 +4,14 @@ Todas as mudanças notáveis são documentadas aqui seguindo [Keep a Changelog](
 
 ---
 
+## [Não publicado]
+
+### Adicionado
+
+- **README — seção "Exemplo didático: do zero ao deploy nos dois fluxos"**: passo a passo comentado de um mesmo projeto fictício percorrendo o fluxo original (agente de IA via `sysdoc analyze` → `publish` → `create tr` → `deploy`) e o novo fluxo DVI (`sysdoc-dvi config` → `run --tipo tic` → `relatorio` → `create dvi` → `deploy`), com tabela comparativa de quando usar cada um.
+
+---
+
 ## [1.5.0] — 2026-08-26
 
 ### Adicionado

@@ -25,6 +25,7 @@ A separação garante reprodutibilidade: o mesmo JSON, validado pelo mesmo valid
 10. [Restrições do projeto](#restrições-do-projeto)
 11. [Motor de análise DVI (`sysdoc-dvi`)](#motor-de-análise-dvi-sysdoc-dvi)
 12. [Documentação adicional](#documentação-adicional)
+13. [Exemplo didático: do zero ao deploy nos dois fluxos](#exemplo-didático-do-zero-ao-deploy-nos-dois-fluxos)
 
 ---
 
@@ -422,3 +423,98 @@ sysdoc deploy [pasta]
 | `tests/test_validate.py`, `tests/test_cli.py` | Testes automatizados. Rode `python -m pytest tests/ -v` antes e depois de qualquer mudança. |
 | `CHANGELOG.md` | Histórico de versões. |
 | `.planning/` | Artefatos do workflow GSD: PROJECT.md, ROADMAP.md, STATE.md, fases (`phases/NN-*/`). |
+
+---
+
+## Exemplo didático: do zero ao deploy nos dois fluxos
+
+Cenário fictício: análise da contratação **"Aquisição de Notebooks 2026"** (contratação de TIC). Os dois fluxos partem da mesma estrutura de projeto e terminam no mesmo lugar — JSON validado, HTML renderizado, DOCX para assinatura e deploy. O que muda é **quem faz a análise**:
+
+| | Fluxo A — original (agente de IA) | Fluxo B — motor DVI (`sysdoc-dvi`) |
+|---|---|---|
+| Quem analisa | o harness de IA (Claude Code, OpenCode, etc.) lendo `skills/sysdoc/SKILL.md` | o binário `sysdoc-dvi`, via API, dirigido por `checklists/dvi.yaml` |
+| Produto típico | análise comparativa ETP × TR com foco temático livre | DVI (Diligência de Verificação de Instrução) por checklist |
+| Chamada de modelo | dentro do chat do agente | `sysdoc-dvi run` (único componente que chama modelo) |
+| Reprodutibilidade | depende do prompt e do modelo usados na sessão | itens tipados, checklist com hash, checkpoint de retomada |
+| Quando usar | exploração, dúvida específica, segunda opinião | diligência padronizada de rotina, comparável entre processos |
+
+### Preparação comum aos dois fluxos
+
+```bash
+# 1. Criar o projeto (estrutura de pastas + .sysdoc/config.yaml)
+sysdoc init Aquisicao-Notebooks-2026
+
+# 2. Copiar os documentos do processo
+cp ~/Downloads/ETP.pdf ~/Downloads/TR.pdf Aquisicao-Notebooks-2026/documentos/
+cp ~/Downloads/MCP.pdf ~/Downloads/Mapa-de-Riscos.pdf Aquisicao-Notebooks-2026/documentos/   # peças extras usadas pelo DVI
+cp ~/modelos/dvi.docx Aquisicao-Notebooks-2026/referencias/                                  # template institucional p/ create dvi
+
+# 3. Conferir o que foi encontrado
+sysdoc status
+
+# 4. (Opcional) Configurar o deploy uma única vez
+sysdoc config --vps usuario@servidor --path /caminho/publico/html Aquisicao-Notebooks-2026
+```
+
+### Fluxo A — original: o agente de IA analisa
+
+```bash
+# 5A. Extrair textos e gerar o handoff para o agente
+sysdoc analyze Aquisicao-Notebooks-2026 -i "foco em garantia contratual e sanções"
+```
+
+O comando roda o `prepare` (cache determinístico em `.sysdoc/cache/`) e imprime o slash command exato para colar no harness:
+
+```
+/sysdoc analyze Aquisicao-Notebooks-2026 foco em garantia contratual e sanções
+```
+
+O agente lê `contexto_sysdoc.md` + textos extraídos, aplica as lentes do `SKILL.md` e grava `dados_consolidados.json` na raiz do projeto.
+
+```bash
+# 6A. Validar, versionar o JSON e renderizar o HTML em uma etapa
+sysdoc publish Aquisicao-Notebooks-2026
+# → output/01_aquisicao-notebooks-2026_dados_2026-08-26.json
+# → output/01_aquisicao-notebooks-2026_analise_2026-08-26.html
+
+# 7A. (Opcional) Gerar o TR revisado em DOCX a partir do template em referencias/
+sysdoc create Aquisicao-Notebooks-2026 tr
+
+# 8A. Publicar o HTML na VPS
+sysdoc deploy Aquisicao-Notebooks-2026
+```
+
+### Fluxo B — novo: o motor DVI analisa
+
+```bash
+# 5B. (Uma única vez por máquina) Mapear os modelos econômico/forte
+sysdoc-dvi config --economico openrouter/deepseek-chat --forte anthropic/claude-opus-5
+sysdoc-dvi config --listar    # confere sem ecoar chaves
+
+# 6B. Rodar o pipeline completo — TIC inclui os itens específicos de tecnologia
+sysdoc-dvi run Aquisicao-Notebooks-2026 --tipo tic
+```
+
+Um único comando encadeia tudo: filtra o checklist por aplicabilidade → roda `sysdoc prepare` se o cache não existir → mapeia as peças (ETP, TR, MCP, Mapa de Riscos) pelas âncoras do manifest → executa cada item do checklist (LLM para `presenca`/`julgamento`; Python puro para `calculo`/`vigencia`/`mecanica`) → grounding check do campo `de` → síntese dos pareceres no modelo forte → grava e valida `dados_consolidados.json` → renderiza o HTML → grava o relatório de execução em `output/`. Se a execução cair no meio, rodar de novo retoma do checkpoint, pulando itens já resolvidos.
+
+```bash
+# 7B. Revisar: reimprimir o relatório (status por item, falhas de grounding, custo)
+sysdoc-dvi relatorio Aquisicao-Notebooks-2026
+
+# 8B. Após revisão humana do JSON/HTML, gerar a minuta do DVI em DOCX
+sysdoc create Aquisicao-Notebooks-2026 dvi
+# → output/01_aquisicao-notebooks-2026_dvi_2026-08-26.docx
+
+# 9B. Publicar o HTML na VPS
+sysdoc deploy Aquisicao-Notebooks-2026
+```
+
+### Os dois fluxos convivem
+
+O mesmo projeto aceita os dois: rode o Fluxo B para a diligência padronizada e, em seguida, o Fluxo A para aprofundar um ponto específico com outro modelo. Cada `publish`/`run` versiona seus artefatos com contador próprio (`01_`, `02_`, ...), e `sysdoc compare` lista todas as análises lado a lado:
+
+```bash
+sysdoc compare Aquisicao-Notebooks-2026
+```
+
+Regra de ouro em ambos: `create dvi`/`create tr` e `deploy` são sempre passos manuais — a minuta exige revisão humana antes de assinar ou publicar.
