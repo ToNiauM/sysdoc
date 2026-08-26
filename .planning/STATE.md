@@ -7,7 +7,7 @@ status: ready_to_discuss
 stopped_at: Phase 5 context gathered
 last_updated: "2026-08-26T14:12:55.255Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 1
   total_plans: 17
   completed_plans: 1
@@ -35,6 +35,7 @@ See: .planning/PROJECT.md
 | 3 | pending | 0/1 | 0% |
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
+| 6 | pending | 0/0 | 0% |
 
 ## Recent Changes
 
@@ -43,6 +44,8 @@ See: .planning/PROJECT.md
 - 2026-05-07: Phase 1 concluída — `sysdoc analyze`, `.sysdoc/config.yaml`, AGENTS.md, wrappers Claude Code/OpenCode e testes CLI.
 - 2026-05-08: Phase 2 planejada — `02-RESEARCH.md`, `02-PATTERNS.md` e `02-01-PLAN.md`.
 - 2026-05-12: Phase 2 concluída — `sysdoc create` gera DOCX determinístico a partir de JSON + templates em `referencias/`, com revisão ETP para `tipo=tr`; 67 testes passando.
+- 2026-05-12: Phase adicionada — Templates TR a partir dos 4 modelos Lei 14.133 em `Referencias/`, com placeholders SysDoc anotados.
+- 2026-08-26: Merge de branches — "Templates TR (Lei 14.133)" renumerada de Phase 5 para Phase 6; Phase 5 permanece "Motor de análise por checklist" (concluída, release 1.5.0).
 
 ## Recent Decisions
 
