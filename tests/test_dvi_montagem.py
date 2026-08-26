@@ -24,6 +24,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from sysdoc_dvi import provedores  # noqa: E402
+from sysdoc_dvi.checkpoint import (  # noqa: E402
+    carregar_checkpoint,
+    limpar_checkpoint,
+    registrar_item,
+)
 from sysdoc_dvi.montagem import ErroMontagem, montar_json  # noqa: E402
 from sysdoc_dvi.relatorio import montar_relatorio, renderizar_relatorio  # noqa: E402
 from sysdoc_dvi.tipos import ResultadoItem, UsoModelo  # noqa: E402
@@ -217,6 +222,60 @@ class TestMontagem:
         del projeto["objeto"]
         with pytest.raises(ErroMontagem):
             _montar(itens, projeto=projeto)
+
+
+# ---------------------------------------------------------------------------
+# TestCoerencia
+# ---------------------------------------------------------------------------
+
+class TestCoerencia:
+    def test_conforme_com_risco_relevante_e_corrigido_para_informativo(self):
+        itens = [_resultado(classificação="conforme", risco_jurídico="relevante")]
+        dados = _montar(itens)
+        assert dados["itens"][0]["risco_jurídico"] == "informativo"
+
+    def test_conforme_ja_informativo_permanece_informativo(self):
+        itens = [_resultado(classificação="conforme", risco_jurídico="informativo")]
+        dados = _montar(itens)
+        assert dados["itens"][0]["risco_jurídico"] == "informativo"
+
+    def test_risco_sem_risco_juridico_adequado_levanta_erro(self):
+        itens = [_resultado(classificação="risco", risco_jurídico="menor")]
+        with pytest.raises(ErroMontagem):
+            _montar(itens)
+
+    def test_bloqueante_exige_severidade_alta_ou_critica(self):
+        itens = [
+            _resultado(
+                classificação="risco",
+                risco_jurídico="bloqueante",
+                severidade="baixa",
+            )
+        ]
+        with pytest.raises(ErroMontagem):
+            _montar(itens)
+
+    def test_bloqueante_com_severidade_alta_passa(self):
+        itens = [
+            _resultado(
+                classificação="risco",
+                risco_jurídico="bloqueante",
+                severidade="alta",
+            )
+        ]
+        dados = _montar(itens)
+        assert dados["itens"][0]["risco_jurídico"] == "bloqueante"
+
+    def test_erro_de_coerencia_cita_checklist_id(self):
+        itens = [
+            _resultado(
+                checklist_id="DVI-GER-099",
+                classificação="risco",
+                risco_jurídico="menor",
+            )
+        ]
+        with pytest.raises(ErroMontagem, match="DVI-GER-099"):
+            _montar(itens)
 
 
 # ---------------------------------------------------------------------------
@@ -433,3 +492,92 @@ class TestRelatorio:
         assert "1)" in texto
         assert "Custo total estimado" in texto
         assert "Duração total" in texto
+
+
+# ---------------------------------------------------------------------------
+# TestCheckpoint
+# ---------------------------------------------------------------------------
+
+class TestCheckpoint:
+    def _caminho(self, projeto: Path) -> Path:
+        return projeto / ".sysdoc" / "cache" / "dvi_checkpoint.json"
+
+    def test_registrar_item_grava_arquivo(self, tmp_path):
+        resultado = _resultado(checklist_id="DVI-GER-050")
+        registrar_item(tmp_path, CHECKLIST_HASH, resultado)
+
+        caminho = self._caminho(tmp_path)
+        assert caminho.is_file()
+        conteudo = json.loads(caminho.read_text(encoding="utf-8"))
+        assert conteudo["checklist_hash"] == CHECKLIST_HASH
+        assert "DVI-GER-050" in conteudo["itens"]
+
+    def test_carregar_checkpoint_devolve_itens_gravados(self, tmp_path):
+        registrar_item(tmp_path, CHECKLIST_HASH, _resultado(checklist_id="DVI-GER-051"))
+        registrar_item(tmp_path, CHECKLIST_HASH, _resultado(checklist_id="DVI-GER-052"))
+
+        itens = carregar_checkpoint(tmp_path, CHECKLIST_HASH)
+        assert set(itens) == {"DVI-GER-051", "DVI-GER-052"}
+        assert isinstance(itens["DVI-GER-051"], ResultadoItem)
+        assert itens["DVI-GER-051"].checklist_id == "DVI-GER-051"
+
+    def test_carregar_checkpoint_com_uso_reconstroi_usomodelo(self, tmp_path):
+        uso = UsoModelo(
+            provedor="openrouter",
+            modelo="deepseek-chat",
+            tokens_entrada=10,
+            tokens_saida=5,
+            custo_estimado=0.01,
+            duracao_s=0.5,
+        )
+        resultado = _resultado(checklist_id="DVI-GER-053", uso=uso)
+        registrar_item(tmp_path, CHECKLIST_HASH, resultado)
+
+        itens = carregar_checkpoint(tmp_path, CHECKLIST_HASH)
+        assert isinstance(itens["DVI-GER-053"].uso, UsoModelo)
+        assert itens["DVI-GER-053"].uso.modelo == "deepseek-chat"
+
+    def test_carregar_checkpoint_hash_diferente_descarta(self, tmp_path):
+        registrar_item(tmp_path, CHECKLIST_HASH, _resultado(checklist_id="DVI-GER-054"))
+
+        itens = carregar_checkpoint(tmp_path, OUTRO_HASH)
+        assert itens == {}
+        assert not self._caminho(tmp_path).is_file()
+
+    def test_carregar_checkpoint_arquivo_corrompido_devolve_vazio(self, tmp_path):
+        caminho = self._caminho(tmp_path)
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        caminho.write_text("{ isso nao e json valido", encoding="utf-8")
+
+        with pytest.warns(UserWarning):
+            itens = carregar_checkpoint(tmp_path, CHECKLIST_HASH)
+        assert itens == {}
+
+    def test_carregar_checkpoint_sem_arquivo_devolve_vazio(self, tmp_path):
+        assert carregar_checkpoint(tmp_path, CHECKLIST_HASH) == {}
+
+    def test_limpar_checkpoint_remove_arquivo(self, tmp_path):
+        registrar_item(tmp_path, CHECKLIST_HASH, _resultado(checklist_id="DVI-GER-055"))
+        assert self._caminho(tmp_path).is_file()
+
+        limpar_checkpoint(tmp_path)
+        assert not self._caminho(tmp_path).is_file()
+
+    def test_limpar_checkpoint_idempotente_sem_arquivo(self, tmp_path):
+        limpar_checkpoint(tmp_path)
+        limpar_checkpoint(tmp_path)
+
+    def test_retomada_reaproveita_itens_ja_resolvidos(self, tmp_path):
+        registrar_item(tmp_path, CHECKLIST_HASH, _resultado(checklist_id="DVI-GER-056"))
+        itens_primeira_execucao = carregar_checkpoint(tmp_path, CHECKLIST_HASH)
+        assert set(itens_primeira_execucao) == {"DVI-GER-056"}
+
+        registrar_item(tmp_path, CHECKLIST_HASH, _resultado(checklist_id="DVI-GER-057"))
+        itens_segunda_execucao = carregar_checkpoint(tmp_path, CHECKLIST_HASH)
+        assert set(itens_segunda_execucao) == {"DVI-GER-056", "DVI-GER-057"}
+
+    def test_escrita_e_atomica_via_tempfile(self, tmp_path):
+        registrar_item(tmp_path, CHECKLIST_HASH, _resultado(checklist_id="DVI-GER-058"))
+        arquivos_cache = list((tmp_path / ".sysdoc" / "cache").iterdir())
+        nomes_temporarios = [f for f in arquivos_cache if f.name.endswith(".tmp")]
+        assert nomes_temporarios == []
