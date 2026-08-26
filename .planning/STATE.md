@@ -68,6 +68,12 @@ See: .planning/PROJECT.md
 
 - Nenhum bloqueio ativo para continuar o roadmap.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260826-o2d | Melhorias DX motor DVI: autocorreção de acentuação pós-validação (P2), progresso por item no run (P4), template DVI base semeado pelo init (P6) | 2026-08-26 | b376b5f | [260826-o2d-melhorias-dx-motor-dvi-autocorre-o-p-s-v](./quick/260826-o2d-melhorias-dx-motor-dvi-autocorre-o-p-s-v/) |
+
 ## Session Continuity
 
 Last session: 2026-08-26T13:27:17.684Z
@@ -80,4 +86,4 @@ Phase 3: Integração Agentes IA. Próximo passo recomendado: `$gsd-discuss-phas
 
 ---
 
-*Last updated: 2026-05-12*
+*Last updated: 2026-08-26 — Completed quick task 260826-o2d: melhorias DX motor DVI (P2+P4+P6)*
