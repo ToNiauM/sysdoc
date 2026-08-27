@@ -42,6 +42,8 @@ packages = [
     "sysdoc_web",
     "sysdoc_web.processos",
     "sysdoc_web.processos.migrations",
+    "sysdoc_web.processos.management",
+    "sysdoc_web.processos.management.commands",
 ]
 py-modules = ["sysdoc"]
 
