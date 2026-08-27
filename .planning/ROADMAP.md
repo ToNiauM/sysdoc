@@ -10,7 +10,7 @@
 | 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 | 5 | Motor de análise por checklist com agentes plugáveis | PRD RF1–RF10 | 15/15 |
 | 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 7/7 |
-| 7 | Interface web para pregoeiros | SYSD-19 a SYSD-29 | 2/8 |
+| 7 | Interface web para pregoeiros | SYSD-19 a SYSD-29 | 3/8 |
 
 ---
 
@@ -219,7 +219,7 @@ Plans:
 **Goal:** Abstrair todos os comandos do SysDoc num fluxo visual para pregoeiros: upload dos documentos do processo (PDF único ou peças separadas), extração e carregamento (prepare + fatiador de peças), análise (motor `sysdoc-dvi` com progresso em tempo real) e output com a análise em HTML e DOCX — sem o usuário tocar em terminal, YAML ou JSON.
 **Requirements**: [SYSD-19, SYSD-20, SYSD-21, SYSD-22, SYSD-23, SYSD-24, SYSD-25, SYSD-26, SYSD-27, SYSD-28, SYSD-29]
 **Depends on:** Phase 5 (motor DVI); beneficia-se dos templates da Phase 6 para o output DOCX
-**Plans:** 2/8 plans executed
+**Plans:** 3/8 plans executed
 
 Plans:
 
@@ -228,9 +228,9 @@ Plans:
 - [x] 07-01-PLAN.md — Tornar `sysdoc`/`sysdoc_dvi` chamáveis como biblioteca (caminhos de retorno + progresso) (wave 1)
 - [x] 07-02-PLAN.md — Esqueleto Django `sysdoc_web` como extra opcional, settings endurecidas e auth sem auto-cadastro (wave 1)
 
-**Wave 2** *(blocked on Wave 1 completion)*
+**Wave 2**
 
-- [ ] 07-03-PLAN.md — Modelos Processo/AnaliseJob, fila single-slot e worker que chama o pipeline DVI (wave 2)
+- [x] 07-03-PLAN.md — Modelos Processo/AnaliseJob, fila single-slot e worker que chama o pipeline DVI (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

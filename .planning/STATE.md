@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 07
 status: executing
-stopped_at: Plano 07-02 concluído (2/8 planos da Phase 7, wave 1/6) — pronto para 07-03
-last_updated: "2026-08-27T06:28:42Z"
+stopped_at: Plano 07-03 concluído (3/8 planos da Phase 7, wave 2/6) — pronto para 07-04
+last_updated: "2026-08-27T07:15:00Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 32
-  completed_plans: 25
+  completed_plans: 26
   percent: 43
 ---
 
@@ -36,7 +36,7 @@ See: .planning/PROJECT.md
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
 | 6 | complete | 7/7 | 100% |
-| 7 | in_progress | 2/8 | 25% |
+| 7 | in_progress | 3/8 | 38% |
 
 ## Recent Changes
 
@@ -59,6 +59,7 @@ See: .planning/PROJECT.md
 - 2026-08-27: Phase 7 planejada — 8 planos em 6 waves, requisitos SYSD-19 a SYSD-29, cobrindo D-01 a D-21 do `07-CONTEXT.md`. Interface web em **Django** (não FastAPI — correção explícita do usuário), rodando em Docker de um serviço, importando `sysdoc`/`sysdoc_dvi` como biblioteca. Plan-checker aprovou na iteração 2; o blocker da iteração 1 era um `ValueError` em import time (`ClearableFileInput(attrs={"multiple": True})` deixou de ser aceito no Django 5.0), reproduzido contra instalação real e corrigido para o par `MultipleFileInput`/`MultipleFileField`.
 - 2026-08-27: Plano 07-01 concluído (wave 1/6) — `sysdoc.criar_documento()` (dataclass `ResultadoCreate`) e `sysdoc.localizar_html_analise()`/`localizar_docx_despacho()` tornam `create()`/`deploy()` chamáveis como biblioteca sem imprimir nem `subprocess`; `sysdoc_dvi/progresso.py` (`EventoProgresso`/`ETAPAS`/`SinkProgresso`, sem dependência de Django) e `_emitir()` em `pipeline.py` dão a `executar_run(..., progresso=callback)` um canal de eventos por etapa, blindado contra callback que lança exceção (RF9). Nenhuma string impressa pela CLI mudou; 11 testes novos em `tests/test_biblioteca_chamavel.py`; suíte completa (568 passed, 1 skipped) verde. SYSD-19 completo.
 - 2026-08-27: Plano 07-02 concluído (wave 1/6) — pacote Django `sysdoc_web` criado como extra opcional (`pip install -e ".[web]"`, `django>=5.0,<6.0`/`gunicorn>=22.0`), sem tocar em `dependencies` base; `sysdoc_web/settings.py` endurecido (`SECRET_KEY` obrigatória fora de `DEBUG`, `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` por env, cookies `HttpOnly`/`SameSite`, `SECURE_CONTENT_TYPE_NOSNIFF`/`X_FRAME_OPTIONS=DENY`, limites de upload já parametrizados, SQLite com `timeout=20` — primeira metade da defesa de D-14 — e nenhuma menção a chave de LLM). Login obrigatório em `/entrar/`, `/sair/` só por POST, sem nenhuma rota de auto-cadastro (`django.contrib.auth.urls` deliberadamente fora). `tests/conftest.py` traz o fixture `django_web` (bootstrap condicional via `DiscoverRunner`, Django só importado dentro do fixture); suíte completa: 574 passed/1 skipped com Django, 570 passed/2 skipped sem Django (nunca erro). SYSD-20/SYSD-21 completos.
+- 2026-08-27: Plano 07-03 concluído (wave 2/6) — `Processo`/`AnaliseJob` persistem estado no SQLite com `UniqueConstraint` condicional `uma_analise_ativa_por_vez` (D-14, trava no banco, não num `if` de view); `sysdoc_web/processos/servicos.py` é a única camada que toca disco, com `criar_pasta_do_processo` usando `sysdoc.ensure_project_structure` (layout canônico, D-18) e `caminho_do_processo` combinando validação de slug por regex com checagem de contenção pós-`resolve()` contra traversal; `fila.py` converte `IntegrityError` **e** `OperationalError` (retry 0.1/0.2/0.4s) em `FilaOcupada`, nunca 500; `manage.py runworker --uma-vez` chama `sysdoc.prepare()`/`sysdoc_dvi.pipeline.executar_run(progresso=...)` como biblioteca, traduz progresso via `progresso.texto_da_etapa` e nunca deixa traceback/nome de provedor chegar a `AnaliseJob.mensagem_erro` (D-16/D-17); `manage.py sanear_jobs` marca jobs órfãos como `interrompida` (D-15). 14 testes novos em `tests/test_web_fila.py`; suíte completa (588 passed, 1 skipped) verde. SYSD-22/SYSD-23 completos.
 
 ## Recent Decisions
 
@@ -86,6 +87,11 @@ See: .planning/PROJECT.md
 - `templates/dvi_base.docx` e `templates/build_dvi_base.py` (formato relatório do DVI) aposentados por decisão explícita do usuário no checkpoint bloqueante do Plano 06-07 — recuperáveis via git history (`git show d180b24^:<caminho>`); o conteúdo que expunham continua disponível via `templates/render_analise.py`/HTML e `dados_consolidados.json`.
 - `sysdoc_web/urls.py` não inclui `django.contrib.auth.urls` (evitaria rotas de reset de senha por e-mail que não há como servir); só `LoginView`/`LogoutView` explícitos e nenhuma rota de cadastro — confirmado por teste (`test_nao_existe_rota_de_cadastro`).
 - `pytest.importorskip("django")` no nível de módulo aborta a coleta inteira do arquivo (confirmado experimentalmente), inclusive testes definidos antes da linha — por isso os dois testes de leitura de arquivo que precisam rodar sem Django (`tests/test_web_settings_sem_django.py`) foram para um módulo próprio, sem esse guard, em vez de ficarem acima do `importorskip` em `tests/test_web_base.py`.
+- `AnaliseJob.slot` fixo em 1 e a `UniqueConstraint` condicional a `status in (na_fila, em_execucao)` são a trava de "uma análise por vez" (D-14) — mecanismo de banco, nunca um `if` de leitura prévia numa view/worker que uma segunda thread do gunicorn (plano 07-04) driblaria.
+- `fila.enfileirar()` converte tanto `IntegrityError` (violação real da constraint) quanto `OperationalError` (contenção de lock de escrita do SQLite sob múltiplas threads) em `FilaOcupada`, com retry curto (0.1/0.2/0.4s, cada tentativa com seu próprio `transaction.atomic()`) — o `timeout=20` do SQLite (plano 07-02) é quem governa a latência típica; o retry de aplicação é rede de segurança para o caso raro de contenção além desse timeout.
+- `servicos.caminho_do_processo` valida o slug por regex (mesmo padrão do `SlugField`, `^[-a-zA-Z0-9_]+\Z`) antes de montar qualquer `Path`, além da checagem de contenção pós-`resolve()` — necessário porque um valor como `"..%2Ffora"` não contém separador de caminho e não seria pego só pela checagem de contenção.
+- `MENSAGEM_FALHA` em `runworker.py` é a única string que chega a `AnaliseJob.mensagem_erro` em caso de falha do pipeline; qualquer exceção (conhecida ou não) é capturada, o traceback real vai só para `logger.exception` (log do servidor), nunca para o banco/tela (D-17).
+- `pyproject.toml` ganhou `sysdoc_web.processos.migrations`/`management`/`management.commands` em `[tool.setuptools].packages` — sem isso uma instalação real via `pip install -e ".[web]"` (fora do editable finder de desenvolvimento deste ambiente) não incluiria a migração nem os management commands em produção/Docker.
 
 ## Accumulated Context
 
@@ -111,16 +117,16 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T06:28:42Z
-Stopped at: Plano 07-02 concluído (2/8 planos da Phase 7, wave 1/6) — pronto para 07-03
+Last session: 2026-08-27T07:15:00Z
+Stopped at: Plano 07-03 concluído (3/8 planos da Phase 7, wave 2/6) — pronto para 07-04
 Resume file: None
 
 ## Current Focus
 
-Phase 7: Interface web para pregoeiros — em execução (2/8 planos). Próximo passo recomendado: executar `07-03-PLAN.md` (modelos Processo/AnaliseJob, fila single-slot e worker do pipeline DVI).
+Phase 7: Interface web para pregoeiros — em execução (3/8 planos). Próximo passo recomendado: executar `07-04-PLAN.md` (Docker: um serviço, `docker compose up` como único comando de subida).
 
 Phases 3 e 4 seguem pendentes e não bloqueiam a 7.
 
 ---
 
-*Last updated: 2026-08-27 — Completed 07-02-PLAN.md: esqueleto Django `sysdoc_web` como extra opcional, settings endurecidas, autenticação obrigatória sem auto-cadastro e bootstrap condicional do Django na suíte pytest; Phase 7 wave 1 fechada (07-01 + 07-02)*
+*Last updated: 2026-08-27 — Completed 07-03-PLAN.md: modelos Processo/AnaliseJob com UniqueConstraint condicional (D-14), fila single-slot com retry contra lock do SQLite, servicos.py como única camada de disco (D-18) e worker `manage.py runworker` chamando sysdoc/sysdoc_dvi como biblioteca com progresso traduzido e falha sem detalhe técnico (D-03/D-16/D-17); Phase 7 wave 2 fechada (07-03)*
