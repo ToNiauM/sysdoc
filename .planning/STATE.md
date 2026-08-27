@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 06
 status: ready_to_execute
-stopped_at: Completed 06-03-PLAN.md (correção da sigla DVI em todo o repositório)
-last_updated: "2026-08-27T04:03:12Z"
+stopped_at: Completed 06-04-PLAN.md (canal raw_xml separado e origem dos campos institucionais do despacho)
+last_updated: "2026-08-27T04:13:10.461Z"
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 24
-  completed_plans: 20
+  completed_plans: 21
   percent: 33
 ---
 
@@ -35,7 +35,7 @@ See: .planning/PROJECT.md
 | 3 | pending | 0/1 | 0% |
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
-| 6 | in_progress | 3/7 | 43% |
+| 6 | in_progress | 4/7 | 57% |
 
 ## Recent Changes
 
@@ -50,6 +50,7 @@ See: .planning/PROJECT.md
 - 2026-08-27: Plano 06-01 concluído — gerador determinístico `templates/build_despacho_templates.py` cria `templates/dvi/despacho_geral.docx` e `templates/dvi/despacho_tic.docx`, moldura fiel a `processo-teste/referencias/dvi.md` com seis estilos nomeados e placeholder raw único `{{corpo_apontamentos_xml}}`; 11 testes novos, suíte completa (480) verde.
 - 2026-08-27: Plano 06-02 concluído — `sysdoc_docx/corpo_dvi.py` filtra classificação (D-03), agrupa por peça em ordem canônica (D-05), isola pendências em seção própria ao final (D-04), resolve referência cruzada entre apontamentos equivalentes (D-07) e emite `<w:p>` com estilos nomeados prontos para injeção raw (D-08), sempre com o texto vindo do JSON escapado; 26 testes novos, suíte completa (506) verde.
 - 2026-08-27: Plano 06-03 concluído — sigla DVI corrigida de "Documento de Verificação Inicial" para **Despacho de Verificação Inicial** (D-01) em `CLAUDE.md`, `AGENTS.md`, `README.md` (2 ocorrências), `checklists/dvi.yaml`, os três `SKILL.md`, `templates/build_dvi_base.py` (com `templates/dvi_base.docx` regerado) e 2 fixtures de teste; `tests/test_sigla_dvi.py` (4 testes) trava permanentemente a regressão via varredura de `git ls-files`; CHANGELOG registra a correção referenciando a entrada `[1.5.x]` anterior; suíte completa (510) verde.
+- 2026-08-27: Plano 06-04 concluído — `render_docx_template(template, output, values, raw_xml=None)` abre canal de XML cru estruturalmente separado de `values` (D-09): `values` é sempre escapado, sem exceção por nome de chave; `RAW_XML_KEYS` permanece como allowlist fechada, mas só é consultada em `_validar_chave_raw`, nunca no corpo da função (travado por teste de introspecção). Campos institucionais do despacho (`vocativo`, `unidade`, `destinatario`, `signatario`, `cargo_signatario`, `autoridade`, `cargo_autoridade`) resolvidos por `valores_despacho()` a partir do novo bloco `despacho:` em `.sysdoc/config.yaml` (semeado por `init_config`), com marcador `[PREENCHER: <campo>]` quando ausente — nunca inventado. 17 testes novos em `tests/test_dvi_render_raw.py` provam a separação de canal isoladamente; suíte completa (532) verde.
 
 ## Recent Decisions
 
@@ -60,6 +61,8 @@ See: .planning/PROJECT.md
 - `templates/dvi/` é a pasta própria para templates institucionais do despacho, um DOCX por variante de verificação (`despacho_geral.docx`, `despacho_tic.docx`), no molde do gerador determinístico já usado por `templates/build_dvi_base.py`.
 - Chave de equivalência de D-07 (referência cruzada) usa apenas `parecer` normalizado, não `parecer+fundamento` — medição contra `processo-teste/dados_consolidados.json` mostrou que o par `ETP-016`/`TR-002` tem `fundamento` que varia pelo nome da peça, mesmo apontando o mesmo achado.
 - DVI = Despacho de Verificação Inicial (D-01), confirmado por `processo-teste/referencias/dvi.md` linha 1 e pelo dono do produto; `tests/test_sigla_dvi.py` trava permanentemente contra as duas expansões erradas já vistas no repositório.
+- Canal de XML cru é um parâmetro dedicado (`raw_xml`), não uma allowlist sobre nome de chave em `values` — fecha por construção o vetor de chave homônima vinda de `dados_consolidados.json` (revisão do checker sobre D-09).
+- Campos institucionais do despacho (vocativo, unidade, destinatário, signatário, autoridade) vêm de `.sysdoc/config.yaml` bloco `despacho:`, nunca do JSON da análise nem inferidos — campo ausente vira `[PREENCHER: <campo>]` visível no Word.
 
 ## Accumulated Context
 
@@ -85,9 +88,9 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T04:03:12Z
-Stopped at: Completed 06-03-PLAN.md (correção da sigla DVI em todo o repositório)
-Resume file: .planning/phases/06-templates-tr-a-partir-dos-modelos-lei-14-133/06-04-PLAN.md
+Last session: 2026-08-27T04:13:10Z
+Stopped at: Completed 06-04-PLAN.md (canal raw_xml separado e origem dos campos institucionais do despacho)
+Resume file: .planning/phases/06-templates-tr-a-partir-dos-modelos-lei-14-133/06-05-PLAN.md
 
 ## Current Focus
 
@@ -95,4 +98,4 @@ Phase 3: Integração Agentes IA. Próximo passo recomendado: `$gsd-discuss-phas
 
 ---
 
-*Last updated: 2026-08-27 — Completed 06-03-PLAN.md: correção da sigla DVI em todo o repositório*
+*Last updated: 2026-08-27 — Completed 06-04-PLAN.md: canal raw_xml separado e origem dos campos institucionais do despacho*
