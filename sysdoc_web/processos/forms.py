@@ -15,6 +15,8 @@ from __future__ import annotations
 from django import forms
 from django.conf import settings
 
+import sysdoc
+
 from . import uploads
 from .models import Processo
 
@@ -87,3 +89,47 @@ class VerificacaoForm(forms.Form):
         widget=forms.RadioSelect,
         label="Tipo de contratação",
     )
+
+
+# Rótulo em português de cada campo institucional do despacho (D-12). Só o
+# rótulo é redigitado aqui — a lista de campos em si vem de
+# `sysdoc.CAMPOS_DESPACHO`, nunca de uma tupla redigitada nesta tela.
+ROTULOS_CAMPOS_DESPACHO = {
+    "vocativo": "Vocativo",
+    "unidade": "Unidade",
+    "destinatario": "Destinatário",
+    "signatario": "Signatário",
+    "cargo_signatario": "Cargo do signatário",
+    "autoridade": "Autoridade",
+    "cargo_autoridade": "Cargo da autoridade",
+}
+
+
+class RevisaoDespachoForm(forms.Form):
+    """Formulário da revisão humana bloqueante antes do DOCX (D-11, D-12).
+
+    Os campos institucionais são construídos **iterando** sobre
+    `sysdoc.CAMPOS_DESPACHO` — se a tupla mudar na CLI, o formulário
+    acompanha sem precisar de edição aqui. Todos são `required=False`:
+    campo em branco continua produzindo `[PREENCHER: <campo>]` no Word, que
+    é o comportamento correto, não um defeito. `confirmo` é a única
+    exigência real do formulário — é a ação deliberada exigida por D-11.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        campos: dict[str, forms.Field] = {}
+        for nome in sysdoc.CAMPOS_DESPACHO:
+            campos[nome] = forms.CharField(
+                required=False,
+                max_length=200,
+                label=ROTULOS_CAMPOS_DESPACHO.get(nome, nome),
+            )
+        campos["confirmo"] = forms.BooleanField(
+            required=True,
+            label=(
+                "Revisei os apontamentos acima e assumo a responsabilidade "
+                "pelo despacho."
+            ),
+        )
+        self.fields = campos

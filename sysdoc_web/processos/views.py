@@ -18,7 +18,7 @@ import sysdoc
 
 from . import apontamentos, fila, servicos, uploads
 from .fila import FilaOcupada
-from .forms import NovoProcessoForm, VerificacaoForm
+from .forms import NovoProcessoForm, RevisaoDespachoForm, VerificacaoForm
 from .models import STATUS_FINAIS, Processo
 
 logger = logging.getLogger(__name__)
@@ -164,25 +164,69 @@ def situacao_analise(request, slug):
     return resposta
 
 
-@login_required
-def resultado(request, slug):
-    """Tela 4 do fluxo (D-09): apontamentos e downloads sobre o resultado.
+def _contexto_resultado(processo, dados, form=None):
+    """Contexto compartilhado por `resultado` e `gerar_despacho` (D-13).
 
-    Quando a análise ainda não produziu `dados_consolidados.json`, a tela
-    mostra a mensagem honesta em vez de tentar montar contagem sobre nada.
+    Quando `dados` é `None` (análise ainda não produziu resultado), devolve
+    só o suficiente para a tela mostrar a mensagem honesta e o link de
+    volta — sem tentar montar contagem ou lista de itens sobre nada.
     """
-    processo = get_object_or_404(Processo, slug=slug, criado_por=request.user)
-    dados = servicos.dados_consolidados(slug)
     if dados is None:
-        return render(
-            request, "processos/resultado.html", {"processo": processo, "sem_resultado": True}
-        )
-    paths = servicos.caminhos(slug)
-    contexto = {
+        return {"processo": processo, "sem_resultado": True}
+    paths = servicos.caminhos(processo.slug)
+    return {
         "processo": processo,
         "resumo": apontamentos.resumo_para_tela(dados),
         "itens": apontamentos.itens_para_tela(dados),
+        "form": form if form is not None else RevisaoDespachoForm(),
         "html_disponivel": sysdoc.localizar_html_analise(paths) is not None,
         "docx_disponivel": sysdoc.localizar_docx_despacho(paths) is not None,
     }
+
+
+@login_required
+def resultado(request, slug):
+    """Tela 4 do fluxo (D-09): apontamentos, revisão e downloads."""
+    processo = get_object_or_404(Processo, slug=slug, criado_por=request.user)
+    dados = servicos.dados_consolidados(slug)
+    contexto = _contexto_resultado(processo, dados)
     return render(request, "processos/resultado.html", contexto)
+
+
+@login_required
+@require_POST
+def gerar_despacho(request, slug):
+    """Única porta de entrada de `criar_documento` na aplicação web (D-11).
+
+    O worker (`manage.py runworker`) e o fim da análise nunca chamam
+    `criar_documento` — só um POST explícito nesta rota, com o campo
+    `confirmo` marcado, pode produzir o DOCX do despacho. A ausência do
+    aceite é o próprio bloqueio exigido por D-11, não um detalhe de UX.
+    """
+    processo = get_object_or_404(Processo, slug=slug, criado_por=request.user)
+    if not processo.jobs.filter(status="concluida").exists():
+        messages.error(request, "A análise deste processo ainda não foi concluída.")
+        return redirect("processos:resultado", slug=slug)
+
+    dados = servicos.dados_consolidados(slug)
+    form = RevisaoDespachoForm(request.POST)
+    if not form.is_valid():
+        contexto = _contexto_resultado(processo, dados, form=form)
+        return render(request, "processos/resultado.html", contexto)
+
+    servicos.gravar_campos_despacho(
+        slug, {campo: form.cleaned_data[campo] for campo in sysdoc.CAMPOS_DESPACHO}
+    )
+
+    try:
+        sysdoc.criar_documento(str(servicos.caminho_do_processo(slug)), "dvi")
+    except (SystemExit, Exception):
+        logger.exception("Falha ao montar o despacho do processo %s", slug)
+        messages.error(
+            request,
+            "Não foi possível montar o despacho. Procure o administrador do sistema.",
+        )
+        return redirect("processos:resultado", slug=slug)
+
+    messages.success(request, "Despacho gerado. Use o botão de download abaixo.")
+    return redirect("processos:resultado", slug=slug)

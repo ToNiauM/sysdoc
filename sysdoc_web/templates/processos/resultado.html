@@ -47,6 +47,19 @@
       </section>
 
       <section class="cartao">
+        <h2>Despacho de Verificação Inicial</h2>
+        <p class="observacao">
+          Os campos abaixo aparecem no despacho. O que ficar em branco vem
+          marcado para preenchimento no Word.
+        </p>
+        <form method="post" action="{% url 'processos:gerar_despacho' processo.slug %}">
+          {% csrf_token %}
+          {{ form.as_p }}
+          <button type="submit" class="botao botao-primario">Revisar e gerar Despacho</button>
+        </form>
+      </section>
+
+      <section class="cartao">
         <h2>Downloads</h2>
         <ul class="lista-downloads">
           {% if html_disponivel %}
