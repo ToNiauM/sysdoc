@@ -45,6 +45,17 @@ RAW_XML_KEYS = frozenset({"corpo_apontamentos_xml"})
 _RAW_XML_ENVELOPE = (
     '<w:body xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">{}</w:body>'
 )
+
+CAMPOS_DESPACHO = (
+    "vocativo",
+    "unidade",
+    "destinatario",
+    "signatario",
+    "cargo_signatario",
+    "autoridade",
+    "cargo_autoridade",
+)
+MARCADOR_DESPACHO = "[PREENCHER: {campo}]"
 DEFAULT_LLM_MODEL = "openai/gpt-4o-mini"
 MAX_LLM_CONTEXT_CHARS = int(os.environ.get("SYSDOC_MAX_LLM_CONTEXT_CHARS", "700000"))
 
@@ -331,9 +342,33 @@ def init_config(project: str | Path) -> int:
             "vps_host": "",
             "vps_path": "",
             "modelo_ia_padrao": "",
+            "tipo": "",
+            "despacho": {campo: "" for campo in CAMPOS_DESPACHO},
         },
     )
     return 0
+
+
+def valores_despacho(config: dict) -> dict[str, str]:
+    """Resolve os campos institucionais do despacho a partir de `.sysdoc/config.yaml`.
+
+    Só lê `config.get("despacho")` — nunca deriva valor de outro campo do
+    config e nunca infere a partir do `dados_consolidados.json`. É a regra
+    "nunca inventar" do CLAUDE.md aplicada a dado institucional (vocativo,
+    unidade, destinatário, signatário e autoridade não têm base no JSON da
+    análise; ver open decision 1 / D-09 de `06-CONTEXT.md`). Campo ausente ou
+    vazio vira `MARCADOR_DESPACHO`, visível para o humano preencher no Word.
+    Os valores retornados entram em `values` de `render_docx_template` e são
+    escapados como qualquer outro texto — não é um canal cru.
+    """
+    bloco = config.get("despacho")
+    if not isinstance(bloco, dict):
+        bloco = {}
+    valores: dict[str, str] = {}
+    for campo in CAMPOS_DESPACHO:
+        valor = str(bloco.get(campo) or "").strip()
+        valores[f"despacho.{campo}"] = valor or MARCADOR_DESPACHO.format(campo=campo)
+    return valores
 
 
 def seed_dvi_template(paths: ProjectPaths) -> Path | None:

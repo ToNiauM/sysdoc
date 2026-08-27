@@ -4,6 +4,7 @@ Testes do CLI do SysDoc (analyze, init_config, ProjectPaths.config).
 
 from __future__ import annotations
 
+import inspect
 import json
 import subprocess
 import sys
@@ -634,6 +635,12 @@ class TestConfigYamlFormat:
         assert "vps_path" in data
         assert "modelo_ia_padrao" in data
         assert data["projeto"] == "ProjetoFmt"
+        assert "tipo" in data
+        assert data["tipo"] == ""
+        assert isinstance(data["despacho"], dict)
+        for campo in sysdoc.CAMPOS_DESPACHO:
+            assert campo in data["despacho"]
+            assert data["despacho"][campo] == ""
 
     def test_load_config_returns_dict(self, tmp_path, monkeypatch):
         project_dir = tmp_path / "ProjetoLoad"
@@ -654,6 +661,37 @@ class TestConfigYamlFormat:
         paths = sysdoc.project_paths("SemConfig")
         config = sysdoc.load_config(paths)
         assert config == {}
+
+
+class TestValoresDespacho:
+    def test_campo_preenchido_e_usado(self):
+        config = {"despacho": {"vocativo": "Senhora Coordenadora Administrativa,"}}
+        valores = sysdoc.valores_despacho(config)
+        assert valores["despacho.vocativo"] == "Senhora Coordenadora Administrativa,"
+
+    def test_campo_ausente_vira_marcador(self):
+        config = {"despacho": {"vocativo": "Senhora Coordenadora Administrativa,"}}
+        valores = sysdoc.valores_despacho(config)
+        for campo in sysdoc.CAMPOS_DESPACHO:
+            if campo == "vocativo":
+                continue
+            assert valores[f"despacho.{campo}"] == sysdoc.MARCADOR_DESPACHO.format(campo=campo)
+
+    def test_bloco_despacho_ausente_gera_sete_marcadores(self):
+        valores = sysdoc.valores_despacho({})
+        assert len(valores) == len(sysdoc.CAMPOS_DESPACHO)
+        for campo in sysdoc.CAMPOS_DESPACHO:
+            assert valores[f"despacho.{campo}"] == sysdoc.MARCADOR_DESPACHO.format(campo=campo)
+
+    def test_bloco_despacho_malformado_nao_quebra(self):
+        valores = sysdoc.valores_despacho({"despacho": "texto solto"})
+        assert len(valores) == len(sysdoc.CAMPOS_DESPACHO)
+        for campo in sysdoc.CAMPOS_DESPACHO:
+            assert valores[f"despacho.{campo}"] == sysdoc.MARCADOR_DESPACHO.format(campo=campo)
+
+    def test_nenhum_valor_e_inferido_do_json(self):
+        parametros = inspect.signature(sysdoc.valores_despacho).parameters
+        assert len(parametros) == 1
 
 
 class TestHandoffBox:
