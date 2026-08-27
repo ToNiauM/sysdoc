@@ -260,7 +260,23 @@ def build_corpo_despacho_xml(dados: dict) -> str:
         return _paragrafo(ESTILO_ALINEA, TEXTO_SEM_APONTAMENTOS)
     partes: list[str] = []
     for secao in secoes:
-        partes.append(_paragrafo(ESTILO_PECA, secao["titulo"]))
+        partes.append(_paragrafo(ESTILO_PECA, _titulo_numerado(secao)))
         for alinea in secao["alineas"]:
             partes.append(_paragrafo(ESTILO_ALINEA, f"{alinea['letra']}) {alinea['texto']}"))
     return "".join(partes)
+
+
+def _titulo_numerado(secao: dict) -> str:
+    """Garante `"{numero}) "` no título renderizado de toda seção (D-05).
+
+    `_cabecalho_peca` já embute o número no `titulo` de seções por peça
+    (usado por `montar_apontamentos`/testes unitários que comparam o campo
+    literalmente). A seção de pendências guarda `TITULO_PENDENCIAS` sem
+    número — de propósito, para não acoplar `montar_apontamentos` a uma
+    posição de renderização — e só ganha o prefixo aqui, no momento de
+    virar parágrafo, espelhando o modelo institucional real
+    (`processo-teste/referencias/dvi.md`: `"3) CRONOGRAMA FÍSICO-FINANCEIRO:"`).
+    """
+    prefixo = f"{secao['numero']}) "
+    titulo = secao["titulo"]
+    return titulo if titulo.startswith(prefixo) else f"{prefixo}{titulo}"
