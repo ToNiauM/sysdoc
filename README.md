@@ -24,8 +24,9 @@ A separação garante reprodutibilidade: o mesmo JSON, validado pelo mesmo valid
 9. [Schema canônico e regras de validação](#schema-canônico-e-regras-de-validação)
 10. [Restrições do projeto](#restrições-do-projeto)
 11. [Motor de análise DVI (`sysdoc-dvi`)](#motor-de-análise-dvi-sysdoc-dvi)
-12. [Documentação adicional](#documentação-adicional)
-13. [Exemplo didático: do zero ao deploy nos dois fluxos](#exemplo-didático-do-zero-ao-deploy-nos-dois-fluxos)
+12. [Interface web para pregoeiros](#interface-web-para-pregoeiros)
+13. [Documentação adicional](#documentação-adicional)
+14. [Exemplo didático: do zero ao deploy nos dois fluxos](#exemplo-didático-do-zero-ao-deploy-nos-dois-fluxos)
 
 ---
 
@@ -432,6 +433,50 @@ Duas chaves novas em `.sysdoc/config.yaml` (semeadas vazias por `sysdoc init`) c
 - **`despacho:`** — bloco com os sete campos institucionais que não existem no `dados_consolidados.json` (são dado de órgão, não de análise): `vocativo`, `unidade`, `destinatario`, `signatario`, `cargo_signatario`, `autoridade`, `cargo_autoridade`. Campo vazio vira o marcador `[PREENCHER: <campo>]` visível no Word — nunca é inventado.
 
 Um `referencias/dvi.docx` (ou `modelo_dvi.docx`/`template_dvi.docx`) próprio do projeto sempre tem precedência sobre a variante do repositório, preservando a customização por órgão sem exigir mudança no SysDoc.
+
+---
+
+## Interface web para pregoeiros
+
+Além da CLI e do motor DVI, a Phase 7 entregou `sysdoc_web`: uma aplicação Django em Docker que abstrai o fluxo inteiro (upload → extração → análise → despacho) para o pregoeiro que não conhece — e não precisa conhecer — terminal, YAML ou JSON. **Agentes de IA continuam usando a CLI**, não a web; a web é a porta de entrada para o ser humano.
+
+A tela cobre quatro passos: novo processo com upload do PDF único do processo (peças separadas como alternativa), escolha do tipo de contratação em português de gente, acompanhamento da análise em tempo real, e resultado com os apontamentos, a revisão institucional bloqueante e os downloads.
+
+### Subir a aplicação
+
+Na raiz do repositório:
+
+```bash
+docker compose up
+```
+
+Um único serviço, um único comando — sem passo manual de migração. O `entrypoint.sh` do container aplica as migrações, saneia jobs órfãos de uma subida anterior e sobe o worker de análise e o gunicorn.
+
+### Criar o primeiro usuário
+
+Não existe auto-cadastro (D-07 de `07-CONTEXT.md`): contas são criadas pelo administrador.
+
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+### O que continua sendo do administrador, fora da web
+
+A escolha de provedor, modelo econômico/forte e as chaves de API **não aparecem na web** — isso é configuração de administrador, feita com `sysdoc-dvi config` (ver seção anterior), fora do navegador. As chaves ficam em `~/.sysdoc/config.json` no host, montado somente-leitura no container.
+
+### Instalação sem a web
+
+`pip install sysdoc` (ou `pip install -e .` neste repositório) continua funcionando sem Django. A web é um extra opcional:
+
+```bash
+pip install -e ".[web]"
+```
+
+### Endereço padrão
+
+```
+http://localhost:8000
+```
 
 ---
 
