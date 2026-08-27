@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 07
-status: ready_to_execute
-stopped_at: Phase 7 planejada — 8 planos em 6 waves, verificação do plan-checker passou na iteração 2
-last_updated: "2026-08-27T05:53:34.221Z"
+status: executing
+stopped_at: Plano 07-01 concluído (1/8 planos da Phase 7) — pronto para 07-02
+last_updated: "2026-08-27T06:20:09.351Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 32
-  completed_plans: 23
+  completed_plans: 24
   percent: 43
 ---
 
@@ -36,7 +36,7 @@ See: .planning/PROJECT.md
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
 | 6 | complete | 7/7 | 100% |
-| 7 | planned | 0/8 | 0% |
+| 7 | in_progress | 1/8 | 13% |
 
 ## Recent Changes
 
@@ -57,9 +57,13 @@ See: .planning/PROJECT.md
 - 2026-08-27: Plano 06-07 concluído (Phase 6 fechada — Rodada 1, 7/7 planos) — checkpoint bloqueante da Task 1 apresentou ao usuário as três opções para o destino de `templates/dvi_base.docx` (formato relatório) com o conjunto real de placeholders inspecionado; **decisão do usuário: `aposentar`**. Task 2 removeu `templates/dvi_base.docx` e `templates/build_dvi_base.py`, trimou `tests/test_dvi_template_base.py` (removidas `TestTemplateBaseValido`/`TestCreateAposInit`, preservada `TestSeedDviTemplate`), confirmou que `tests/test_sigla_dvi.py::test_docx_base_usa_a_expansao_correta` passa a `skipped` pelo `skipif` já existente, e registrou a decisão em `CHANGELOG.md` (recuperável via `git show d180b24^:templates/dvi_base.docx`). Suíte completa: 561 passed, 1 skipped (era 567; -5 testes do arquivo removido, +1 skip esperado). SYSD-18 completo.
 
 - 2026-08-27: Phase 7 planejada — 8 planos em 6 waves, requisitos SYSD-19 a SYSD-29, cobrindo D-01 a D-21 do `07-CONTEXT.md`. Interface web em **Django** (não FastAPI — correção explícita do usuário), rodando em Docker de um serviço, importando `sysdoc`/`sysdoc_dvi` como biblioteca. Plan-checker aprovou na iteração 2; o blocker da iteração 1 era um `ValueError` em import time (`ClearableFileInput(attrs={"multiple": True})` deixou de ser aceito no Django 5.0), reproduzido contra instalação real e corrigido para o par `MultipleFileInput`/`MultipleFileField`.
+- 2026-08-27: Plano 07-01 concluído (wave 1/6) — `sysdoc.criar_documento()` (dataclass `ResultadoCreate`) e `sysdoc.localizar_html_analise()`/`localizar_docx_despacho()` tornam `create()`/`deploy()` chamáveis como biblioteca sem imprimir nem `subprocess`; `sysdoc_dvi/progresso.py` (`EventoProgresso`/`ETAPAS`/`SinkProgresso`, sem dependência de Django) e `_emitir()` em `pipeline.py` dão a `executar_run(..., progresso=callback)` um canal de eventos por etapa, blindado contra callback que lança exceção (RF9). Nenhuma string impressa pela CLI mudou; 11 testes novos em `tests/test_biblioteca_chamavel.py`; suíte completa (568 passed, 1 skipped) verde. SYSD-19 completo.
 
 ## Recent Decisions
 
+- `ResultadoCreate` (dataclass congelada com 4 campos) fica em `sysdoc.py`, perto de `create`/`criar_documento`, em vez de um módulo próprio — evita um arquivo novo para uma estrutura de dados usada só ali.
+- `localizar_docx_despacho()` busca só em `paths.root` (sem `rglob`) e usa nome ancorado por regex (`^\d{2}_.*_dvi_\d{4}-\d{2}-\d{2}\.docx$`) — um `.docx` de `referencias/` nunca pode ser confundido com um despacho já gerado.
+- `sysdoc_dvi.cli.run()` não recebe o parâmetro `progresso` — só chamadores de biblioteca (a view Django que os planos seguintes vão escrever) o usam; a CLI continua sem esse parâmetro no dispatch do argparse.
 - Interface web da Phase 7 é **Django**, decisão explícita do usuário em 2026-08-27 que revoga a sugestão anterior de FastAPI registrada na conversa de requisitos. Não reabrir.
 - Concorrência da web: **uma análise por vez**, com `UniqueConstraint` condicional no banco (não um `if` na view, que uma segunda thread do gunicorn driblaria) mais worker single-slot em processo separado. Sem Redis, sem Celery — trava o custo de API e mantém o compose com um serviço só.
 - A web **importa** `sysdoc`/`sysdoc_dvi` como biblioteca, nunca via `subprocess` da CLI; onde uma função não for reutilizável, a correção é torná-la chamável preservando o comportamento da CLI.
@@ -104,16 +108,16 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T05:53:00Z
-Stopped at: Phase 7 planejada (8 planos, 6 waves) — pronta para executar
+Last session: 2026-08-27T06:20:00Z
+Stopped at: Plano 07-01 concluído (1/8 planos da Phase 7, wave 1/6) — pronto para 07-02
 Resume file: None
 
 ## Current Focus
 
-Phase 7: Interface web para pregoeiros — planejada e verificada. Próximo passo recomendado: `/gsd-execute-phase 7`.
+Phase 7: Interface web para pregoeiros — em execução (1/8 planos). Próximo passo recomendado: executar `07-02-PLAN.md` (esqueleto Django `sysdoc_web`).
 
 Phases 3 e 4 seguem pendentes e não bloqueiam a 7.
 
 ---
 
-*Last updated: 2026-08-27 — Completed 06-07-PLAN.md: checkpoint de destino do formato relatório dvi_base (decisão aposentar, executada); Phase 6 Rodada 1 fechada, 7/7 planos*
+*Last updated: 2026-08-27 — Completed 07-01-PLAN.md: sysdoc/sysdoc_dvi chamáveis como biblioteca (criar_documento, localizar_html_analise, localizar_docx_despacho, progresso estruturado no pipeline DVI); Phase 7 wave 1 em andamento (07-02 segue na mesma wave)*
