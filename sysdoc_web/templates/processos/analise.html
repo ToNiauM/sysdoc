@@ -1,43 +1,56 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends "processos/_pagina.html" %}
+{% load static %}{# o load do base.html não é herdado pelos filhos #}
 
-{% block conteudo %}
-  <div
-    class="tela-analise"
-    data-url-situacao="{% url 'processos:situacao_analise' processo.slug %}"
-  >
-    <h1>Análise do processo</h1>
-    <section class="cartao">
-      <p class="resumo-processo">
-        <strong>{{ processo.nome }}</strong>
-        — {{ processo.get_tipo_verificacao_display }}
-      </p>
+{% block titulo %}Análise · {{ sistema_sigla }}{% endblock %}
+{% block titulo_pagina %}Análise do processo{% endblock %}
 
-      {% if pode_iniciar %}
-        {% if job %}
-          <p class="observacao">
-            A última tentativa não foi concluída: {{ job.mensagem_erro }}
-          </p>
-        {% endif %}
-        <form method="post" action="{% url 'processos:iniciar_analise' processo.slug %}">
-          {% csrf_token %}
-          <button type="submit" class="botao botao-primario">Iniciar análise</button>
-        </form>
-      {% else %}
-        <div class="bloco-progresso">
-          <p class="observacao">
-            A análise pode levar alguns minutos. Você pode deixar esta página aberta.
-          </p>
-          <p>Situação: <span id="situacao">{{ job.get_status_display }}</span></p>
-          <p>Etapa: <span id="etapa">{{ job.etapa }}</span></p>
-          <div class="barra-fundo">
-            <div id="barra" class="barra-progresso" style="width: {{ job.percentual }}%;"></div>
-          </div>
-        </div>
-      {% endif %}
-
-      <div id="erro" class="erro" hidden></div>
-    </section>
+{% block cabecalho_pagina %}
+<div class="mb-6">
+  {% include "core/_breadcrumbs.html" with trilha=trilha %}
+  <div class="mt-2">
+    <h1 class="text-xl font-semibold tracking-tight text-ink">Análise do processo</h1>
+    <p class="text-sm font-normal text-ink-2 mt-1">
+      {{ processo.nome }} · {{ processo.get_tipo_verificacao_display }}
+    </p>
   </div>
-  <script src="{% static 'progresso.js' %}" defer></script>
+</div>
+{% endblock %}
+
+{% block conteudo_sysdoc %}
+<div class="tela-analise max-w-2xl" data-url-situacao="{% url 'processos:situacao_analise' processo.slug %}">
+  <section class="module flex flex-col gap-4">
+    {% if pode_iniciar %}
+      {% if job %}
+        <p class="text-sm text-ink-2">A última tentativa não foi concluída: {{ job.mensagem_erro }}</p>
+      {% endif %}
+      <form method="post" action="{% url 'processos:iniciar_analise' processo.slug %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--primaria">Iniciar análise</button>
+      </form>
+    {% else %}
+      <div class="bloco-progresso flex flex-col gap-3">
+        <p class="text-sm text-ink-2">
+          A análise pode levar alguns minutos. Você pode deixar esta página aberta.
+        </p>
+        <dl class="flex flex-col gap-1 text-sm">
+          <div class="flex gap-2">
+            <dt class="text-ink-2">Situação:</dt>
+            <dd id="situacao" class="font-semibold text-ink">{{ job.get_status_display }}</dd>
+          </div>
+          <div class="flex gap-2">
+            <dt class="text-ink-2">Etapa:</dt>
+            <dd id="etapa" class="text-ink">{{ job.etapa }}</dd>
+          </div>
+        </dl>
+        <div class="barra-fundo h-2 w-full overflow-hidden rounded-sm bg-surface-2">
+          <div id="barra" class="barra-progresso h-full bg-brand transition-[width] duration-500"
+               style="width: {{ job.percentual }}%;"></div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div id="erro" class="rounded-sm border border-destructive px-3 py-2 text-sm text-destructive" hidden></div>
+  </section>
+</div>
+<script src="{% static 'progresso.js' %}" defer></script>
 {% endblock %}

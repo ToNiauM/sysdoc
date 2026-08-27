@@ -86,7 +86,7 @@ def usuario(django_web):
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user, _ = User.objects.get_or_create(username="pregoeiro-upload")
+    user, _ = User.objects.get_or_create(email="pregoeiro-upload@exemplo.org")
     return user
 
 
@@ -95,7 +95,7 @@ def outro_usuario(django_web):
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user, _ = User.objects.get_or_create(username="pregoeiro-upload-outro")
+    user, _ = User.objects.get_or_create(email="pregoeiro-upload-outro@exemplo.org")
     return user
 
 
@@ -142,7 +142,7 @@ class TestPdfUnico:
         assert "/verificacao/" in resposta["Location"]
 
         processo = Processo.objects.get(nome="Processo PDF único")
-        assert processo.criado_por.username == "pregoeiro-upload"
+        assert processo.criado_por.email == "pregoeiro-upload@exemplo.org"
 
         pasta_documentos = raiz_processos / processo.slug / "documentos"
         arquivos = list(pasta_documentos.iterdir())
@@ -304,7 +304,7 @@ class TestAutorizacaoPorObjeto:
         cliente_anonimo = Client()
         resposta = cliente_anonimo.get("/processos/novo/")
         assert resposta.status_code == 302
-        assert resposta["Location"].startswith("/entrar/")
+        assert resposta["Location"].startswith("/login/")
 
     def test_post_sem_csrf_e_recusado(self, django_web, usuario, raiz_processos):
         from django.test import Client

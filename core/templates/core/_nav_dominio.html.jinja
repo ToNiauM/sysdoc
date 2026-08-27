@@ -1,0 +1,24 @@
+{% raw %}{% comment %}
+  ESTE ARQUIVO É DO SEU SISTEMA. O núcleo nunca o reescreve — protegido por
+  `_skip_if_exists` no copier.yml. Formato: uma linha por item.
+
+  {% item_nav "app:rota" "Rótulo" "icone" "prefixo-opcional" "excecoes-opcionais" %}
+
+  `rota` é o NOME da rota (`app:nome`), não a URL. `prefixo` marca o item
+  ativo também nas rotas-filhas (ex.: "/clientes/"). Se a rota não existir
+  (app removido pelo copier update), o item simplesmente não aparece — sem
+  erro.
+
+  `excecoes` lista, separados por espaço, os caminhos-irmãos que já têm item
+  próprio neste menu e por isso não devem acender o item do prefixo. Sem ela,
+  dois itens acendem juntos: quem tem `prefixo="/clientes/"` fica ativo também
+  em `/clientes/relatorio/`, junto com o item dono dessa rota — dois
+  `aria-current="page"` na mesma página. Um item continua sempre ativo na
+  própria URL, mesmo que ela apareça nas exceções de outro.
+{% endcomment %}
+{% load navegacao %}{% endraw %}
+{% if incluir_app_exemplo %}
+{% raw %}{% item_nav "exemplo:dashboard" "Dashboard" "grafico" %}
+{% item_nav "exemplo:item_listar" "Itens (CRUD)" "lista" "/exemplo/" "/exemplo/dashboard/" %}
+{% endraw %}
+{% endif %}

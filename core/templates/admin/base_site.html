@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+Override cirúrgico (D-14): só injeta o <style> dos 3 tokens de cor do tema no
+bloco `extrastyle`. O extends recursivo funciona porque o loader DIRS
+(core/templates) resolve este arquivo antes do APP_DIRS (contrib.admin); o CSS
+vem de SistemaAdminSite.each_context (core/admin_site.py) e é seguro para
+|safe — COR_PRIMARIA é validada como #RRGGBB no boot.
+{% endcomment %}
+{% block extrastyle %}
+{{ block.super }}
+<style>{{ admin_tema_css|safe }}</style>
+{% endblock %}

@@ -30,7 +30,7 @@ def usuario(django_web):
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user, _ = User.objects.get_or_create(username="pregoeiro-fila")
+    user, _ = User.objects.get_or_create(email="pregoeiro-fila@exemplo.org")
     return user
 
 

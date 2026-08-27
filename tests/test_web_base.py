@@ -32,13 +32,13 @@ class TestAutenticacaoObrigatoria:
     def test_raiz_exige_login(self, client):
         resposta = client.get("/")
         assert resposta.status_code == 302
-        assert resposta["Location"].startswith("/entrar/")
+        assert resposta["Location"].startswith("/login/")
 
     def test_login_valido_da_acesso(self, django_web, client):
         from django.contrib.auth import get_user_model
 
-        get_user_model().objects.create_user(username="pregoeiro", password="senha-forte-123")
-        client.force_login(get_user_model().objects.get(username="pregoeiro"))
+        get_user_model().objects.create_user(email="pregoeiro@exemplo.org", password="senha-forte-123")
+        client.force_login(get_user_model().objects.get(email="pregoeiro@exemplo.org"))
 
         resposta = client.get("/")
         assert resposta.status_code == 200
@@ -55,8 +55,8 @@ class TestCabecalhosSeguranca:
     def test_cabecalhos_de_seguranca(self, django_web, client):
         from django.contrib.auth import get_user_model
 
-        get_user_model().objects.create_user(username="pregoeiro2", password="senha-forte-123")
-        client.force_login(get_user_model().objects.get(username="pregoeiro2"))
+        get_user_model().objects.create_user(email="pregoeiro2@exemplo.org", password="senha-forte-123")
+        client.force_login(get_user_model().objects.get(email="pregoeiro2@exemplo.org"))
 
         resposta = client.get("/")
         assert resposta["X-Content-Type-Options"] == "nosniff"

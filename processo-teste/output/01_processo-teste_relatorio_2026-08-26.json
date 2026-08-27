@@ -1,0 +1,82 @@
+{
+  "itens_por_status": {
+    "conforme": 24,
+    "risco": 4,
+    "ajuste_necessário": 7,
+    "pendente": 14
+  },
+  "itens_por_tipo": {
+    "ETP": 20,
+    "TR": 29
+  },
+  "itens_por_origem": {
+    "deterministico": 7,
+    "lookup": 2,
+    "llm": 40
+  },
+  "falhas_grounding": {
+    "total": 5,
+    "itens": [
+      "DVI-GER-018",
+      "DVI-GER-021",
+      "DVI-GER-025",
+      "DVI-AMB-017",
+      "DVI-AMB-018"
+    ],
+    "trechos_rejeitados": {
+      "DVI-GER-018": "1.1. Contratação de serviços de assinatura de sistema digital multiusuário para disponibilização e gerenciamento de coleções de Normas Técnicas Brasileiras (ABNT-NBR) e Mercosul (NM), totalmente via web, acesso simultâneo e sem limites de usuários , com recurso de visualização, atualização e impressão ilimitada, bem como o fornecimento de suporte técnico para o Conselho Federal de Contabilidade (CFC), pelo período de 12 meses. 1.1.1. Aquisição/contratação de 40 (quarenta) Normas Técnicas Brasileiras (NBR) da Associação Brasileira de Normas Técnicas (ABNT) e Mercosul (NM). Item Descrição Quant. Código CatMat /CatSer 1 Sistema digital multiusuário para disponibilização e gerenciamento de coleções de Normas Técnicas Brasileiras (ABNT-NBR) e Mercosul (NM), totalmente via web, acesso simultâneo e sem limites de usuários ,com recurso de visualização, atualização e impressão ilimitada, bem como o fornecimento de suporte técnico 40 23108 1.2. O objeto da contratação tem a natureza de serviço comum de caráter continuado. 1.3. O quantitativo e o respectivo código do item são os discriminados na tabela acima. 1.7. O prazo de vigência do contrato será de 12 (doze) meses, a contar da assinatura, podendo ser renovado, quando for comprovadamente vantajoso para o CFC, observados os limites da Lei n.º 14.133/21. 5.1.1.Os serviços serão prestados pela internet, mediante a liberação de acesso ao sistema digital; 5.3.2. Suporte técnico por meio de atendimento telefônico ou e-mail prestado em horário comercial em até 24horas após a realização do contato inicial. 5.5.2. O sistema deve estar disponível 24 (vinte e quatro) horas por dia, 7 (sete) dias por semana, com disponibilidade de acesso de pelo menos 98% das 720 horas mensais. 5.6.1. O serviço será disponibilizado em até 5(cinco) dias úteis após a assinatura do contrato. 5.6.2. O objeto será considerado entregue assim que for confirmada a liberação do acesso à plataforma, juntamente com a disponibilização de todas as normas solicitadas, permitindo a visualização, impressão e download ilimitados, além da atualização, pesquisa e gerenciamento eletrônico das mesmas. 7.5. O fiscal técnico do contrato realizará o recebimento provisório do objeto do contrato mediante termo detalhado que comprove o cumprimento das exigências de caráter técnico. 7.12. Os serviços serão recebidos definitivamente no prazo de 5 (cinco) dias, contados do recebimento provisório, por servidor ou comissão designada pela autoridade competente, após a verificação da qualidade e quantidade do serviço e consequente aceitação mediante termo detalhado, obedecendo os seguintes procedimentos:",
+      "DVI-GER-021": "4. Requisitos da contratação\nRequisitos Gerais\n4.1. O objeto a ser contratado enquadra-se na categoria de bens e serviços comuns, de que trata a Lei n.º 14.133 de 2021, por possuir padrões de desempenho e características gerais e especificas, usualmente encontradas no mercado, podendo ser licitado por meio da modalidade de Dispensa Eletrônica.\n4.2. A preferência para ME/EPP tem fulcro Constitucional, no art. 170, IX e 179. A Lei Complementar 123, de 14 de dezembro de 2006 instituiu o Estatuto Nacional da Microempresa e da Empresa de Pequeno Porte, trazendo em seus artigos 42 a 49 benefícios para a participação de ME /EPP em licitações.\n4.3. As obrigações das partes serão formalizadas por meio da celebração de contrato e observará os termos da Lei nº 14.133, de 2021, e das demais normas pertinentes.\n4.4. O prazo de vigência da contratação será de 12 (doze) meses, iniciada após a assinatura do contrato ou conforme previsão contratual, podendo ser prorrogado por sucessivos períodos, até o limite de 10 (dez) anos, desde que o valor em cada exercício estejam dentro do limite previsto no Art. 75, II da Lei 14.133 de 2021.\n4.5. O critério de adjudicação do serviço utilizado será o MENOR PREÇO.\n4.6. A Contratada não pode permitir que o menor de dezoito anos execute trabalhos noturno, perigoso ou insalubre e, ainda, não pode se utilizar de qualquer trabalho de menor de dezesseis anos, exceto na condição de aprendiz para os maiores de quatorze anos; devendo declarar formalmente por meio de Declaração de Não Emprego de Menor.\n4.7. O objeto da contratação tem a natureza de serviço comum de caráter continuado, e sem fornecimento de mão de obra em regime de dedicação exclusiva, a ser contratado mediante licitação na modalidade dispensa eletrônica.\n4.8. A prestação dos serviços não gera vínculo empregatício entre os empregados da Contratada e a Administração Contratante, vedando-se qualquer relação entre estes que caracterize pessoalidade e subordinação direta.\nSustentabilidade\n4.9. Os serviços deverão respeitar as normas e os princípios ambientais, minimizando ou mitigando os efeitos dos danos ao meio ambiente, utilizando, sempre que possível e disponível, tecnologias e materiais ecologicamente corretos, bem como promovendo a racionalização de recursos naturais, como a advinda da não utilização de papel, e aplicando, no que couber ao escopo da presente contratação, o Guia Nacional de Contratações Sustentáveis (AGU, 5ª Edição, 2022).\nSubcontratação\n4.10. Não é admitida a subcontratação do objeto contratual.\nVistoria\n4.11. Não há necessidade de vistoria.",
+      "DVI-GER-025": "1.6. A contratação se enquadra em dispensa por pequeno valor, conforme art. 75, II, da Lei nº 14.133, de 2021. 1.7. O prazo de vigência do contrato será de 12 (doze) meses, a contar da assinatura, podendo ser renovado, quando for comprovadamente vantajoso para o CFC, observados os limites da Lei n.º 14.133/21. 1.8. O critério de adjudicação do serviço utilizado será o MENOR PREÇO.",
+      "DVI-AMB-017": "1.7. O prazo de vigência do contrato será de 12 (doze) meses, a contar da assinatura, podendo ser renovado, quando for comprovadamente vantajoso para o CFC, observados os limites da Lei n.º 14.133/21.\n\n5.1. O prazo de execução dos serviços serão de 12 (doze) meses, com início em até 5 (cinco) dias úteis após a assinatura do contrato, na forma que se segue:\n\n5.6.1. O serviço será disponibilizado em até 5(cinco) dias úteis após a assinatura do contrato.\n\n7.24. O pagamento será efetuado em parcela única no prazo de até 5 (cinco) dias úteis, a contar da liquidação da despesa, conforme estabelecido no § 2º do art. 7º da Instrução Normativa nº 77/2022.",
+      "DVI-AMB-018": "6.16. Após o interregno de um ano, e independentemente de pedido da CONTRATADA, os preços iniciais serão reajustados, mediante a aplicação, pela CONTRATANTE, do índice IPCA (Índice de Preços ao Consumidor Amplo), exclusivamente para as obrigações iniciadas e concluídas após a ocorrência da anualidade, com base na seguinte fórmula (art. 5º do Decreto n.º 1.054, de1994):\n6.16.1. R = V (I – Iº) / Iº,\nonde:\nR = Valor do reajuste procurado;\nV = Valor contratual a ser reajustado;\nIº = índice inicial - refere-se ao índice de custos ou de preços correspondente à data fixada para entrega da proposta na licitação;\nI = Índice relativo ao mês do reajustamento.\n6.17. Nos reajustes subsequentes ao primeiro, o interregno mínimo de um ano será contado a partir do efeito financeiro do reajuste anterior.\n6.18. Caso o índice estabelecido para o reajustamento seja extinto ou não possa ser utilizado por qualquer motivo, será adotado, como substituto, o índice que for determinado pela legislação vigente.\n6.19. Na ausência de uma previsão legal para o índice substituto, as partes concordarão em escolher um novo índice oficial para o reajustamento do valor remanescente, por meio de um termo aditivo.\n6. 20. O reajuste será realizado por apostilamento"
+    }
+  },
+  "falhas_estruturadas": {
+    "total": 0,
+    "itens": []
+  },
+  "tokens_por_modelo": {
+    "openrouter/openai/gpt-5.6-luna": {
+      "entrada": 856688,
+      "saida": 19661
+    },
+    "openrouter/openai/gpt-5.6-luna-pro": {
+      "entrada": 2083233,
+      "saida": 54169
+    }
+  },
+  "custo_por_modelo": {
+    "openrouter/openai/gpt-5.6-luna": 0.0,
+    "openrouter/openai/gpt-5.6-luna-pro": 0.0
+  },
+  "custo_total": 0.0,
+  "duracao_total_s": 651.1522793479962,
+  "checklist_hash": "000806798d22627b3210640d8fd1ab44ba2bff55126ad21542a8d168349637f4",
+  "schema_version": "1.1",
+  "pecas_mapeadas": {
+    "MCP": {
+      "label": "DOC-01_SEI-ABNT",
+      "origem": "override"
+    },
+    "PROCESSO": {
+      "label": "DOC-01_SEI-ABNT",
+      "origem": "override"
+    },
+    "TR": {
+      "label": "DOC-01_SEI-ABNT",
+      "origem": "override"
+    },
+    "RISCOS": {
+      "label": "DOC-01_SEI-ABNT",
+      "origem": "override"
+    },
+    "ETP": {
+      "label": "DOC-01_SEI-ABNT",
+      "origem": "override"
+    }
+  },
+  "avisos": [
+    "Alvo 'openrouter/openai/gpt-5.6-luna' não possui preço registrado; custo estimado ficou zerado apesar de tokens consumidos.",
+    "Alvo 'openrouter/openai/gpt-5.6-luna-pro' não possui preço registrado; custo estimado ficou zerado apesar de tokens consumidos."
+  ]
+}

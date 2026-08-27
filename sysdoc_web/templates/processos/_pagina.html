@@ -1,0 +1,27 @@
+{% extends "core/shell.html" %}
+{% comment %}
+  Camada intermediária do SysDoc sobre o shell do núcleo.
+
+  Existe por um motivo concreto: `core/shell.html` NÃO renderiza
+  `django.contrib.messages`, e as views do fluxo dependem de mensagem para
+  falar com o pregoeiro — em especial o aviso de fila ocupada quando uma
+  segunda análise é pedida com outra em andamento (D-14). Sem este bloco, a
+  view redireciona e a pessoa não vê explicação nenhuma na tela.
+
+  Fica aqui, e não em `core/shell.html`, porque o shell é do núcleo e
+  qualquer edição lá vira conflito no próximo `copier update`. As telas do
+  fluxo estendem ESTE arquivo, nunca o shell diretamente.
+{% endcomment %}
+
+{% block conteudo_pagina %}
+  {% if messages %}
+    <div class="mb-4 flex flex-col gap-2">
+      {% for mensagem in messages %}
+        <p class="mensagem rounded-sm border px-3 py-2 text-sm" data-nivel="{{ mensagem.tags }}">
+          {{ mensagem }}
+        </p>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% block conteudo_sysdoc %}{% endblock %}
+{% endblock %}

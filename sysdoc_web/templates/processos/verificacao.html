@@ -1,28 +1,40 @@
-{% extends "base.html" %}
+{% extends "processos/_pagina.html" %}
 
-{% block conteudo %}
-  <h1>Tipo de contratação</h1>
-  <section class="cartao">
-    <p class="observacao">Escolha a opção que descreve o objeto deste processo.</p>
+{% block titulo %}Tipo de contratação · {{ sistema_sigla }}{% endblock %}
+{% block titulo_pagina %}Tipo de contratação{% endblock %}
 
-    <form method="post" novalidate>
-      {% csrf_token %}
+{% block cabecalho_pagina %}
+<div class="mb-6">
+  {% include "core/_breadcrumbs.html" with trilha=trilha %}
+  <div class="mt-2">
+    <h1 class="text-xl font-semibold tracking-tight text-ink">Tipo de contratação</h1>
+    <p class="text-sm font-normal text-ink-2 mt-1">Escolha a opção que descreve o objeto deste processo.</p>
+  </div>
+</div>
+{% endblock %}
 
-      {% if form.non_field_errors %}
-        <ul class="erro">
-          {% for erro in form.non_field_errors %}
-            <li>{{ erro }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
+{% block conteudo_sysdoc %}
+<section class="module max-w-2xl">
+  <form method="post" novalidate class="flex flex-col gap-5">
+    {% csrf_token %}
 
-      <fieldset class="campo-radios">
-        {% for radio in form.tipo %}
-          <label class="opcao-radio">{{ radio.tag }} {{ radio.choice_label }}</label>
-        {% endfor %}
-      </fieldset>
+    {% if form.non_field_errors %}
+      <ul class="rounded-sm border border-destructive px-3 py-2 text-sm text-destructive">
+        {% for erro in form.non_field_errors %}<li>{{ erro }}</li>{% endfor %}
+      </ul>
+    {% endif %}
 
-      <button type="submit" class="botao botao-primario">Iniciar análise</button>
-    </form>
-  </section>
+    <fieldset class="flex flex-col gap-2">
+      {% for radio in form.tipo %}
+        <label class="flex items-center gap-2 rounded-sm border border-grid px-3 py-2 text-ink hover:bg-surface-2">
+          {{ radio.tag }} <span>{{ radio.choice_label }}</span>
+        </label>
+      {% endfor %}
+    </fieldset>
+
+    <div>
+      <button type="submit" class="btn btn--primaria">Iniciar análise</button>
+    </div>
+  </form>
+</section>
 {% endblock %}

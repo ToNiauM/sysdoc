@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sem conexão</title>
+<style>
+  /* Autocontido de propósito: o service worker precisa poder precachear e
+     servir esta página com zero acesso à rede — nada de folha de estilo
+     externa, nada de imagem, nada de fonte remota. As cores são os neutros
+     do template (mesmos hex dos tokens page/surface/ink), NUNCA a cor
+     primária de identidade (D-17): esta página é estática e não passa pelo
+     context processor, então qualquer hex de marca aqui viraria hard-code. */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    background: #f9f9f7;
+    padding-top: 48px;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #0b0b0b;
+  }
+  .cartao {
+    background: #fcfcfb;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 400px;
+    height: fit-content;
+    margin: 0 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  .cartao-corpo {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  p {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: #52514e;
+    line-height: 1.5;
+  }
+  button {
+    align-self: flex-start;
+    background: #52514e; /* cinza-escuro neutro — sem hex de marca (D-17) */
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #3d3c3a;
+  }
+</style>
+</head>
+<body>
+  <div class="cartao">
+    <div class="cartao-corpo">
+      <h1>Sem conexão</h1>
+      <p>Você está offline. Não foi possível carregar esta página porque o dispositivo está sem conexão com a internet — tente novamente quando a conexão for restabelecida.</p>
+      <button type="button" onclick="location.reload()">Tentar novamente</button>
+    </div>
+  </div>
+</body>
+</html>

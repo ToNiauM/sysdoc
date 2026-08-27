@@ -1,0 +1,25 @@
+{% load navegacao %}
+{% comment %}
+  Ponto de extensão da navegação (D-10, D-87, D-89).
+
+  ESTE ARQUIVO É DO NÚCLEO. Toda edição aqui vira conflito no próximo
+  `copier update`. Os itens do SEU domínio vão em
+  `core/templates/core/_nav_dominio.html`, que é seu e que o núcleo nunca
+  toca (protegido por `_skip_if_exists` no `copier.yml`).
+
+  Não existe registry dinâmico de menu por decisão (D-10) — a navegação do
+  núcleo é declarada aqui, e só; a extensão vem da tag abaixo.
+
+  Essa inserção é TOLERANTE por decisão (WR-10): apagar o arquivo do domínio
+  esvazia o menu de itens de domínio, não derruba a página — o item some, a
+  página fica. A tag padrão do Django para inserir outro template levantaria
+  `TemplateDoesNotExist` e daria 500 em toda página que estende `shell.html` —
+  o Django não tem `ignore missing` (isso é Jinja2).
+
+  Sem boost do htmx na navegação (D-09): cada `<a href>` carrega a página
+  inteira — o componente Alpine do shell é montado uma única vez por página.
+{% endcomment %}
+<nav aria-label="Navegação principal" class="flex flex-col gap-1">
+  {% item_nav "core:shell" "Início" "casa" %}
+  {% nav_dominio %}
+</nav>

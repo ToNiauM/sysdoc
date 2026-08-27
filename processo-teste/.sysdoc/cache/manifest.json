@@ -1,0 +1,39 @@
+{
+  "project": "processo-teste",
+  "files": [
+    {
+      "label": "DOC-01_SEI-ABNT",
+      "category": "documentos",
+      "source": "processo-teste/documentos/SEI-ABNT.pdf",
+      "cache": ".sysdoc/cache/textos/documentos/DOC-01_SEI-ABNT.txt",
+      "sha256": "7eefdd563bd89f5ef05ab533237b2f93d4038ce0b05c63129339aeff4395d486",
+      "chars": 555151,
+      "words": 85030,
+      "ancoras": {
+        "ETP": 28,
+        "TR": 144,
+        "MCP": 43,
+        "RISCOS": 3,
+        "PROCESSO": 442
+      },
+      "peca_sugerida": "PROCESSO"
+    },
+    {
+      "label": "REF-01_COLOQUE_MODELOS_AQUI",
+      "category": "referencias",
+      "source": "processo-teste/modelos/COLOQUE_MODELOS_AQUI.txt",
+      "cache": ".sysdoc/cache/textos/referencias/REF-01_COLOQUE_MODELOS_AQUI.txt",
+      "sha256": "2c8c68a7cb2e986228f57db2f6b50cb6daec00b01d35dd33e3167c8b207089ca",
+      "chars": 89,
+      "words": 11,
+      "ancoras": {
+        "ETP": 0,
+        "TR": 0,
+        "MCP": 0,
+        "RISCOS": 0,
+        "PROCESSO": 0
+      },
+      "peca_sugerida": null
+    }
+  ]
+}

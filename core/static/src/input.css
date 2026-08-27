@@ -1,0 +1,192 @@
+@import "./dominio.css";
+/* ↑ PRIMEIRA declaração do arquivo, obrigatoriamente: depois de @tailwind
+   base o postcss-import descarta o import em silêncio, e sem o arquivo o
+   build falha ruidosamente (exit 2) — comportamento desejado.
+
+   core/static/src/input.css — FONTE FÍSICA de toda cor do sistema (DS-01/DS-06).
+   `tailwind.config.js` não tem nenhum valor: ele só aponta para as variáveis
+   declaradas aqui via var(--cor-*). Os utilitários gerados pelo Tailwind
+   (bg-page, text-ink, etc.) resolvem em RUNTIME, nos dois temas — é por isso
+   que o mesmo utilitário funciona em claro e em escuro sem recompilar nada. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   @layer base — anel de foco único
+
+   Substitui declarações espalhadas de foco template a template: outline
+   sólido de 2px na cor da marca, com offset, funcionando em qualquer
+   elemento focável. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid theme("colors.brand");
+    outline-offset: 2px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   @layer components — vocabulário de componente do padrão de referência da
+   família. As classes só sobrevivem ao purge do Tailwind se algum template
+   as usar literalmente (JIT poda seletor ausente do conteúdo varrido) — por
+   isso a `safelist` de `tailwind.config.js` garante as 8 aqui. */
+@layer components {
+  .results {
+    @apply bg-surface border border-grid rounded overflow-x-auto;
+  }
+
+  .module {
+    @apply bg-surface border border-grid rounded p-4;
+  }
+
+  /* Anel de foco deliberadamente diferente do @layer base acima: campo de
+     formulário usa ring-2 + borda de marca, não o outline único — divergência
+     intencional deste componente específico, não "consertar". */
+  .form-row {
+    @apply mt-0.5 w-full rounded-[6px] border border-grid bg-page px-2 py-1 text-base
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset
+      focus-visible:ring-brand focus-visible:border-brand;
+  }
+
+  .btn {
+    @apply rounded-none px-3 py-1 text-[13px] font-semibold;
+  }
+
+  .btn--primaria {
+    @apply bg-brand text-brand-tx hover:bg-brand-hover;
+  }
+
+  .btn--secundaria {
+    @apply border border-brand text-brand hover:bg-brand-tint;
+  }
+
+  .btn--neutro {
+    @apply border border-grid text-ink-2 hover:bg-surface-2;
+  }
+
+  .btn--destrutiva {
+    @apply border border-destructive text-destructive;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Paleta de cor — fonte física dos valores.
+
+   Fica FORA de qualquer @layer de propósito: `:root` e `[data-tema="escuro"]`
+   não são classes utilitárias, e o Tailwind poda regra de layer cujo seletor
+   não aparece no conteúdo varrido — CSS solto sobrevive ao purge.
+
+   Todo valor é hex plano: nenhuma função de mistura de cor resolvida pelo
+   navegador, nenhuma notação de canal alfa variável na declaração da
+   variável. getComputedStyle não resolve uma função de cor dentro de uma
+   custom property, e o JS do dashboard e os testes de contraste leem
+   estas variáveis por regex.
+
+   A família de marca abaixo (`--cor-brand*`, `--cor-seq-*`) é o DEFAULT do
+   template. `COR_PRIMARIA` do `.env` a sobrescreve em runtime pelo <style>
+   de `base.html` — ver core/tema.py.
+
+   `--cor-secundaria` é o dourado do padrão de referência da família e é
+   FORMA, nunca TEXTO: sobre as superfícies claras ele reprova AA de texto
+   (3,99:1). Use-o só em bg-/border-/fill-, nunca em text-.
+
+   `:root` carrega o tema claro; `[data-tema="escuro"]` sobrescreve só os
+   tokens com valor próprio no escuro. Os dois seletores têm a mesma
+   especificidade — a ordem de declaração é o que faz o escuro vencer, e quem
+   não tem override aqui herda o claro. */
+:root {
+  /* Superfícies */
+  --cor-page: #f9f9f7;
+  --cor-surface: #fcfcfb;
+  --cor-surface-2: #f3f2ef;
+  --cor-surface-3: #fcfcfb;
+  /* Texto */
+  --cor-ink: #0b0b0b;
+  --cor-ink-2: #52514e;
+  --cor-muted: #898781;
+  --cor-grid: #e1e0d9;
+  --cor-baseline: #c3c2b7;
+  /* Semântica de sistema */
+  --cor-destructive: #d03b3b;
+  --cor-danger-tint: #fbe9e9;
+  --cor-warn-bg: #fdf3e0;
+  --cor-warn-tx: #7a5000;
+  /* Dourado institucional — forma, nunca texto (ver comentário acima) */
+  --cor-secundaria: #a07400;
+  /* Família de marca — DEFAULT do template, derivado de #1e40af */
+  --cor-brand: #1e40af;
+  --cor-brand-hover: #3957b9;
+  --cor-brand-ink: #193490;
+  --cor-brand-tint: #edf0f9;
+  /* Par de TEXTO do fundo da marca. Existe porque no escuro `--cor-brand` é
+     SEMPRE uma cor clara — a derivação fixa a luminosidade em 72,7% (ver
+     core/tema.py) — e branco por cima reprova AA para qualquer COR_PRIMARIA
+     (2,56:1 com o default; 1,99:1 com #003c71; 1,76:1 no hover). É token, e
+     não `text-white` cravado, justamente para poder inverter com o tema.
+     No claro o piso depende da COR_PRIMARIA escolhida por quem gera o
+     sistema: uma cor muito clara reprova com branco por cima, e nenhum token
+     conserta isso — é escolha do derivado, não defeito daqui. O gate de
+     core/tests/test_contraste_marca.py mede três cores de referência. */
+  --cor-brand-tx: #ffffff;
+  /* Degrau MAIS forte da rampa sequencial. Existe porque o donut precisa de
+     quatro cores de DADO e a quarta era `--cor-brand-tint`, token de FUNDO,
+     invisível sobre o card (1,11:1 no claro, 1,00:1 no escuro). A rampa
+     estende-se pelo lado forte, não na direção do branco: um quarto tom mais
+     claro ficaria igualmente invisível sobre uma superfície quase branca. */
+  --cor-seq-750: #142a72;
+  --cor-seq-600: #1e40af;
+  --cor-seq-450: #6b81ca;
+  --cor-seq-300: #aab6e1;
+}
+
+[data-tema="escuro"] {
+  /* Superfícies */
+  --cor-page: #0f0e0d;
+  --cor-surface: #181614;
+  --cor-surface-2: #22211d;
+  --cor-surface-3: #2e2c28;
+  /* Texto */
+  --cor-ink: #eeeeee;
+  --cor-ink-2: #b9b8b5;
+  --cor-muted: #95938e;
+  --cor-grid: #3a3833;
+  /* Semântica de sistema — só as variantes de fundo/texto têm valor próprio
+     no escuro; `baseline`, `destructive` e `secundaria` herdam do claro */
+  --cor-danger-tint: #2e1616;
+  --cor-warn-bg: #2b2011;
+  --cor-warn-tx: #c98400;
+  /* Família de marca — mesmo matiz do claro, luminosidade (e saturação, onde
+     indicado) ajustada para contraste sobre superfície escura */
+  --cor-brand: #889feb;
+  --cor-brand-hover: #b4c2f2;
+  --cor-brand-ink: #5d7ce3;
+  --cor-brand-tint: #192035;
+  /* Tinta escura sobre a marca clara — é o MESMO valor de `--cor-page` do
+     escuro, e há asserção de igualdade entre os dois em
+     core/tests/test_contraste_marca.py para que não divirjam em silêncio se
+     alguém ajustar a página. Hex plano, nunca `var(--cor-page)`: ver a nota
+     sobre getComputedStyle no cabeçalho desta seção. */
+  --cor-brand-tx: #0f0e0d;
+  /* No escuro o degrau mais forte é o mais CLARO — acima do próprio
+     `--cor-brand`. Mesma propriedade do claro, sinal invertido: é sempre o de
+     maior contraste contra o card do respectivo tema. */
+  --cor-seq-750: #c2cef5;
+  --cor-seq-600: #889feb;
+  --cor-seq-450: #5873c9;
+  --cor-seq-300: #435697;
+}
+
+/* `x-cloak` é só um atributo — sem esta regra escrita à mão ele é inerte
+   (não é classe utilitária, o JIT não a gera). Sem ela, a gaveta mobile do
+   shell pisca aberta no primeiro paint, antes de o Alpine iniciar.
+
+   Escopada a <768px: a visibilidade desktop da aside é do CSS
+   (`md:!flex` no shell.html), nunca do Alpine — um cloak global esconderia
+   a aside até o Alpine (deferido) iniciar, piscando a cada full page load
+   e sumindo de vez com JS indisponível. No mobile o cloak continua
+   necessário: gaveta e overlay nascem fechados antes de o Alpine assumir. */
+@media (max-width: 767px) {
+  [x-cloak] {
+    display: none !important;
+  }
+}

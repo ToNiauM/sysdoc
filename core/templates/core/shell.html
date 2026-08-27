@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load static %}{# o load do base.html não é herdado pelos filhos #}
+
+{% block titulo %}{% block titulo_pagina_head %}Início{% endblock %} · {{ sistema_sigla }}{% endblock %}
+
+{% block content %}
+{% comment %}
+  Mapeamento de elevação do tema escuro (critério 1 — "conferível lado a
+  lado"): no escuro, elevação é LUMINOSIDADE, não sombra.
+
+  | Nível      | Receita clara                              | Receita escura                          | Consumidores neste template |
+  |------------|---------------------------------------------|------------------------------------------|------------------------------|
+  | Base       | bg-surface border border-grid, sem sombra    | idem (o token já muda)                    | header mobile fixo; <aside> (bg-page); barra de rodapé da aside |
+  | Elevado    | bg-surface border border-grid shadow-sm      | dark:bg-surface-2 dark:shadow-none        | card de conteúdo do shell abaixo; card do login (core/login.html) |
+  | Flutuante  | bg-surface shadow-lg                         | dark:bg-surface-3 dark:shadow-md          | nenhum consumidor no core; os modais do app exemplo são os únicos |
+{% endcomment %}
+{% comment %}
+  Shell autenticado (CORE-04, D-09/D-11): aside fixa no desktop, gaveta
+  Alpine no mobile, blocos de página nomeados que as telas de domínio
+  estendem (o `apps/exemplo` da Fase 3 é o consumidor de referência).
+
+  A visibilidade desktop da aside é 100% CSS (`md:!flex`), nunca estado
+  Alpine (WR-02): como D-09 proíbe boost, toda navegação é full page load —
+  se a aside dependesse do Alpine (carregado com defer) para aparecer, ela
+  piscaria a cada clique e, com JS indisponível, sumiria de vez levando
+  navegação, identidade e logout junto. O Alpine controla SÓ a gaveta
+  mobile (`sidebarAberta`); overlay e botão de fechar são mobile-only por
+  classe (`md:hidden`). O `!` de `md:!flex` é necessário porque um x-show
+  falso escreve `display: none` inline, e só um `!important` de classe
+  vence estilo inline. Pelo mesmo motivo, a regra `[x-cloak]` do input.css
+  é escopada a <768px — no desktop a aside nasce visível no primeiro
+  paint, sem esperar JS.
+
+  Empilhamento (z-30 header < z-40 overlay < z-50 aside): a <aside> é
+  `fixed inset-y-0`, ou seja, começa em top:0. Com a aside no topo da
+  pilha, abrir a gaveta cobre o header mobile inteiro — o botão de fechar
+  dela assume o papel do hambúrguer — e o overlay escurece o header junto,
+  em vez de deixá-lo aceso por cima do véu.
+{% endcomment %}
+<div class="flex min-h-screen" x-data="{ sidebarAberta: false, tema: localStorage.getItem('tema') || 'auto' }">
+
+  <div class="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-grid bg-surface px-3 md:hidden">
+    <button type="button" aria-label="Abrir menu" :aria-expanded="sidebarAberta.toString()"
+            @click="sidebarAberta = true"
+            class="flex h-11 w-11 flex-none items-center justify-center rounded-sm text-ink-2 hover:bg-surface-2">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    {# Logo por arquivo fixo (D-65): trocar = substituir o arquivo em core/static/img/ mantendo o nome. #}
+    <img src="{% static 'img/logo-subsistema.svg' %}" alt="Logo de {{ sistema_sigla }}" class="h-6 w-6 flex-none">
+    <span class="font-bold text-base truncate">{{ sistema_nome }}</span>
+  </div>
+
+  <div x-show="sidebarAberta" x-cloak
+       @click="sidebarAberta = false"
+       class="fixed inset-0 z-40 bg-black/40 md:hidden"></div>
+
+  <aside x-show="sidebarAberta" x-cloak
+         class="fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col gap-1 border-r border-grid bg-page p-4 md:!flex">
+
+    <div class="pb-4 px-2 flex flex-row items-start justify-between gap-2">
+      {# Logo por arquivo fixo (D-65): trocar = substituir o arquivo em core/static/img/ mantendo o nome. O logo complementa a sigla/nome, não os substitui (D-67). Como a aside É a gaveta no mobile, esta inserção cobre também o header da gaveta (D-68). #}
+      <img src="{% static 'img/logo-subsistema.svg' %}" alt="Logo de {{ sistema_sigla }}" class="h-8 w-8 flex-none">
+      {# Identidade só via context processor (D-16) — nenhum nome hard-coded. #}
+      <div class="flex flex-col gap-1 min-w-0">
+        <div class="font-bold text-base leading-tight">
+          {{ sistema_sigla }}
+          <small class="block font-normal text-muted text-sm">{{ sistema_nome }}</small>
+        </div>
+      </div>
+      <button type="button"
+              aria-label="Fechar menu"
+              @click="sidebarAberta = false"
+              class="md:hidden w-8 h-8 mt-[3px] flex items-center justify-center rounded-sm text-muted hover:text-ink-2 hover:bg-surface-2 flex-none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>
+        </svg>
+      </button>
+    </div>
+
+    {# Navegação é ponto de extensão (D-10) — o partial documenta o contrato de item. #}
+    {% include "core/_nav.html" %}
+
+    <div class="mt-auto border-t border-grid pt-3 flex flex-col gap-3">
+      {% comment %}
+        Controle de tema de 3 estados (critério 2), imediatamente acima do
+        bloco de usuário — ambos no rodapé (mt-auto) da aside. Nível Base:
+        sem sombra no claro e sem sombra no escuro (o token de fundo já
+        muda sozinho). As classes aplicadas condicionalmente pelo :class
+        do Alpine (bg-brand-tint text-brand-ink / text-ink-2
+        hover:bg-surface-2) aparecem como strings LITERAIS abaixo de
+        propósito: o JIT do Tailwind varre o arquivo-fonte em build-time e
+        não enxerga classe concatenada em runtime.
+      {% endcomment %}
+      <div role="group" aria-label="Tema" class="flex gap-1">
+        <button type="button" @click="tema = 'auto'; aplicarTema('auto')"
+                :aria-pressed="(tema === 'auto').toString()"
+                :class="tema === 'auto' ? 'bg-brand-tint text-brand-ink' : 'text-ink-2 hover:bg-surface-2'"
+                class="flex-1 rounded-sm px-3 py-2 text-base font-semibold text-center">Automático</button>
+        <button type="button" @click="tema = 'claro'; aplicarTema('claro')"
+                :aria-pressed="(tema === 'claro').toString()"
+                :class="tema === 'claro' ? 'bg-brand-tint text-brand-ink' : 'text-ink-2 hover:bg-surface-2'"
+                class="flex-1 rounded-sm px-3 py-2 text-base font-semibold text-center">Claro</button>
+        <button type="button" @click="tema = 'escuro'; aplicarTema('escuro')"
+                :aria-pressed="(tema === 'escuro').toString()"
+                :class="tema === 'escuro' ? 'bg-brand-tint text-brand-ink' : 'text-ink-2 hover:bg-surface-2'"
+                class="flex-1 rounded-sm px-3 py-2 text-base font-semibold text-center">Escuro</button>
+      </div>
+      <div class="flex items-center gap-3">
+        {# Logo da entidade discretamente no rodapé (D-69) — presença da identidade "da casa" sem competir com os dados do usuário. Arquivo fixo (D-65): trocar = substituir em core/static/img/ mantendo o nome. #}
+        <img src="{% static 'img/logo-entidade.svg' %}" alt="Logo institucional" class="h-5 w-5 flex-none opacity-60">
+        <div class="w-8 h-8 rounded-full bg-surface-2 border border-grid flex items-center justify-center text-sm font-semibold text-ink-2 flex-none">
+          {{ usuario_atual.email|slice:":2"|upper }}
+        </div>
+        <div class="text-sm leading-tight min-w-0">
+          <div class="truncate">{{ usuario_atual.email }}</div>
+          {% comment %}
+            hx-on::before-request: limpa Cache Storage + histórico htmx ANTES
+            do POST de logout (T-02-11) — a função vive no base.html. Fica no
+            <form> (o elemento hx-post) porque é nele que o htmx dispara o
+            evento before-request.
+          {% endcomment %}
+          <form method="post" action="{% url 'core:logout' %}"
+                hx-post="{% url 'core:logout' %}" hx-target="body" class="inline"
+                hx-on::before-request="limparCachePwa()">
+            {% comment %}
+              `method`/`action` explícitos (CR-01): sem eles o submit nativo
+              viraria GET com o token CSRF na querystring e o logout nunca
+              aconteceria se o htmx falhasse. Junto com o branch não-htmx de
+              `logout_view`, este form é o fallback no-JS real — ver o
+              comentário homólogo em _login_form.html.
+            {% endcomment %}
+            {% csrf_token %}
+            <button type="submit" class="text-muted hover:text-ink-2 underline text-left">
+              Sair
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="flex-1 md:ml-[232px] px-6 pb-6 pt-20 md:py-6 min-w-0">
+    {% block cabecalho_pagina %}
+    <div class="mb-[24px]">
+      {% include "core/_breadcrumbs.html" with trilha=trilha %}
+      <h1 class="text-xl font-semibold tracking-[-0.01em]">{% block titulo_pagina %}Início{% endblock %}</h1>
+    </div>
+    {% endblock %}
+    {% block conteudo_pagina %}
+    <div class="max-w-xl rounded-sm border border-grid bg-surface shadow-sm dark:bg-surface-2 dark:shadow-none p-6">
+      <p class="text-base text-ink-2">
+        Bem-vindo(a). Este é o ponto de partida do sistema — os apps de
+        domínio estendem este shell pelos blocos de página.
+      </p>
+    </div>
+    {% endblock %}
+  </main>
+</div>
+{% endblock %}

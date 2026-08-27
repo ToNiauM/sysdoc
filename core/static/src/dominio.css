@@ -1,0 +1,101 @@
+/* core/static/src/dominio.css — stub enviado uma única vez pelo template
+   (protegido por `_skip_if_exists` no copier.yml); a partir daqui o sistema
+   gerado é dono deste arquivo. Aqui vivem só os tokens de ESTADO do domínio
+   — vocabulário próprio de cada sistema (ex.: "concluído", "atrasado",
+   "em análise"), nunca copiado de outro sistema.
+
+   CONTRATO dos tokens de estado:
+
+   1. Cada estado declara um PAR de variáveis:
+        --cor-<estado>       — o matiz (preenchimento, dot, badge)
+        --cor-<estado>-tx    — o par de TEXTO correspondente
+      No tema claro os dois valores podem coincidir. No tema escuro, só a
+      variante `-tx` costuma precisar de um par clareado — o matiz puro do
+      claro reprova contraste de texto sobre a superfície escura.
+
+   2. A ponte entre dado (`data-*`) e cor fica FORA de qualquer `@layer`:
+
+        .status-dot[data-estado="x"] { background: theme("colors.st-x"); }
+
+      Dentro de `@layer` o Tailwind poda a regra no purge — `data-*` é um
+      valor resolvido em runtime, o JIT não o enxerga no conteúdo varrido em
+      build-time.
+
+   3. Piso de contraste, nos DOIS temas: 4,5:1 para texto, 3:1 para o
+      elemento gráfico (dot, borda, ícone). Valide os matizes escolhidos
+      também para daltonismo (protanopia/deuteranopia/tritanopia) antes de
+      fixá-los — o padrão de referência da família faz essa validação para
+      os próprios estados dela; os estados deste sistema são outros e
+      precisam da mesma checagem.
+
+   Nenhum nome de estado concreto (`st-*`) é declarado aqui: são vocabulário
+   de domínio, e cada sistema gerado tem os seus. */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Estados do SysDoc — vocabulário deste sistema.
+
+   Dois eixos independentes:
+   - classificação do apontamento: conforme · ajuste necessário · risco · pendente
+   - situação da análise: na fila · em execução · concluída · falhou · interrompida
+
+   Os pares `-tx` existem porque o matiz puro do tema claro reprova
+   contraste como TEXTO sobre a superfície escura.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --cor-conforme: #15803d;
+  --cor-conforme-tx: #15803d;
+  --cor-ajuste: #b45309;
+  --cor-ajuste-tx: #b45309;
+  --cor-risco: #b91c1c;
+  --cor-risco-tx: #b91c1c;
+  --cor-pendente: #6b7280;
+  --cor-pendente-tx: #6b7280;
+  --cor-andamento: #1d4ed8;
+  --cor-andamento-tx: #1d4ed8;
+}
+
+[data-tema="escuro"] {
+  --cor-conforme: #22c55e;
+  --cor-conforme-tx: #4ade80;
+  --cor-ajuste: #f59e0b;
+  --cor-ajuste-tx: #fbbf24;
+  --cor-risco: #ef4444;
+  --cor-risco-tx: #f87171;
+  --cor-pendente: #9ca3af;
+  --cor-pendente-tx: #d1d5db;
+  --cor-andamento: #3b82f6;
+  --cor-andamento-tx: #60a5fa;
+}
+
+/* Fora de qualquer @layer de propósito: `data-*` é resolvido em runtime e o
+   JIT do Tailwind podaria estas regras no purge se estivessem dentro. */
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  padding: 0 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  color: var(--cor-pendente-tx);
+}
+
+.etiqueta[data-estado="ok"] { color: var(--cor-conforme-tx); }
+.etiqueta[data-estado="atencao"] { color: var(--cor-ajuste-tx); }
+.etiqueta[data-estado="critico"] { color: var(--cor-risco-tx); }
+.etiqueta[data-estado="neutro"] { color: var(--cor-pendente-tx); }
+
+.situacao-processo { font-weight: 600; color: var(--cor-pendente-tx); }
+.situacao-processo[data-estado="concluida"] { color: var(--cor-conforme-tx); }
+.situacao-processo[data-estado="falhou"],
+.situacao-processo[data-estado="interrompida"] { color: var(--cor-risco-tx); }
+.situacao-processo[data-estado="na_fila"],
+.situacao-processo[data-estado="em_execucao"] { color: var(--cor-andamento-tx); }
+
+/* Mensagens do Django (fila ocupada, erro de análise). Fora de @layer pela
+   mesma razão dos estados: `data-nivel` só existe em runtime. */
+.mensagem { border-color: var(--cor-pendente); color: var(--cor-pendente-tx); }
+.mensagem[data-nivel~="warning"] { border-color: var(--cor-ajuste); color: var(--cor-ajuste-tx); }
+.mensagem[data-nivel~="error"] { border-color: var(--cor-risco); color: var(--cor-risco-tx); }
+.mensagem[data-nivel~="success"] { border-color: var(--cor-conforme); color: var(--cor-conforme-tx); }

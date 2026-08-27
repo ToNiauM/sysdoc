@@ -24,6 +24,23 @@ ROTULO_RISCO = {
     "bloqueante": "Bloqueante",
 }
 
+# Tokens de APRESENTAÇÃO — só decidem cor. Deliberadamente desacoplados do
+# vocabulário do schema: o valor cru (`ajuste_necessário`, `bloqueante`)
+# nunca chega ao HTML, nem como texto nem como atributo. Um valor
+# desconhecido cai em "neutro" em vez de vazar o original.
+ESTADO_CLASSIFICACAO = {
+    "conforme": "ok",
+    "ajuste_necessário": "atencao",
+    "risco": "critico",
+    "pendente": "neutro",
+}
+
+ESTADO_RISCO = {
+    "informativo": "neutro",
+    "relevante": "atencao",
+    "bloqueante": "critico",
+}
+
 _NAO_IDENTIFICADO = "não identificado"
 
 
@@ -98,6 +115,13 @@ def itens_para_tela(dados: dict) -> list[dict]:
                     classificacao, _NAO_IDENTIFICADO
                 ),
                 "risco_rotulo": ROTULO_RISCO.get(risco, _NAO_IDENTIFICADO),
+                # Ponte para a COR do estado (`data-estado` no template).
+                # Token de apresentação, nunca o valor cru do schema: a
+                # página não expõe vocabulário de máquina em lugar nenhum,
+                # nem em atributo — garantia travada por
+                # `test_resultado_lista_apontamentos_com_rotulos`.
+                "classificacao_estado": ESTADO_CLASSIFICACAO.get(classificacao, "neutro"),
+                "risco_estado": ESTADO_RISCO.get(risco, "neutro"),
                 "severidade": _texto(item, "severidade"),
                 "parecer": _texto(item, "parecer", padrao=""),
                 "fundamento": _texto(item, "fundamento", padrao=""),

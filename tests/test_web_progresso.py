@@ -26,7 +26,7 @@ def usuario(django_web):
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user, _ = User.objects.get_or_create(username="pregoeiro-progresso")
+    user, _ = User.objects.get_or_create(email="pregoeiro-progresso@exemplo.org")
     return user
 
 
@@ -35,7 +35,7 @@ def outro_usuario(django_web):
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
-    user, _ = User.objects.get_or_create(username="pregoeiro-progresso-outro")
+    user, _ = User.objects.get_or_create(email="pregoeiro-progresso-outro@exemplo.org")
     return user
 
 

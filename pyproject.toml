@@ -22,7 +22,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.4"]
-web = ["django>=5.0,<6.0", "gunicorn>=22.0"]
+web = [
+    "django>=5.0,<6.0",
+    "gunicorn>=22.0",
+    "whitenoise>=6.6",
+    "django-htmx>=1.17",
+    "django-simple-history>=3.4",
+]
 
 [tool.ruff]
 line-length = 100
@@ -37,6 +43,9 @@ sysdoc-dvi = "sysdoc_dvi.cli:main"
 
 [tool.setuptools]
 packages = [
+    "core",
+    "core.migrations",
+    "core.templatetags",
     "sysdoc_dvi",
     "sysdoc_docx",
     "sysdoc_web",

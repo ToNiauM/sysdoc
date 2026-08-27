@@ -1,0 +1,147 @@
+{% load static %}<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {# Default do título via context processor (D-16) — zero nome hard-coded. #}
+  <title>{% block titulo %}{{ sistema_nome }}{% endblock %}</title>
+  <meta name="theme-color" id="meta-theme-cor" content="{{ cor_primaria }}">
+  {% comment %}
+    Script de tema (D-99) — síncrono, INLINE, sem defer, sem async e sem
+    carregar arquivo estático, escrito ANTES do <link> do Tailwind logo
+    abaixo: se rodasse depois (ou deferido, como htmx e Alpine), a primeira
+    pintura sairia sempre no tema claro e o usuário veria um flash branco
+    antes do escuro aparecer. É um script bloqueante curto — custo de
+    microssegundos, aceito de propósito para não ter esse flash.
+
+    Persistência é localStorage, NUNCA cookie: uma navegação servida pelo
+    cache do service worker (offline.html ou um asset já cacheado sob
+    /static/) não passa pelo servidor Django, então um cookie não seria
+    lido a tempo — localStorage é local ao navegador e já está disponível
+    antes de qualquer requisição de rede.
+
+    O content do <meta id="meta-theme-cor"> acima acompanha o tema (linha
+    "if (meta)" abaixo), mas o theme_color do MANIFEST (core/views.py,
+    travado por core/tests/test_pwa.py) NÃO muda — são dois valores
+    independentes: um descreve a cor da barra do navegador no instante
+    corrente, o outro é gravado uma única vez na instalação do PWA.
+
+    A cor escura vem de {{ cor_page_escuro }} (core.tema.COR_PAGE_ESCURO,
+    plano 07-04) e NUNCA de um hex literal aqui: a fonte física continua
+    sendo o bloco [data-tema="escuro"] de core/static/src/input.css, e um
+    hex literal neste arquivo seria a única ocorrência de core/templates e
+    reprovaria o gate do critério 3 no plano 07-06
+    (! grep -rnE "#[0-9a-fA-F]{6}" core/templates apps). Ler a variável CSS
+    também não serve: este script roda antes de qualquer folha de estilo
+    existir, e getComputedStyle devolveria string vazia nesse instante.
+  {% endcomment %}
+  <script>
+    window.aplicarTema = function (preferencia) {
+      var guardada = preferencia === "auto" || preferencia === "claro" || preferencia === "escuro"
+        ? preferencia
+        : "auto";
+      localStorage.setItem("tema", guardada);
+      var escuro = guardada === "escuro" ||
+        (guardada === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.setAttribute("data-tema", escuro ? "escuro" : "claro");
+      var meta = document.getElementById("meta-theme-cor");
+      if (meta) meta.setAttribute("content", escuro ? "{{ cor_page_escuro }}" : "{{ cor_primaria }}");
+      document.dispatchEvent(new CustomEvent("tema:alterado"));
+    };
+    window.aplicarTema(localStorage.getItem("tema") || "auto");
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+      if ((localStorage.getItem("tema") || "auto") === "auto") window.aplicarTema("auto");
+    });
+  </script>
+  <link rel="stylesheet" href="{% static 'dist/tailwind.css' %}">
+  {% comment %}
+    tema_css (core.context_processors.identidade) DEPOIS do <link> acima é
+    funcional, não estético: :root deste <style> e :root de input.css têm a
+    MESMA especificidade, então quem vence é quem vem depois na ordem de
+    declaração. É assim que COR_PRIMARIA do .env sobrescreve o default da
+    família de marca nos dois temas, em runtime, sem tocar em CSS compilado.
+
+    O |safe é seguro porque COR_PRIMARIA é validada como #RRGGBB no boot
+    (config/settings/base.py levanta ImproperlyConfigured caso contrário) e
+    todo valor de core.tema.css_da_marca() sai de formatação hexadecimal,
+    nunca da string de entrada crua (T-07-10).
+
+    Trocar COR_PRIMARIA no .env e recriar o container com
+    `docker compose up -d web` basta: as cores resolvem em runtime por
+    variável CSS, sem rebuild de imagem. `restart` NÃO serve — não relê o
+    env_file (o ambiente de um container é fixado na criação).
+
+    cor_page_escuro (mesmo context processor) é o canal para o script de
+    tema do plano 07-05: ele consome essa variável no <meta theme-color>
+    do tema escuro, porque roda antes de qualquer CSS (D-99).
+  {% endcomment %}
+  <style>{{ tema_css|safe }}</style>
+  {# PWA (CORE-05): manifest por view (D-18) e cor de tema via context processor (D-17). #}
+  <link rel="manifest" href="{% url 'core:manifest' %}">
+  {# Favicon reaproveita o ícone PWA existente (D-72): zero arquivo novo, mesmo contrato de substituição — e elimina o 302 ruidoso de /favicon.ico no LoginRequiredMiddleware. #}
+  <link rel="icon" href="{% static 'img/icon-192.png' %}">
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+  <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+</head>
+{% comment %}
+  O body NÃO centraliza mais o conteúdo (Pitfall 11): o centering era da
+  tela de login e espremeria a aside fixa do shell no meio da página. O
+  wrapper de centering agora vive em core/login.html.
+{% endcomment %}
+{% comment %}
+  O atributo hx-history desligado no <body> impede o htmx de tirar snapshot
+  de HTML autenticado para o localStorage (htmx-history-cache) — defesa V3
+  contra conteúdo de sessão persistido no cliente após o logout (T-02-11).
+{% endcomment %}
+<body class="min-h-screen bg-page text-ink font-sans text-base" hx-history="false">
+  {% block content %}{% endblock %}
+
+  <script>
+    // CSRF lido do cookie A CADA requisição, nunca de um hx-headers estático
+    // no <body> — o Django roda rotate_token() no login e no logout, e o
+    // htmx não reescreve <html>/<body> nas trocas parciais (RESEARCH.md,
+    // Pattern 4 / Anti-Patterns). Um token congelado no render ficaria
+    // obsoleto assim que o usuário fizesse login ou logout.
+    function csrfCookie(nome) {
+      const match = document.cookie.match("(^|;)\\s*" + nome + "\\s*=\\s*([^;]+)");
+      return match ? decodeURIComponent(match.pop()) : null;
+    }
+    document.body.addEventListener("htmx:configRequest", (evento) => {
+      evento.detail.headers["X-CSRFToken"] = csrfCookie("csrftoken");
+    });
+
+    // Limpeza de estado do cliente no logout (T-02-11) — chamada ANTES do
+    // POST de logout (hx-on::before-request no botão Sair do shell), para
+    // nada autenticado sobreviver à sessão: apaga TODO o Cache Storage
+    // (incondicional — não confia na invariante de que o SW só cacheia
+    // /static/) e o htmx-history-cache do localStorage (defesa redundante
+    // ao hx-history desligado no <body>). A função é async e o htmx NÃO
+    // espera (await) por ela antes de enviar o POST — a corrida é segura
+    // porque o cache do SW só contém assets de /static/ e offline.html,
+    // nunca conteúdo autenticado. try/catch silencioso: falhar a limpeza
+    // não pode impedir o logout.
+    async function limparCachePwa() {
+      // A chave de tema em localStorage NÃO entra aqui: preferência visual
+      // não é dado de sessão, e apagá-la faria o usuário perder o tema
+      // escuro a cada logout (D-99, T-07-14).
+      try {
+        if ("caches" in window) {
+          const chaves = await caches.keys();
+          await Promise.all(chaves.map((chave) => caches.delete(chave)));
+        }
+        localStorage.removeItem("htmx-history-cache");
+      } catch (erro) {
+        // Silencioso de propósito: limpeza é melhor-esforço, logout segue.
+      }
+    }
+
+    // Registro do service worker (D-19) — escopo "/" explícito; a rota da
+    // raiz + header Service-Worker-Allowed garantem que o SW controla o
+    // site inteiro (escopo errado é o motivo clássico de "PWA não instala").
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("{% url 'core:service_worker' %}", { scope: "/" });
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

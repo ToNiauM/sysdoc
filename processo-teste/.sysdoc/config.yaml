@@ -1,0 +1,21 @@
+projeto: processo-teste
+vps_host: ''
+vps_path: ''
+modelo_ia_padrao: ''
+tipo: geral
+
+despacho:
+  vocativo: ''
+  unidade: DELIC
+  destinatario: 'À COLOG, para análise e manifestação acerca dos apontamentos acima.'
+  signatario: ''
+  cargo_signatario: ''
+  autoridade: ''
+  cargo_autoridade: ''
+
+pecas:
+  etp: SEI-ABNT.PDF
+  tr: SEI-ABNT.pdf
+  mcp: SEI-ABNT.pdf
+  riscos: SEI-ABNT.pdf
+  processo: SEI-ABNT.pdf

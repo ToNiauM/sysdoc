@@ -1,0 +1,56 @@
+{% comment %}
+  D-12 — partial reutilizável de trilha de navegação (breadcrumbs).
+
+  Contrato: a view que inclui este partial passa `trilha`, uma lista de
+  dicts na forma `{"rotulo": str, "url": str|None}`. O ÚLTIMO item da lista
+  é sempre a página atual e NUNCA carrega `url` (renderiza como texto puro,
+  sem link) — os demais itens carregam `url` e renderizam como `<a>`. A
+  trilha é montada pela view SEMPRE a partir de dados já presentes no
+  contexto — este partial NUNCA faz consulta, NUNCA usa `{% load %}` de
+  templatetag com ORM por trás.
+
+  Nota deliberada: o kernel desta fase entrega ZERO template tags
+  customizadas por decisão — D-12 veta templatetag com ORM por trás e a
+  trilha vem pronta da view. O item "template tags" do requisito CORE-04 é
+  atendido intencionalmente sem tags (não é uma lacuna).
+
+  Uso, dentro do bloco `cabecalho_pagina` de `shell.html` (D-11):
+
+    {% include "core/_breadcrumbs.html" with trilha=trilha %}
+
+  Exemplo de `trilha` (2 itens — tela de listagem de um app de domínio):
+
+    trilha = [
+        {"rotulo": "Início", "url": reverse("core:shell")},
+        {"rotulo": "Itens", "url": None},
+    ]
+
+  Exemplo de `trilha` (3 itens — detalhe de um registro):
+
+    trilha = [
+        {"rotulo": "Início", "url": reverse("core:shell")},
+        {"rotulo": "Itens", "url": reverse("exemplo:itens")},
+        {"rotulo": "Item 65", "url": None},
+    ]
+
+  Padrão tipográfico: maiúsculo-pequeno-cinza
+  (`text-xs font-medium uppercase text-ink-2`).
+{% endcomment %}
+{% if trilha %}
+<nav aria-label="Trilha de navegação" class="mb-1">
+  <ol class="flex flex-wrap items-center gap-1 text-xs font-medium uppercase text-ink-2">
+    {% for passo in trilha %}
+    <li class="flex items-center gap-1">
+      {% if not forloop.first %}
+      <span aria-hidden="true">/</span>
+      {% endif %}
+      {% if passo.url %}
+      <a href="{{ passo.url }}" class="hover:text-ink hover:underline">{{ passo.rotulo }}</a>
+      {% else %}
+      <span aria-current="page">{{ passo.rotulo }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</nav>
+{% endif %}

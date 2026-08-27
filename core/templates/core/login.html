@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load static %}{# o load do base.html não é herdado pelos filhos #}
+
+{% block titulo %}Entrar · {{ sistema_nome }}{% endblock %}
+
+{% block content %}
+{# O centering migrou do <body> para este wrapper (Pitfall 11) — o body ficou neutro para não espremer a aside fixa do shell. #}
+<div class="min-h-screen flex flex-col items-center justify-center px-4">
+  {# Nível Elevado (mapeamento de elevação em core/shell.html) — sombra sutil no claro, superfície mais clara e sem sombra no escuro: elevação escura é luminosidade, não sombra. #}
+  <div class="w-full max-w-sm p-6 bg-surface rounded shadow-sm dark:bg-surface-2 dark:shadow-none">
+    {# Logo por arquivo fixo (D-65): trocar = substituir o arquivo em core/static/img/ mantendo o nome. Identidade institucional acima do formulário (D-69). #}
+    <img src="{% static 'img/logo-entidade.svg' %}" alt="Logo institucional" class="h-12 w-12 mx-auto mb-4">
+    <h1 class="text-xl font-semibold mb-4">Entrar</h1>
+    {% include "core/_login_form.html" %}
+  </div>
+</div>
+{% endblock %}
