@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+  <h1>Tipo de contratação</h1>
+  <section class="cartao">
+    <p class="observacao">Escolha a opção que descreve o objeto deste processo.</p>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <ul class="erro">
+          {% for erro in form.non_field_errors %}
+            <li>{{ erro }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <fieldset class="campo-radios">
+        {% for radio in form.tipo %}
+          <label class="opcao-radio">{{ radio.tag }} {{ radio.choice_label }}</label>
+        {% endfor %}
+      </fieldset>
+
+      <button type="submit" class="botao botao-primario">Iniciar análise</button>
+    </form>
+  </section>
+{% endblock %}

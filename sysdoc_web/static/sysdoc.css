@@ -131,3 +131,79 @@ body {
   background: var(--cor-erro-fundo);
   color: var(--cor-erro);
 }
+
+ul.erro {
+  list-style: none;
+  padding: 0.6rem 0.9rem;
+  margin: 0 0 1rem 0;
+  background: var(--cor-erro-fundo);
+  border-radius: 6px;
+}
+
+ul.erro li {
+  color: var(--cor-erro);
+}
+
+p.erro {
+  color: var(--cor-erro);
+  margin: 0.25rem 0 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.campo-upload-principal {
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  padding: 1rem;
+  background: #f9fafb;
+}
+
+.campo input[type="file"] {
+  padding: 0.4rem 0;
+  border: none;
+}
+
+.bloco-alternativo {
+  margin: 1rem 0;
+}
+
+.bloco-alternativo summary {
+  cursor: pointer;
+  color: var(--cor-primaria);
+  font-weight: 600;
+  padding: 0.4rem 0;
+}
+
+.bloco-alternativo > .campo {
+  margin-top: 0.75rem;
+}
+
+.lista-processos {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lista-processos li {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.lista-processos li:last-child {
+  border-bottom: none;
+}
+
+.campo-radios {
+  border: none;
+  padding: 0;
+  margin: 0 0 1.25rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.opcao-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+}

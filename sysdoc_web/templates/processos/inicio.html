@@ -2,7 +2,19 @@
 
 {% block conteudo %}
   <h1>Processos</h1>
+  <p><a href="{% url 'processos:novo' %}" class="botao botao-primario">Novo processo</a></p>
   <section class="cartao">
-    <p class="observacao">A lista de processos aparece aqui.</p>
+    {% if processos %}
+      <ul class="lista-processos">
+        {% for processo in processos %}
+          <li>
+            <strong>{{ processo.nome }}</strong>
+            — {{ processo.get_tipo_verificacao_display|default:"Tipo de contratação não definido" }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="observacao">Nenhum processo criado ainda.</p>
+    {% endif %}
   </section>
 {% endblock %}

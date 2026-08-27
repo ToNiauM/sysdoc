@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+  <h1>Novo processo</h1>
+  <section class="cartao">
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <ul class="erro">
+          {% for erro in form.non_field_errors %}
+            <li>{{ erro }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <div class="campo">
+        <label for="{{ form.nome.id_for_label }}">Nome do processo</label>
+        {{ form.nome }}
+        {% for erro in form.nome.errors %}<p class="erro">{{ erro }}</p>{% endfor %}
+      </div>
+
+      <div class="campo campo-upload-principal">
+        <label for="{{ form.documento_unico.id_for_label }}">PDF do processo completo</label>
+        <p class="observacao">
+          Envie o PDF do processo completo. O sistema identifica sozinho o
+          Estudo Técnico Preliminar, o Termo de Referência e as demais peças.
+        </p>
+        {{ form.documento_unico }}
+        {% for erro in form.documento_unico.errors %}<p class="erro">{{ erro }}</p>{% endfor %}
+      </div>
+
+      <details class="bloco-alternativo">
+        <summary>Prefiro enviar as peças separadas</summary>
+        <div class="campo">
+          <label for="{{ form.pecas.id_for_label }}">Peças separadas</label>
+          {{ form.pecas }}
+          {% for erro in form.pecas.errors %}<p class="erro">{{ erro }}</p>{% endfor %}
+        </div>
+      </details>
+
+      <p class="observacao">Tamanho máximo por arquivo: {{ limite_upload_mb }} MB.</p>
+
+      <button type="submit" class="botao botao-primario">Continuar</button>
+    </form>
+  </section>
+{% endblock %}
