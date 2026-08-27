@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 07
 status: executing
-stopped_at: Plano 07-01 concluído (1/8 planos da Phase 7) — pronto para 07-02
-last_updated: "2026-08-27T06:20:09.351Z"
+stopped_at: Plano 07-02 concluído (2/8 planos da Phase 7, wave 1/6) — pronto para 07-03
+last_updated: "2026-08-27T06:28:42Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 32
-  completed_plans: 24
+  completed_plans: 25
   percent: 43
 ---
 
@@ -36,7 +36,7 @@ See: .planning/PROJECT.md
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
 | 6 | complete | 7/7 | 100% |
-| 7 | in_progress | 1/8 | 13% |
+| 7 | in_progress | 2/8 | 25% |
 
 ## Recent Changes
 
@@ -58,6 +58,7 @@ See: .planning/PROJECT.md
 
 - 2026-08-27: Phase 7 planejada — 8 planos em 6 waves, requisitos SYSD-19 a SYSD-29, cobrindo D-01 a D-21 do `07-CONTEXT.md`. Interface web em **Django** (não FastAPI — correção explícita do usuário), rodando em Docker de um serviço, importando `sysdoc`/`sysdoc_dvi` como biblioteca. Plan-checker aprovou na iteração 2; o blocker da iteração 1 era um `ValueError` em import time (`ClearableFileInput(attrs={"multiple": True})` deixou de ser aceito no Django 5.0), reproduzido contra instalação real e corrigido para o par `MultipleFileInput`/`MultipleFileField`.
 - 2026-08-27: Plano 07-01 concluído (wave 1/6) — `sysdoc.criar_documento()` (dataclass `ResultadoCreate`) e `sysdoc.localizar_html_analise()`/`localizar_docx_despacho()` tornam `create()`/`deploy()` chamáveis como biblioteca sem imprimir nem `subprocess`; `sysdoc_dvi/progresso.py` (`EventoProgresso`/`ETAPAS`/`SinkProgresso`, sem dependência de Django) e `_emitir()` em `pipeline.py` dão a `executar_run(..., progresso=callback)` um canal de eventos por etapa, blindado contra callback que lança exceção (RF9). Nenhuma string impressa pela CLI mudou; 11 testes novos em `tests/test_biblioteca_chamavel.py`; suíte completa (568 passed, 1 skipped) verde. SYSD-19 completo.
+- 2026-08-27: Plano 07-02 concluído (wave 1/6) — pacote Django `sysdoc_web` criado como extra opcional (`pip install -e ".[web]"`, `django>=5.0,<6.0`/`gunicorn>=22.0`), sem tocar em `dependencies` base; `sysdoc_web/settings.py` endurecido (`SECRET_KEY` obrigatória fora de `DEBUG`, `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` por env, cookies `HttpOnly`/`SameSite`, `SECURE_CONTENT_TYPE_NOSNIFF`/`X_FRAME_OPTIONS=DENY`, limites de upload já parametrizados, SQLite com `timeout=20` — primeira metade da defesa de D-14 — e nenhuma menção a chave de LLM). Login obrigatório em `/entrar/`, `/sair/` só por POST, sem nenhuma rota de auto-cadastro (`django.contrib.auth.urls` deliberadamente fora). `tests/conftest.py` traz o fixture `django_web` (bootstrap condicional via `DiscoverRunner`, Django só importado dentro do fixture); suíte completa: 574 passed/1 skipped com Django, 570 passed/2 skipped sem Django (nunca erro). SYSD-20/SYSD-21 completos.
 
 ## Recent Decisions
 
@@ -83,6 +84,8 @@ See: .planning/PROJECT.md
 - Numeração de seção (`"N) "`) só é aplicada no ponto de renderização do XML (`_titulo_numerado`), não no campo `titulo` devolvido por `montar_apontamentos()` — mantém os testes unitários que comparam esse campo sem número intactos, corrigindo só o defeito visível no DOCX final.
 - `processo-teste/` permanece intencionalmente fora do controle de versão; a suíte E2E que roda sobre ele (`tests/test_dvi_despacho_e2e.py`) sempre copia para `tmp_path` antes de qualquer escrita e nunca é responsável por versionar nada desse projeto.
 - `templates/dvi_base.docx` e `templates/build_dvi_base.py` (formato relatório do DVI) aposentados por decisão explícita do usuário no checkpoint bloqueante do Plano 06-07 — recuperáveis via git history (`git show d180b24^:<caminho>`); o conteúdo que expunham continua disponível via `templates/render_analise.py`/HTML e `dados_consolidados.json`.
+- `sysdoc_web/urls.py` não inclui `django.contrib.auth.urls` (evitaria rotas de reset de senha por e-mail que não há como servir); só `LoginView`/`LogoutView` explícitos e nenhuma rota de cadastro — confirmado por teste (`test_nao_existe_rota_de_cadastro`).
+- `pytest.importorskip("django")` no nível de módulo aborta a coleta inteira do arquivo (confirmado experimentalmente), inclusive testes definidos antes da linha — por isso os dois testes de leitura de arquivo que precisam rodar sem Django (`tests/test_web_settings_sem_django.py`) foram para um módulo próprio, sem esse guard, em vez de ficarem acima do `importorskip` em `tests/test_web_base.py`.
 
 ## Accumulated Context
 
@@ -108,16 +111,16 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T06:20:00Z
-Stopped at: Plano 07-01 concluído (1/8 planos da Phase 7, wave 1/6) — pronto para 07-02
+Last session: 2026-08-27T06:28:42Z
+Stopped at: Plano 07-02 concluído (2/8 planos da Phase 7, wave 1/6) — pronto para 07-03
 Resume file: None
 
 ## Current Focus
 
-Phase 7: Interface web para pregoeiros — em execução (1/8 planos). Próximo passo recomendado: executar `07-02-PLAN.md` (esqueleto Django `sysdoc_web`).
+Phase 7: Interface web para pregoeiros — em execução (2/8 planos). Próximo passo recomendado: executar `07-03-PLAN.md` (modelos Processo/AnaliseJob, fila single-slot e worker do pipeline DVI).
 
 Phases 3 e 4 seguem pendentes e não bloqueiam a 7.
 
 ---
 
-*Last updated: 2026-08-27 — Completed 07-01-PLAN.md: sysdoc/sysdoc_dvi chamáveis como biblioteca (criar_documento, localizar_html_analise, localizar_docx_despacho, progresso estruturado no pipeline DVI); Phase 7 wave 1 em andamento (07-02 segue na mesma wave)*
+*Last updated: 2026-08-27 — Completed 07-02-PLAN.md: esqueleto Django `sysdoc_web` como extra opcional, settings endurecidas, autenticação obrigatória sem auto-cadastro e bootstrap condicional do Django na suíte pytest; Phase 7 wave 1 fechada (07-01 + 07-02)*
