@@ -1,0 +1,22 @@
+# Material real do usuário e artefatos descartáveis nunca entram na imagem
+# (T-07-04-02, 07-CONTEXT.md D-05).
+.git
+.planning
+__pycache__
+*.pyc
+*.egg-info
+dados_web
+processo-teste
+processo-01
+output
+documentos
+Referencias
+referencias
+.sysdoc
+node_modules
+*.sqlite3
+.env
+.pytest_cache
+.ruff_cache
+.opencode
+.claude
