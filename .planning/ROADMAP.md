@@ -157,6 +157,7 @@ Plans:
 #### Rodada 1 — Despacho de Verificação Inicial (ativa)
 
 **Success Criteria:**
+
 1. `templates/dvi/despacho_geral.docx` e `templates/dvi/despacho_tic.docx` gerados por script determinístico, fiéis a `processo-teste/referencias/dvi.md` (título, vocativo, contextualização, seções por peça, Observações, assinatura e "De acordo")
 2. Corpo montado por builder que emite XML de parágrafo com estilos nomeados, contendo apenas `ajuste_necessário` e `risco` em seções dinâmicas por peça, com pendências de documento ausente em seção própria ao final e referência cruzada automática entre peças
 3. `sysdoc create <pasta> dvi` resolve a variante por `tipo: geral|tic` do `.sysdoc/config.yaml`, mantendo a precedência do `referencias/dvi.docx` do projeto
@@ -164,6 +165,7 @@ Plans:
 5. Testes E2E em `processo-teste` sem placeholders `{{` remanescentes, cobrindo as duas variantes, o override do projeto e a exclusão de itens `conforme`
 
 **Requirements:**
+
 - [ ] **SYSD-16**: Gerador determinístico dos templates `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados e ZIP byte-estável
 - [ ] **SYSD-17**: Builder do corpo do despacho (filtro, numeração dinâmica por peça, alíneas `parecer`+`fundamento`, referência cruzada) e placeholder raw com allowlist explícita em `render_docx_template`
 - [ ] **SYSD-18**: Resolução de variante por `tipo` no `create`/`seed_dvi_template`, correção da sigla no repo e testes E2E
@@ -171,6 +173,7 @@ Plans:
 #### Rodada 2 — Templates TR (pendente)
 
 **Success Criteria:**
+
 1. Templates DOCX em `templates/tr/` derivados dos modelos Lei 14.133 em `Referencias/`, com placeholders SysDoc anotados nas seções corretas
 2. Mapeamento JSON → seção documentado, cobrindo 100% dos campos do `dados_consolidados.json` aplicáveis a cada categoria
 3. `_select_reference_template` prefere `templates/tr/` antes de `referencias/` (fallback mantido)
@@ -178,6 +181,7 @@ Plans:
 5. Testes cobrindo cada caminho de categoria + fallback + presença de todos os campos esperados
 
 **Requirements:**
+
 - [ ] **SYSD-13**: Derivar e anotar os templates DOCX de TR em `templates/tr/` com placeholders SysDoc
 - [ ] **SYSD-14**: Atualizar `_select_reference_template` para preferir `templates/tr/` antes de `referencias/` com fallback documentado
 - [ ] **SYSD-15**: Testes E2E cobrindo cada categoria, ausência de placeholders não substituídos e fallback para `referencias/`
@@ -191,12 +195,23 @@ Escopo a definir após a rodada 2.
 **Plans:** 7 plans (rodada 1 — DVI)
 
 Plans:
+**Wave 1**
+
 - [ ] 06-01-PLAN.md — Gerador determinístico de `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados (wave 1)
 - [ ] 06-02-PLAN.md — Builder `sysdoc_docx/corpo_dvi.py`: filtro, numeração dinâmica por peça, alíneas e referência cruzada (wave 1)
 - [ ] 06-03-PLAN.md — Sigla DVI = Despacho de Verificação Inicial em todo o repo, com teste de regressão (wave 1)
 - [ ] 06-04-PLAN.md — Canal `raw_xml` separado (allowlist `RAW_XML_KEYS`) em `render_docx_template` e bloco `despacho:` no config (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 06-05-PLAN.md — Resolução de variante por `tipo` em `create`/`seed_dvi_template`, com precedência do projeto (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 06-06-PLAN.md — E2E sobre `processo-teste` nas duas variantes, documentação e CHANGELOG (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 06-07-PLAN.md — Checkpoint: destino de `templates/dvi_base.docx` (formato relatório) (wave 4)
 
 ### Phase 7: Interface web para pregoeiros
@@ -207,6 +222,7 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (run /gsd-plan-phase 7 to break down)
 
 ---

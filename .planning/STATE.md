@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 5
-status: ready_to_discuss
-stopped_at: "Phase 6 context gathered (rodada 1: Despacho de Verificação Inicial)"
-last_updated: "2026-08-27T02:56:49.780Z"
+current_phase: 6
+status: ready_to_execute
+stopped_at: "Phase 6 planejada — 7 planos em 4 waves (rodada 1: Despacho de Verificação Inicial)"
+last_updated: "2026-08-27T00:45:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 17
+  total_plans: 31
   completed_plans: 16
   percent: 29
 ---
@@ -17,7 +17,7 @@ progress:
 # STATE — SysDoc
 
 **Project:** SysDoc - Sistema de Análise de Documentação de Licitação
-**Current Phase:** 5
+**Current Phase:** 6
 **Mode:** standard
 
 ## Project Reference
@@ -35,7 +35,7 @@ See: .planning/PROJECT.md
 | 3 | pending | 0/1 | 0% |
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
-| 6 | pending | 0/0 | 0% |
+| 6 | planned | 0/7 | 0% |
 
 ## Recent Changes
 
@@ -46,6 +46,7 @@ See: .planning/PROJECT.md
 - 2026-05-12: Phase 2 concluída — `sysdoc create` gera DOCX determinístico a partir de JSON + templates em `referencias/`, com revisão ETP para `tipo=tr`; 67 testes passando.
 - 2026-05-12: Phase adicionada — Templates TR a partir dos 4 modelos Lei 14.133 em `Referencias/`, com placeholders SysDoc anotados.
 - 2026-08-26: Merge de branches — "Templates TR (Lei 14.133)" renumerada de Phase 5 para Phase 6; Phase 5 permanece "Motor de análise por checklist" (concluída, release 1.5.0).
+- 2026-08-27: Phase 6 planejada (rodada 1: Despacho de Verificação Inicial) — 7 planos em 4 waves, cobrindo SYSD-16/17/18 e D-01 a D-14. Canal raw-XML separado (`render_docx_template(..., raw_xml=)`) adotado em vez de allowlist sobre `values`, eliminando por construção a injeção via chave homônima no `dados_consolidados.json`.
 
 ## Recent Decisions
 
@@ -79,7 +80,7 @@ See: .planning/PROJECT.md
 ## Session Continuity
 
 Last session: 2026-08-27T02:56:49.750Z
-Stopped at: Phase 6 context gathered (rodada 1: Despacho de Verificação Inicial)
+Stopped at: Phase 6 planejada — 7 planos em 4 waves (rodada 1: Despacho de Verificação Inicial)
 Resume file: .planning/phases/06-templates-tr-a-partir-dos-modelos-lei-14-133/06-CONTEXT.md
 
 ## Current Focus
