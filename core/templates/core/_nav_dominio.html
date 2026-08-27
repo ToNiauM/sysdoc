@@ -3,9 +3,15 @@
   Itens de navegação do SysDoc. Este arquivo é do DOMÍNIO — o núcleo nunca o
   toca (`_skip_if_exists` no copier.yml), então editar aqui não vira conflito
   no próximo `copier update`. O item "Início" já vem de `_nav.html`.
+
+  `lista` vem do dicionário fechado ICONES do núcleo. Um nome fora dele não
+  quebra a página (a tag degrada para sem ícone), mas acrescentar um ícone
+  novo exigiria editar `core/templatetags/navegacao.py` — território de
+  `copier update`, e por isso evitado aqui.
+
+  Use SEMPRE {% comment %} para comentário de mais de uma linha: a forma
+  curta do Django é de LINHA ÚNICA e, em várias linhas, o texto vaza
+  renderizado na tela — foi exatamente o que aconteceu aqui, entre "Início"
+  e "Novo processo".
 {% endcomment %}
-{# `lista` vem do dicionário fechado ICONES do núcleo. Um nome fora dele não
-   quebra a página (a tag degrada para sem ícone), mas acrescentar um ícone
-   novo exigiria editar `core/templatetags/navegacao.py` — território de
-   `copier update`, e por isso evitado aqui. #}
 {% item_nav "processos:novo" "Novo processo" "lista" %}
