@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 06
+current_phase: 07
 status: ready_to_execute
-stopped_at: Completed 06-07-PLAN.md (checkpoint de destino do formato relatório dvi_base — decisão aposentar, executada)
-last_updated: "2026-08-27T05:45:00.000Z"
+stopped_at: Phase 7 planejada — 8 planos em 6 waves, verificação do plan-checker passou na iteração 2
+last_updated: "2026-08-27T05:53:34.221Z"
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 24
-  completed_plans: 24
+  total_plans: 32
+  completed_plans: 23
   percent: 43
 ---
 
 # STATE — SysDoc
 
 **Project:** SysDoc - Sistema de Análise de Documentação de Licitação
-**Current Phase:** 06
+**Current Phase:** 07
 **Mode:** standard
 
 ## Project Reference
@@ -36,6 +36,7 @@ See: .planning/PROJECT.md
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
 | 6 | complete | 7/7 | 100% |
+| 7 | planned | 0/8 | 0% |
 
 ## Recent Changes
 
@@ -55,8 +56,16 @@ See: .planning/PROJECT.md
 - 2026-08-27: Plano 06-06 concluído (Rodada 1 fechada) — `tests/test_dvi_despacho_e2e.py` (13 testes) prova sobre o processo real de 49 itens (`processo-teste/`) que `sysdoc create <pasta> dvi` produz o despacho nas duas variantes, com override de template do projeto e sem nenhum `{{` remanescente, isolado por `shutil.copytree` em `tmp_path`. Bug real encontrado e corrigido no caminho: a seção de pendências não era numerada no XML renderizado (`sysdoc_docx/corpo_dvi.py`, nova `_titulo_numerado`). `processo-teste/.sysdoc/config.yaml` recebeu `tipo: geral` e o bloco `despacho:` (só `unidade`/`destinatario` preenchidos) diretamente em disco, sem ser versionado. CHANGELOG, README, `skills/sysdoc/SKILL.md` e `AGENTS.md` documentam a Rodada 1 como entregue; suíte completa (567) verde.
 - 2026-08-27: Plano 06-07 concluído (Phase 6 fechada — Rodada 1, 7/7 planos) — checkpoint bloqueante da Task 1 apresentou ao usuário as três opções para o destino de `templates/dvi_base.docx` (formato relatório) com o conjunto real de placeholders inspecionado; **decisão do usuário: `aposentar`**. Task 2 removeu `templates/dvi_base.docx` e `templates/build_dvi_base.py`, trimou `tests/test_dvi_template_base.py` (removidas `TestTemplateBaseValido`/`TestCreateAposInit`, preservada `TestSeedDviTemplate`), confirmou que `tests/test_sigla_dvi.py::test_docx_base_usa_a_expansao_correta` passa a `skipped` pelo `skipif` já existente, e registrou a decisão em `CHANGELOG.md` (recuperável via `git show d180b24^:templates/dvi_base.docx`). Suíte completa: 561 passed, 1 skipped (era 567; -5 testes do arquivo removido, +1 skip esperado). SYSD-18 completo.
 
+- 2026-08-27: Phase 7 planejada — 8 planos em 6 waves, requisitos SYSD-19 a SYSD-29, cobrindo D-01 a D-21 do `07-CONTEXT.md`. Interface web em **Django** (não FastAPI — correção explícita do usuário), rodando em Docker de um serviço, importando `sysdoc`/`sysdoc_dvi` como biblioteca. Plan-checker aprovou na iteração 2; o blocker da iteração 1 era um `ValueError` em import time (`ClearableFileInput(attrs={"multiple": True})` deixou de ser aceito no Django 5.0), reproduzido contra instalação real e corrigido para o par `MultipleFileInput`/`MultipleFileField`.
+
 ## Recent Decisions
 
+- Interface web da Phase 7 é **Django**, decisão explícita do usuário em 2026-08-27 que revoga a sugestão anterior de FastAPI registrada na conversa de requisitos. Não reabrir.
+- Concorrência da web: **uma análise por vez**, com `UniqueConstraint` condicional no banco (não um `if` na view, que uma segunda thread do gunicorn driblaria) mais worker single-slot em processo separado. Sem Redis, sem Celery — trava o custo de API e mantém o compose com um serviço só.
+- A web **importa** `sysdoc`/`sysdoc_dvi` como biblioteca, nunca via `subprocess` da CLI; onde uma função não for reutilizável, a correção é torná-la chamável preservando o comportamento da CLI.
+- Revisão humana bloqueante antes do DOCX também na web (D-11 da Phase 7, preserva a D-03 da Phase 6): o fim da análise não gera o despacho — só `views.gerar_despacho` chama `create`, nunca o worker.
+- Django entra como extra opcional (`[project.optional-dependencies]`); `pip install sysdoc` não passa a exigir Django e a CLI continua funcionando sem a web instalada.
+- "Interface GUI" sai do Out of Scope de `PROJECT.md` e `REQUIREMENTS.md` como parte da própria Phase 7 — a CLI permanece o caminho canônico para agentes de IA.
 - Templates de geração DOCX ficam em `referencias/`, não em um template fixo do repositório.
 - `sysdoc create` permanece offline e determinístico, usando substituição ZIP/XML de placeholders em DOCX.
 - `tipo=tr` é o padrão quando omitido; `--tipo` existe para scripts.
@@ -95,13 +104,15 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T05:45:00Z
-Stopped at: Completed 06-07-PLAN.md (Phase 6, Rodada 1 — 7/7 planos concluídos)
+Last session: 2026-08-27T05:53:00Z
+Stopped at: Phase 7 planejada (8 planos, 6 waves) — pronta para executar
 Resume file: None
 
 ## Current Focus
 
-Phase 3: Integração Agentes IA. Próximo passo recomendado: `$gsd-discuss-phase 3`.
+Phase 7: Interface web para pregoeiros — planejada e verificada. Próximo passo recomendado: `/gsd-execute-phase 7`.
+
+Phases 3 e 4 seguem pendentes e não bloqueiam a 7.
 
 ---
 

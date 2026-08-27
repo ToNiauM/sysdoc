@@ -223,13 +223,30 @@ Plans:
 
 Plans:
 
+**Wave 1**
+
 - [ ] 07-01-PLAN.md — Tornar `sysdoc`/`sysdoc_dvi` chamáveis como biblioteca (caminhos de retorno + progresso) (wave 1)
 - [ ] 07-02-PLAN.md — Esqueleto Django `sysdoc_web` como extra opcional, settings endurecidas e auth sem auto-cadastro (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 07-03-PLAN.md — Modelos Processo/AnaliseJob, fila single-slot e worker que chama o pipeline DVI (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 07-04-PLAN.md — Docker: um serviço, `docker compose up` como único comando de subida (wave 3)
 - [ ] 07-05-PLAN.md — Telas 1 e 2: novo processo com upload validado (PDF único) e tipo de contratação (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 07-06-PLAN.md — Tela 3: disparo da análise e progresso em tempo real por polling (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 07-07-PLAN.md — Tela 4: apontamentos, revisão humana bloqueante, despacho DOCX e downloads (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 07-08-PLAN.md — Documentação de produto, guarda do contrato IA-agnóstico e verificação humana (wave 6)
 
 ---
