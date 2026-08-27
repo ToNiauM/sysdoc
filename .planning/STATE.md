@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 06
 status: ready_to_execute
-stopped_at: Completed 06-06-PLAN.md (E2E do despacho sobre processo-teste + documentação da Rodada 1)
-last_updated: "2026-08-27T05:25:00.000Z"
+stopped_at: Completed 06-07-PLAN.md (checkpoint de destino do formato relatório dvi_base — decisão aposentar, executada)
+last_updated: "2026-08-27T05:45:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 24
-  completed_plans: 23
-  percent: 29
+  completed_plans: 24
+  percent: 43
 ---
 
 # STATE — SysDoc
@@ -35,7 +35,7 @@ See: .planning/PROJECT.md
 | 3 | pending | 0/1 | 0% |
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
-| 6 | in_progress | 6/7 | 86% |
+| 6 | complete | 7/7 | 100% |
 
 ## Recent Changes
 
@@ -53,6 +53,7 @@ See: .planning/PROJECT.md
 - 2026-08-27: Plano 06-04 concluído — `render_docx_template(template, output, values, raw_xml=None)` abre canal de XML cru estruturalmente separado de `values` (D-09): `values` é sempre escapado, sem exceção por nome de chave; `RAW_XML_KEYS` permanece como allowlist fechada, mas só é consultada em `_validar_chave_raw`, nunca no corpo da função (travado por teste de introspecção). Campos institucionais do despacho (`vocativo`, `unidade`, `destinatario`, `signatario`, `cargo_signatario`, `autoridade`, `cargo_autoridade`) resolvidos por `valores_despacho()` a partir do novo bloco `despacho:` em `.sysdoc/config.yaml` (semeado por `init_config`), com marcador `[PREENCHER: <campo>]` quando ausente — nunca inventado. 17 testes novos em `tests/test_dvi_render_raw.py` provam a separação de canal isoladamente; suíte completa (532) verde.
 - 2026-08-27: Plano 06-05 concluído — `sysdoc create <pasta> dvi` resolve `despacho_geral.docx`/`despacho_tic.docx` pelo `tipo` do `.sysdoc/config.yaml` (D-13), respeitando template customizado do órgão (D-14) via comparação SHA-256 contra as sementes do repo; injeta o corpo real montado por `sysdoc_docx.corpo_dvi` pelo canal `raw_xml`, nunca em `values`; `seed_dvi_template`/`init_command` semeiam a variante correspondente ao `tipo`. 22 testes novos em `tests/test_dvi_create_variante.py` provam precedência, variante, conteúdo filtrado e não-injeção ponta a ponta via `create()`; suíte completa (554) verde.
 - 2026-08-27: Plano 06-06 concluído (Rodada 1 fechada) — `tests/test_dvi_despacho_e2e.py` (13 testes) prova sobre o processo real de 49 itens (`processo-teste/`) que `sysdoc create <pasta> dvi` produz o despacho nas duas variantes, com override de template do projeto e sem nenhum `{{` remanescente, isolado por `shutil.copytree` em `tmp_path`. Bug real encontrado e corrigido no caminho: a seção de pendências não era numerada no XML renderizado (`sysdoc_docx/corpo_dvi.py`, nova `_titulo_numerado`). `processo-teste/.sysdoc/config.yaml` recebeu `tipo: geral` e o bloco `despacho:` (só `unidade`/`destinatario` preenchidos) diretamente em disco, sem ser versionado. CHANGELOG, README, `skills/sysdoc/SKILL.md` e `AGENTS.md` documentam a Rodada 1 como entregue; suíte completa (567) verde.
+- 2026-08-27: Plano 06-07 concluído (Phase 6 fechada — Rodada 1, 7/7 planos) — checkpoint bloqueante da Task 1 apresentou ao usuário as três opções para o destino de `templates/dvi_base.docx` (formato relatório) com o conjunto real de placeholders inspecionado; **decisão do usuário: `aposentar`**. Task 2 removeu `templates/dvi_base.docx` e `templates/build_dvi_base.py`, trimou `tests/test_dvi_template_base.py` (removidas `TestTemplateBaseValido`/`TestCreateAposInit`, preservada `TestSeedDviTemplate`), confirmou que `tests/test_sigla_dvi.py::test_docx_base_usa_a_expansao_correta` passa a `skipped` pelo `skipif` já existente, e registrou a decisão em `CHANGELOG.md` (recuperável via `git show d180b24^:templates/dvi_base.docx`). Suíte completa: 561 passed, 1 skipped (era 567; -5 testes do arquivo removido, +1 skip esperado). SYSD-18 completo.
 
 ## Recent Decisions
 
@@ -68,6 +69,7 @@ See: .planning/PROJECT.md
 - Precedência de template DVI resolvida por SHA-256 contra as sementes do repo: um `.docx` em `referencias/` byte-idêntico a `templates/dvi/despacho_*.docx` conta como "semente intocada" e cede lugar à variante do `tipo`; só um `.docx` realmente diferente (customizado pelo órgão) vence sem precisar de `tipo`.
 - Numeração de seção (`"N) "`) só é aplicada no ponto de renderização do XML (`_titulo_numerado`), não no campo `titulo` devolvido por `montar_apontamentos()` — mantém os testes unitários que comparam esse campo sem número intactos, corrigindo só o defeito visível no DOCX final.
 - `processo-teste/` permanece intencionalmente fora do controle de versão; a suíte E2E que roda sobre ele (`tests/test_dvi_despacho_e2e.py`) sempre copia para `tmp_path` antes de qualquer escrita e nunca é responsável por versionar nada desse projeto.
+- `templates/dvi_base.docx` e `templates/build_dvi_base.py` (formato relatório do DVI) aposentados por decisão explícita do usuário no checkpoint bloqueante do Plano 06-07 — recuperáveis via git history (`git show d180b24^:<caminho>`); o conteúdo que expunham continua disponível via `templates/render_analise.py`/HTML e `dados_consolidados.json`.
 
 ## Accumulated Context
 
@@ -93,9 +95,9 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T05:25:00Z
-Stopped at: Completed 06-06-PLAN.md (E2E do despacho sobre processo-teste + documentação da Rodada 1)
-Resume file: .planning/phases/06-templates-tr-a-partir-dos-modelos-lei-14-133/06-07-PLAN.md
+Last session: 2026-08-27T05:45:00Z
+Stopped at: Completed 06-07-PLAN.md (Phase 6, Rodada 1 — 7/7 planos concluídos)
+Resume file: None
 
 ## Current Focus
 
@@ -103,4 +105,4 @@ Phase 3: Integração Agentes IA. Próximo passo recomendado: `$gsd-discuss-phas
 
 ---
 
-*Last updated: 2026-08-27 — Completed 06-06-PLAN.md: E2E do despacho sobre processo-teste + documentação da Rodada 1*
+*Last updated: 2026-08-27 — Completed 06-07-PLAN.md: checkpoint de destino do formato relatório dvi_base (decisão aposentar, executada); Phase 6 Rodada 1 fechada, 7/7 planos*

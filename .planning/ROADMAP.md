@@ -9,7 +9,7 @@
 | 3 | Documentar integração com agentes | SYSD-06, SYSD-07 | 2/2 |
 | 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 | 5 | Motor de análise por checklist com agentes plugáveis | PRD RF1–RF10 | 15/15 |
-| 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 6/7 |
+| 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 7/7 |
 | 7 | Interface web para pregoeiros | TBD | 0/0 |
 
 ---
@@ -168,7 +168,7 @@ Plans:
 
 - [x] **SYSD-16**: Gerador determinístico dos templates `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados e ZIP byte-estável
 - [x] **SYSD-17**: Builder do corpo do despacho (filtro, numeração dinâmica por peça, alíneas `parecer`+`fundamento`, referência cruzada) e placeholder raw com allowlist explícita em `render_docx_template`
-- [ ] **SYSD-18**: Resolução de variante por `tipo` no `create`/`seed_dvi_template`, correção da sigla no repo e testes E2E
+- [x] **SYSD-18**: Resolução de variante por `tipo` no `create`/`seed_dvi_template`, correção da sigla no repo e testes E2E
 
 #### Rodada 2 — Templates TR (pendente)
 
@@ -208,11 +208,11 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 06-06-PLAN.md — E2E sobre `processo-teste` nas duas variantes, documentação e CHANGELOG (wave 3)
+- [x] 06-06-PLAN.md — E2E sobre `processo-teste` nas duas variantes, documentação e CHANGELOG (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 06-07-PLAN.md — Checkpoint: destino de `templates/dvi_base.docx` (formato relatório) (wave 4)
+- [x] 06-07-PLAN.md — Checkpoint: destino de `templates/dvi_base.docx` (formato relatório) (wave 4)
 
 ### Phase 7: Interface web para pregoeiros
 
