@@ -21,6 +21,7 @@ import time
 import unicodedata
 import urllib.error
 import urllib.request
+import uuid
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime
@@ -438,6 +439,29 @@ def _e_semente_do_repo(caminho: Path) -> bool:
     return False
 
 
+def _template_dvi_do_projeto(paths: ProjectPaths) -> Path | None:
+    """`.docx` do projeto que é reconhecidamente um template DVI, ou `None`.
+
+    Usa o MESMO critério de `seed_dvi_template` (nome reservado em
+    `RESERVED_TEMPLATE_NAMES["dvi"]` ou "dvi" no `stem`), e não o fallback
+    genérico de `_select_reference_template`, que devolve qualquer `.docx`
+    de `referencias/`/`modelos/` quando nenhum arquivo DVI existe — um
+    modelo de TR ou de ETP jamais pode ser promovido a "template
+    customizado do órgão" e vencer a variante correta de `templates/dvi/`.
+    """
+    reservados = RESERVED_TEMPLATE_NAMES["dvi"]
+    diretorios = [paths.referencias]
+    if paths.modelos is not None:
+        diretorios.append(paths.modelos)
+    for diretorio in diretorios:
+        for caminho in supported_files(diretorio):
+            if caminho.suffix.lower() != ".docx":
+                continue
+            if caminho.name.lower() in reservados or "dvi" in caminho.stem.lower():
+                return caminho
+    return None
+
+
 def selecionar_template_dvi(
     paths: ProjectPaths, template_arg: str | None, tipo_config: str | None,
 ) -> tuple[Path, str]:
@@ -446,7 +470,7 @@ def selecionar_template_dvi(
     Ordem: (1) `--template` explícito; (2) `.docx` DVI em `referencias/` que
     seja customizado (SHA-256 diferente de toda variante de `templates/dvi/`)
     vence, mesmo sem `tipo` no config; (3) semente intocada do repo em
-    `referencias/` cede lugar à variante do `tipo`; (4) sem `.docx` em
+    `referencias/` cede lugar à variante do `tipo`; (4) sem `.docx` DVI em
     `referencias/`, usa a variante do `tipo` diretamente. `tipo` só é exigido
     nos caminhos 3 e 4. Devolve `(caminho, origem)`, `origem` em
     `{"argumento", "projeto", "repo"}` — impressa pelo `create` para o
@@ -455,12 +479,11 @@ def selecionar_template_dvi(
     if template_arg:
         candidate = Path(template_arg)
         caminho = candidate if candidate.is_absolute() else (Path.cwd() / candidate).resolve()
+        if not caminho.is_file():
+            raise SystemExit(f"Template informado em --template não encontrado: {rel(caminho)}.")
         return caminho, "argumento"
 
-    try:
-        projeto_template = _select_reference_template(paths, "dvi", "", None)
-    except SystemExit:
-        projeto_template = None
+    projeto_template = _template_dvi_do_projeto(paths)
 
     if projeto_template is not None and not _e_semente_do_repo(projeto_template):
         return projeto_template, "projeto"
@@ -1494,6 +1517,15 @@ def render_docx_template(
         )
         for chave in brutos
     }
+    # O XML cru é injetado em duas etapas, com uma sentinela irrepetível no
+    # meio: o parágrafo hospedeiro vira sentinela ANTES da passada de
+    # `values` e só vira XML DEPOIS dela. Sem isso, texto vindo do JSON que
+    # contenha `{{alguma_chave}}` seria substituído dentro do corpo já
+    # injetado (a passada de `values` é um `str.replace` global).
+    sentinelas = {
+        chave: f"SYSDOC-RAW-{chave}-{uuid.uuid4().hex}" for chave in brutos
+    }
+    encontrados: set[str] = set()
 
     with zipfile.ZipFile(template, "r") as source, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
         _assert_safe_zip_entries(source, template)
@@ -1501,11 +1533,12 @@ def render_docx_template(
             payload = source.read(item.filename)
             if item.filename.startswith("word/") and item.filename.endswith(".xml"):
                 text = payload.decode("utf-8")
-                for chave, valor in brutos.items():
+                for chave in brutos:
                     padrao = padroes_raw[chave]
                     placeholder = "{{" + chave + "}}"
+                    sentinela = sentinelas[chave]
 
-                    def _substituir_hospedeiro(match, valor=valor, placeholder=placeholder):
+                    def _substituir_hospedeiro(match, sentinela=sentinela, placeholder=placeholder):
                         # O placeholder `_xml` precisa ser o ÚNICO conteúdo textual
                         # do seu <w:p> — o parágrafo hospedeiro inteiro é substituído
                         # pelo XML cru. Verifica isso somando todo texto visível
@@ -1518,10 +1551,11 @@ def render_docx_template(
                                 f"Placeholder {placeholder!r} precisa ser o único conteúdo "
                                 "do seu <w:p> (parágrafo hospedeiro) para receber XML cru."
                             )
-                        return valor
+                        return sentinela
 
                     if padrao.search(text):
                         text = padrao.sub(_substituir_hospedeiro, text)
+                        encontrados.add(chave)
                     elif placeholder in text:
                         raise SystemExit(
                             f"Placeholder {placeholder!r} precisa ser o único conteúdo "
@@ -1529,8 +1563,21 @@ def render_docx_template(
                         )
                 for placeholder, value in replacements.items():
                     text = text.replace(placeholder, value)
+                for chave, sentinela in sentinelas.items():
+                    text = text.replace(sentinela, brutos[chave])
                 payload = text.encode("utf-8")
             target.writestr(item, payload)
+
+    # O template pode ser um modelo institucional legado, sem o placeholder
+    # raw — isso continua sendo suportado (não é erro), mas o conteúdo cru é
+    # descartado silenciosamente. Avisa, para que ninguém receba um despacho
+    # sem o corpo dos apontamentos achando que deu tudo certo.
+    for chave in brutos:
+        if chave not in encontrados:
+            print(
+                f"AVISO: o template {rel(template)} não contém o placeholder "
+                f"'{{{{{chave}}}}}'; esse conteúdo não foi inserido no DOCX gerado."
+            )
 
 
 def _detect_procurement_category(data: dict) -> str:

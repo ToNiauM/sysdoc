@@ -122,7 +122,7 @@ def _cabecalho_peca(numero: int, peca: str, sei: str) -> str:
     """`"{numero}) {rótulo}"`, com sufixo `" (SEI {sei})"` quando informado."""
     cabecalho = f"{numero}) {ROTULOS_PECAS[peca]}"
     sei_normalizado = str(sei).strip()
-    if sei_normalizado not in SEI_AUSENTE:
+    if sei_normalizado.casefold() not in SEI_AUSENTE:
         cabecalho = f"{cabecalho} (SEI {sei_normalizado})"
     return cabecalho
 
@@ -208,8 +208,11 @@ def montar_apontamentos(dados: dict) -> list[dict]:
         alineas = []
         for indice, item in enumerate(itens_peca):
             letra = _letra(indice)
-            chave = _chave_equivalencia(item)
-            if chave not in primeira_ocorrencia:
+            # `parecer` vazio não é equivalência: dois itens sem parecer teriam
+            # a mesma chave (""), e o segundo viraria "Vide apontamento..."
+            # apontando para o primeiro, perdendo o próprio `fundamento`.
+            chave = _chave_equivalencia(item) or None
+            if chave is not None and chave not in primeira_ocorrencia:
                 primeira_ocorrencia[chave] = (numero_secao, indice, letra)
             alineas.append({"letra": letra, "_indice": indice, "_item": item, "_chave": chave})
         secoes.append({"numero": numero_secao, "titulo": titulo, "alineas": alineas})
