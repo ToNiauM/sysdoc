@@ -10,6 +10,7 @@
 | 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 | 5 | Motor de análise por checklist com agentes plugáveis | PRD RF1–RF10 | 15/15 |
 | 6 | Templates TR a partir dos modelos Lei 14.133 | SYSD-13 a SYSD-15 | 0/3 |
+| 7 | Interface web para pregoeiros | TBD | 0/0 |
 
 ---
 
@@ -166,7 +167,17 @@ Plans:
 **Plans:**
 - [ ] TBD (run /gsd-plan-phase 6 to break down)
 
+### Phase 7: Interface web para pregoeiros
+
+**Goal:** Abstrair todos os comandos do SysDoc num fluxo visual para pregoeiros: upload dos documentos do processo (PDF único ou peças separadas), extração e carregamento (prepare + fatiador de peças), análise (motor `sysdoc-dvi` com progresso em tempo real) e output com a análise em HTML e DOCX — sem o usuário tocar em terminal, YAML ou JSON.
+**Requirements**: TBD
+**Depends on:** Phase 5 (motor DVI); beneficia-se dos templates da Phase 6 para o output DOCX
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 7 to break down)
+
 ---
 
-*Phases: 6 | Requirements: 15*
+*Phases: 7 | Requirements: 15*
 *Generated: 2026-05-07 · Updated: 2026-08-26*

@@ -59,6 +59,7 @@ See: .planning/PROJECT.md
 ### Roadmap Evolution
 
 - Phase 5 added: Motor de análise por checklist com agentes plugáveis (PRD completo em `.planning/phases/05-motor-analise-checklist/PRD.md`)
+- Phase 7 added (2026-08-26): Interface web para pregoeiros — fluxo visual de upload → extração → análise → output HTML/DOCX, abstraindo a CLI e o motor DVI
 
 ## Pending Todos
 
