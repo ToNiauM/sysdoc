@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 6
+current_phase: 06
 status: ready_to_execute
 stopped_at: "Phase 6 planejada — 7 planos em 4 waves (rodada 1: Despacho de Verificação Inicial)"
-last_updated: "2026-08-27T00:45:00.000Z"
+last_updated: "2026-08-27T03:45:59.637Z"
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 31
-  completed_plans: 16
+  total_plans: 24
+  completed_plans: 17
   percent: 29
 ---
 
 # STATE — SysDoc
 
 **Project:** SysDoc - Sistema de Análise de Documentação de Licitação
-**Current Phase:** 6
+**Current Phase:** 06
 **Mode:** standard
 
 ## Project Reference
@@ -35,7 +35,7 @@ See: .planning/PROJECT.md
 | 3 | pending | 0/1 | 0% |
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
-| 6 | planned | 0/7 | 0% |
+| 6 | in_progress | 1/7 | 14% |
 
 ## Recent Changes
 
@@ -47,6 +47,7 @@ See: .planning/PROJECT.md
 - 2026-05-12: Phase adicionada — Templates TR a partir dos 4 modelos Lei 14.133 em `Referencias/`, com placeholders SysDoc anotados.
 - 2026-08-26: Merge de branches — "Templates TR (Lei 14.133)" renumerada de Phase 5 para Phase 6; Phase 5 permanece "Motor de análise por checklist" (concluída, release 1.5.0).
 - 2026-08-27: Phase 6 planejada (rodada 1: Despacho de Verificação Inicial) — 7 planos em 4 waves, cobrindo SYSD-16/17/18 e D-01 a D-14. Canal raw-XML separado (`render_docx_template(..., raw_xml=)`) adotado em vez de allowlist sobre `values`, eliminando por construção a injeção via chave homônima no `dados_consolidados.json`.
+- 2026-08-27: Plano 06-01 concluído — gerador determinístico `templates/build_despacho_templates.py` cria `templates/dvi/despacho_geral.docx` e `templates/dvi/despacho_tic.docx`, moldura fiel a `processo-teste/referencias/dvi.md` com seis estilos nomeados e placeholder raw único `{{corpo_apontamentos_xml}}`; 11 testes novos, suíte completa (480) verde.
 
 ## Recent Decisions
 
@@ -54,6 +55,7 @@ See: .planning/PROJECT.md
 - `sysdoc create` permanece offline e determinístico, usando substituição ZIP/XML de placeholders em DOCX.
 - `tipo=tr` é o padrão quando omitido; `--tipo` existe para scripts.
 - Para TR, o ETP preparado é lido de `.sysdoc/cache/textos/documentos/ETP.txt`, com fallback legado para `.sysdoc/cache/textos/ETP.txt`.
+- `templates/dvi/` é a pasta própria para templates institucionais do despacho, um DOCX por variante de verificação (`despacho_geral.docx`, `despacho_tic.docx`), no molde do gerador determinístico já usado por `templates/build_dvi_base.py`.
 
 ## Accumulated Context
 
@@ -79,9 +81,9 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T02:56:49.750Z
-Stopped at: Phase 6 planejada — 7 planos em 4 waves (rodada 1: Despacho de Verificação Inicial)
-Resume file: .planning/phases/06-templates-tr-a-partir-dos-modelos-lei-14-133/06-CONTEXT.md
+Last session: 2026-08-27T03:45:59.637Z
+Stopped at: Completed 06-01-PLAN.md (templates DOCX do Despacho de Verificação Inicial)
+Resume file: .planning/phases/06-templates-tr-a-partir-dos-modelos-lei-14-133/06-02-PLAN.md
 
 ## Current Focus
 

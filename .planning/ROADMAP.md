@@ -9,7 +9,7 @@
 | 3 | Documentar integração com agentes | SYSD-06, SYSD-07 | 2/2 |
 | 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 | 5 | Motor de análise por checklist com agentes plugáveis | PRD RF1–RF10 | 15/15 |
-| 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 0/4 |
+| 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 1/7 |
 | 7 | Interface web para pregoeiros | TBD | 0/0 |
 
 ---
@@ -197,7 +197,7 @@ Escopo a definir após a rodada 2.
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Gerador determinístico de `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados (wave 1)
+- [x] 06-01-PLAN.md — Gerador determinístico de `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados (wave 1)
 - [ ] 06-02-PLAN.md — Builder `sysdoc_docx/corpo_dvi.py`: filtro, numeração dinâmica por peça, alíneas e referência cruzada (wave 1)
 - [ ] 06-03-PLAN.md — Sigla DVI = Despacho de Verificação Inicial em todo o repo, com teste de regressão (wave 1)
 - [ ] 06-04-PLAN.md — Canal `raw_xml` separado (allowlist `RAW_XML_KEYS`) em `render_docx_template` e bloco `despacho:` no config (wave 1)
