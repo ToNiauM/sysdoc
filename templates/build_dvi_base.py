@@ -47,7 +47,7 @@ _RELS_DOCUMENTO = (
 )
 
 _PARAGRAFOS = [
-    "DOCUMENTO DE VERIFICAÇÃO INICIAL — DVI",
+    "DESPACHO DE VERIFICAÇÃO INICIAL — DVI",
     "{{titulo}}",
     "{{subtitulo}}",
     "Data da análise: {{data_análise}} — Modelo de IA: {{modelo_ia}}",

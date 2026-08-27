@@ -357,7 +357,7 @@ Para documentar a ausência de uma cláusula esperada, use o marcador `[OMISSÃO
 
 ## Motor de análise DVI (`sysdoc-dvi`)
 
-O motor de análise DVI (Documento de Verificação Inicial) é um **binário separado**, `sysdoc-dvi`, distinto da CLI `sysdoc` — ele é o único componente do projeto que chama modelo de linguagem. A CLI `sysdoc` continua 100% determinística.
+O motor de análise DVI (Despacho de Verificação Inicial) é um **binário separado**, `sysdoc-dvi`, distinto da CLI `sysdoc` — ele é o único componente do projeto que chama modelo de linguagem. A CLI `sysdoc` continua 100% determinística.
 
 ### Pré-requisito: configurar os modelos
 
@@ -447,7 +447,7 @@ Cenário fictício: análise da contratação **"Aquisição de Notebooks 2026"*
 | | Fluxo A — original (agente de IA) | Fluxo B — motor DVI (`sysdoc-dvi`) |
 |---|---|---|
 | Quem analisa | o harness de IA (Claude Code, OpenCode, etc.) lendo `skills/sysdoc/SKILL.md` | o binário `sysdoc-dvi`, via API, dirigido por `checklists/dvi.yaml` |
-| Produto típico | análise comparativa ETP × TR com foco temático livre | DVI (Documento de Verificação Inicial) por checklist |
+| Produto típico | análise comparativa ETP × TR com foco temático livre | DVI (Despacho de Verificação Inicial) por checklist |
 | Chamada de modelo | dentro do chat do agente | `sysdoc-dvi run` (único componente que chama modelo) |
 | Reprodutibilidade | depende do prompt e do modelo usados na sessão | itens tipados, checklist com hash, checkpoint de retomada |
 | Quando usar | exploração, dúvida específica, segunda opinião | diligência padronizada de rotina, comparável entre processos |

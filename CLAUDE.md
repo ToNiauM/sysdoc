@@ -39,7 +39,7 @@ sysdoc create [pasta] [tipo]            # gera DOCX (tr, dvi) a partir de JSON +
 
 ### Motor DVI (`sysdoc-dvi`) — binário separado, chama modelo
 
-DVI significa **Documento de Verificação Inicial**. `sysdoc` acima nunca chama modelo. Quem chama modelo é o binário separado `sysdoc-dvi`:
+DVI significa **Despacho de Verificação Inicial**. `sysdoc` acima nunca chama modelo. Quem chama modelo é o binário separado `sysdoc-dvi`:
 
 ```bash
 sysdoc-dvi run [pasta] --tipo geral|tic     # pipeline completo: checklist -> peças -> itens -> síntese -> JSON -> validate -> render -> relatório

@@ -23,7 +23,7 @@ TEMPLATE_BASE = ROOT / "templates" / "dvi_base.docx"
 
 def _base_dvi_json(**overrides) -> dict:
     payload = {
-        "titulo": "Documento de Verificação Inicial",
+        "titulo": "Despacho de Verificação Inicial",
         "subtitulo": "Análise comparativa",
         "modelo_ia": "gpt-5",
         "data_análise": "2026-08-26",

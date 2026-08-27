@@ -37,7 +37,7 @@ def _dados_validos(**overrides) -> dict:
     parecer_executivo = " ".join(["análise"] * 460)
     parecer_secao = " ".join(["análise"] * 130)
     dados = {
-        "titulo": "Documento de Verificação Inicial",
+        "titulo": "Despacho de Verificação Inicial",
         "subtitulo": "Análise comparativa de ETP e TR",
         "modelo_ia": "claude-opus-4",
         "data_análise": "2026-08-26",

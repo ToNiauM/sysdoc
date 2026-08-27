@@ -40,6 +40,6 @@ Leia também `AGENTS.md` na raiz do projeto, se existir — contém regras gerai
 
 5. **Templates imutáveis** — nunca edite `templates/analise_template.html`, `templates/render_analise.py` ou `templates/validate_sysdoc.py`. O HTML é gerado **somente** pelo renderizador determinístico.
 
-6. **Análise DVI por checklist** — para análise DVI (Documento de Verificação Inicial), leia `checklists/dvi.yaml` (fonte canônica dos itens, ver `skills/sysdoc/SKILL.md`) em vez de aplicar as lentes genéricas acima. O binário `sysdoc-dvi run [pasta] --tipo geral|tic` executa o pipeline completo automatizado; como harness, você pode operar no nível artefato lendo o mesmo YAML diretamente.
+6. **Análise DVI por checklist** — para análise DVI (Despacho de Verificação Inicial), leia `checklists/dvi.yaml` (fonte canônica dos itens, ver `skills/sysdoc/SKILL.md`) em vez de aplicar as lentes genéricas acima. O binário `sysdoc-dvi run [pasta] --tipo geral|tic` executa o pipeline completo automatizado; como harness, você pode operar no nível artefato lendo o mesmo YAML diretamente.
 
 Qualquer divergência entre este wrapper e `skills/sysdoc/SKILL.md` — prevalece o canônico neutro.

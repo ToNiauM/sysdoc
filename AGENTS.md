@@ -30,7 +30,7 @@ Se o entry point `sysdoc` não estiver instalado, use `python sysdoc.py …` na 
 
 ### Motor DVI (`sysdoc-dvi`) — binário separado, chama modelo
 
-DVI significa **Documento de Verificação Inicial**. `sysdoc` acima é **CLI determinística**: nunca chama modelo. `sysdoc-dvi` é o **orquestrador** que chama modelo, um binário separado:
+DVI significa **Despacho de Verificação Inicial**. `sysdoc` acima é **CLI determinística**: nunca chama modelo. `sysdoc-dvi` é o **orquestrador** que chama modelo, um binário separado:
 
 ```bash
 sysdoc-dvi run [pasta] --tipo geral|tic     # pipeline completo: checklist -> peças -> itens -> síntese -> JSON -> validate -> render -> relatório
