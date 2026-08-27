@@ -34,7 +34,7 @@
 ### Despacho de Verificação Inicial (rodada 1)
 
 - [x] **SYSD-16**: Templates DOCX do Despacho de Verificação Inicial (`templates/dvi/despacho_geral.docx`, `templates/dvi/despacho_tic.docx`), gerados deterministicamente e fiéis ao modelo institucional real.
-- [ ] **SYSD-17**: Builder do corpo dos apontamentos (XML por peça/alínea, referências cruzadas) — Plano 06-02.
+- [x] **SYSD-17**: Builder do corpo dos apontamentos (XML por peça/alínea, referências cruzadas) — Plano 06-02.
 - [ ] **SYSD-18**: `sysdoc create <pasta> dvi` monta o despacho a partir de `dados_consolidados.json` + `.sysdoc/config.yaml` (bloco `despacho:`) + templates de `templates/dvi/` — Planos 06-03/06-04.
 
 **Nota:** os demais requisitos de Phase 6 (TR/ETP, rodadas seguintes) ainda não foram numerados; entram nesta seção conforme cada rodada for planejada.
@@ -59,7 +59,7 @@
 | SYSD-06 | Phase 3 | Pending |
 | SYSD-07 | Phase 3 | Pending |
 | SYSD-16 | Phase 6 (06-01) | ✅ Complete |
-| SYSD-17 | Phase 6 (06-02) | Pending |
+| SYSD-17 | Phase 6 (06-02) | Complete |
 | SYSD-18 | Phase 6 (06-03/06-04) | Pending |
 
 **Coverage:**

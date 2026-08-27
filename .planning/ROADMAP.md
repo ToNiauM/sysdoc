@@ -9,7 +9,7 @@
 | 3 | Documentar integração com agentes | SYSD-06, SYSD-07 | 2/2 |
 | 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 | 5 | Motor de análise por checklist com agentes plugáveis | PRD RF1–RF10 | 15/15 |
-| 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 1/7 |
+| 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 2/7 |
 | 7 | Interface web para pregoeiros | TBD | 0/0 |
 
 ---
@@ -166,8 +166,8 @@ Plans:
 
 **Requirements:**
 
-- [ ] **SYSD-16**: Gerador determinístico dos templates `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados e ZIP byte-estável
-- [ ] **SYSD-17**: Builder do corpo do despacho (filtro, numeração dinâmica por peça, alíneas `parecer`+`fundamento`, referência cruzada) e placeholder raw com allowlist explícita em `render_docx_template`
+- [x] **SYSD-16**: Gerador determinístico dos templates `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados e ZIP byte-estável
+- [x] **SYSD-17**: Builder do corpo do despacho (filtro, numeração dinâmica por peça, alíneas `parecer`+`fundamento`, referência cruzada) e placeholder raw com allowlist explícita em `render_docx_template`
 - [ ] **SYSD-18**: Resolução de variante por `tipo` no `create`/`seed_dvi_template`, correção da sigla no repo e testes E2E
 
 #### Rodada 2 — Templates TR (pendente)
@@ -198,7 +198,7 @@ Plans:
 **Wave 1**
 
 - [x] 06-01-PLAN.md — Gerador determinístico de `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados (wave 1)
-- [ ] 06-02-PLAN.md — Builder `sysdoc_docx/corpo_dvi.py`: filtro, numeração dinâmica por peça, alíneas e referência cruzada (wave 1)
+- [x] 06-02-PLAN.md — Builder `sysdoc_docx/corpo_dvi.py`: filtro, numeração dinâmica por peça, alíneas e referência cruzada (wave 1)
 - [ ] 06-03-PLAN.md — Sigla DVI = Despacho de Verificação Inicial em todo o repo, com teste de regressão (wave 1)
 - [ ] 06-04-PLAN.md — Canal `raw_xml` separado (allowlist `RAW_XML_KEYS`) em `render_docx_template` e bloco `despacho:` no config (wave 1)
 
