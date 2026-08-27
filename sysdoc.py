@@ -31,7 +31,6 @@ from xml.sax.saxutils import escape as xml_escape
 
 from sysdoc_docx.corpo_dvi import build_corpo_despacho_xml
 
-
 ROOT = Path(__file__).resolve().parent
 TEMPLATES = ROOT / "templates"
 IGNORED_DIRS = {".git", ".claude", "backup", "skills", "templates"}

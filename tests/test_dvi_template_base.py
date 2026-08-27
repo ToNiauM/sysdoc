@@ -19,9 +19,14 @@ sys.path.insert(0, str(ROOT))
 import sysdoc  # noqa: E402
 
 TEMPLATE_BASE = ROOT / "templates" / "dvi_base.docx"
+TEMPLATE_DESPACHO_GERAL = ROOT / "templates" / "dvi" / "despacho_geral.docx"
 
 
 def _base_dvi_json(**overrides) -> dict:
+    # Fixture "titulo" corrigida pelo Plano 03 (D-01/D-02, 06-CONTEXT.md): DVI
+    # = Despacho de Verificação Inicial — grafia do modelo institucional real
+    # ("DESPACHO DE VERIFICAÇÃO INICIAL" em maiúsculas no título do DOCX
+    # gerado por templates/build_dvi_base.py), nunca "Documento".
     payload = {
         "titulo": "Despacho de Verificação Inicial",
         "subtitulo": "Análise comparativa",
@@ -121,7 +126,10 @@ class TestSeedDviTemplate:
 
         destino = tmp_path / "ProjetoSemente" / "referencias" / "dvi.docx"
         assert destino.is_file()
-        assert destino.read_bytes() == TEMPLATE_BASE.read_bytes()
+        # 06-05 (D-14): a semeadura passou a usar as variantes de
+        # templates/dvi/, não mais templates/dvi_base.docx (formato
+        # relatório aposentado por esta rodada).
+        assert destino.read_bytes() == TEMPLATE_DESPACHO_GERAL.read_bytes()
 
     def test_init_nao_sobrescreve_quando_rodado_duas_vezes(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -171,6 +179,12 @@ class TestCreateAposInit:
         monkeypatch.chdir(tmp_path)
         sysdoc.init_command("ProjetoCriarDvi")
         _escrever_dvi_json(tmp_path / "ProjetoCriarDvi")
+        # 06-05 (D-13): a semente do repo agora exige `tipo` no config —
+        # `create` não infere a variante sozinho.
+        project_paths = sysdoc.project_paths(tmp_path / "ProjetoCriarDvi")
+        config = sysdoc.load_config(project_paths)
+        config["tipo"] = "geral"
+        sysdoc.write_config(project_paths, config)
 
         rc = sysdoc.create("ProjetoCriarDvi", "dvi")
         assert rc == 0
