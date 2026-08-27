@@ -9,3 +9,4 @@ __pycache__/
 referencias/prompts-dvi/
 /.sysdoc/
 /Processo-Teste/
+.env

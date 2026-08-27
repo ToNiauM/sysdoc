@@ -1,0 +1,30 @@
+# Único comando de subida do administrador (D-02, 07-CONTEXT.md):
+# `docker compose up`. Um único serviço de aplicação (D-14) — a fila de
+# análise é single-slot no banco, resolvida inteiramente no plano 07-03.
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SYSDOC_WEB_DATA_DIR: /dados
+      SYSDOC_WEB_ALLOWED_HOSTS: ${SYSDOC_WEB_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      SYSDOC_WEB_DEBUG: ${SYSDOC_WEB_DEBUG:-0}
+      SYSDOC_WEB_MAX_UPLOAD_MB: ${SYSDOC_WEB_MAX_UPLOAD_MB:-50}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - sysdoc-dados:/dados
+      # Configuração de provedor/modelo é do administrador, feita fora da
+      # web com `sysdoc-dvi config` (D-05/D-06) — montada somente-leitura.
+      - ${HOME}/.sysdoc:/home/sysdoc/.sysdoc:ro
+
+volumes:
+  sysdoc-dados:
