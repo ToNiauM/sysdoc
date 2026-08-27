@@ -1,0 +1,63 @@
+# Exemplo de vhost nginx para publicar a aplicação num subdomínio.
+# Copie para o servidor (ex.: /etc/nginx/sites-available/sysdoc), ajuste
+# `server_name` e a porta do `proxy_pass`, habilite e recarregue:
+#
+#   ln -s /etc/nginx/sites-available/sysdoc /etc/nginx/sites-enabled/sysdoc
+#   nginx -t && systemctl reload nginx
+#
+# Este arquivo NÃO é aplicado por nenhum script — é material de referência
+# para o administrador. Ele assume que o TLS é terminado aqui (certbot) ou
+# no Cloudflare; veja a nota no fim.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name sysdoc.sistemascfc.org;
+
+    # Deixe o certbot cuidar do redirecionamento para HTTPS, ou descomente:
+    # return 301 https://$host$request_uri;
+
+    location / {
+        proxy_pass http://127.0.0.1:8010;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+
+        # Este cabeçalho é o que faz o Django reconhecer a conexão como
+        # segura (SECURE_PROXY_SSL_HEADER, ativado por
+        # SYSDOC_WEB_ATRAS_DE_PROXY=1). Definir com $scheme — e nunca
+        # repassar o valor que veio do cliente — é o que impede um cliente
+        # de forjar "conexão segura".
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # O pregoeiro envia o PDF do processo inteiro. O padrão do nginx é
+        # 1 MB e devolveria um 413 opaco no meio do upload; deixe acima do
+        # SYSDOC_WEB_MAX_UPLOAD_MB configurado no .env.
+        client_max_body_size 60m;
+
+        # Upload de arquivo grande em conexão lenta.
+        proxy_request_buffering off;
+        proxy_read_timeout  120s;
+        proxy_send_timeout  120s;
+    }
+}
+
+# ---------------------------------------------------------------------------
+# TLS
+# ---------------------------------------------------------------------------
+# Duas topologias funcionam, e a escolha muda o que precisa existir aqui:
+#
+# 1. Cloudflare em modo "Full (strict)" — o Cloudflare fala HTTPS com este
+#    servidor. Emita um certificado (certbot --nginx -d
+#    sysdoc.sistemascfc.org) ou instale um Origin Certificate do Cloudflare.
+#    Recomendado.
+#
+# 2. Cloudflare em modo "Flexible" — o Cloudflare fala HTTP puro com a
+#    origem. Funciona sem certificado aqui, mas o trecho entre o Cloudflare
+#    e este servidor trafega em claro, incluindo a sessão do pregoeiro.
+#    Desaconselhado para um sistema que manipula documentos de processo.
+#
+# Nota sobre limite de upload: no plano gratuito do Cloudflare o corpo da
+# requisição é limitado a 100 MB. Um PDF de processo acima disso não chega
+# aqui, independentemente do client_max_body_size.

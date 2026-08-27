@@ -1,0 +1,31 @@
+# Sobreposição de produção. Use SEMPRE junto com o compose base:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Diferenças em relação ao `docker compose up` local:
+#
+# 1. A porta é publicada apenas em 127.0.0.1. A aplicação NUNCA fica
+#    diretamente alcançável de fora — quem atende a internet é o proxy
+#    reverso do host. Isso não é cosmético: `SYSDOC_WEB_ATRAS_DE_PROXY=1`
+#    faz o Django confiar no cabeçalho `X-Forwarded-Proto`, e essa confiança
+#    só é segura porque nenhum cliente externo consegue falar direto com o
+#    container.
+# 2. `SYSDOC_WEB_HTTPS=1` marca os cookies de sessão e CSRF como `Secure`.
+# 3. Sem `${HOME}` na montagem de configuração — em produção o caminho é
+#    explícito, para não depender de quem executou o comando.
+services:
+  web:
+    ports: !override
+      - "127.0.0.1:${SYSDOC_WEB_PORTA_LOCAL:-8010}:8000"
+    environment:
+      SYSDOC_WEB_HTTPS: "1"
+      SYSDOC_WEB_ATRAS_DE_PROXY: "1"
+      SYSDOC_WEB_ALLOWED_HOSTS: ${SYSDOC_WEB_ALLOWED_HOSTS:?defina o hostname em .env}
+      SYSDOC_WEB_CSRF_ORIGINS: ${SYSDOC_WEB_CSRF_ORIGINS:?defina a origem https em .env}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?gere uma chave e coloque em .env}
+    volumes: !override
+      - sysdoc-dados:/dados
+      - ${SYSDOC_CONFIG_DIR:?defina o diretorio de configuracao em .env}:/home/sysdoc/.sysdoc:ro
+
+volumes:
+  sysdoc-dados:

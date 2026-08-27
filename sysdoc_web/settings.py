@@ -115,6 +115,10 @@ CSRF_COOKIE_SAMESITE = "Lax"
 _usar_https = os.environ.get("SYSDOC_WEB_HTTPS", "0") == "1"
 SESSION_COOKIE_SECURE = (not DEBUG) if _usar_https else False
 CSRF_COOKIE_SECURE = (not DEBUG) if _usar_https else False
+
+if _usar_https and os.environ.get("SYSDOC_WEB_ATRAS_DE_PROXY", "0") == "1":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = SYSDOC_WEB_MAX_UPLOAD_MB * 1024 * 1024
