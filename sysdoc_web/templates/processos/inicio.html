@@ -10,6 +10,12 @@
           <li>
             <strong>{{ processo.nome }}</strong>
             — {{ processo.get_tipo_verificacao_display|default:"Tipo de contratação não definido" }}
+            {% with job=processo.jobs.first %}
+              {% if job %}
+                — <span class="situacao-processo">{{ job.get_status_display }}</span>
+              {% endif %}
+            {% endwith %}
+            <a href="{% url 'processos:analise' processo.slug %}" class="botao-link">Ver análise</a>
           </li>
         {% endfor %}
       </ul>

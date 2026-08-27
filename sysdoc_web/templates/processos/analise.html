@@ -1,0 +1,43 @@
+{% load static %}
+{% extends "base.html" %}
+
+{% block conteudo %}
+  <div
+    class="tela-analise"
+    data-url-situacao="{% url 'processos:situacao_analise' processo.slug %}"
+  >
+    <h1>Análise do processo</h1>
+    <section class="cartao">
+      <p class="resumo-processo">
+        <strong>{{ processo.nome }}</strong>
+        — {{ processo.get_tipo_verificacao_display }}
+      </p>
+
+      {% if pode_iniciar %}
+        {% if job %}
+          <p class="observacao">
+            A última tentativa não foi concluída: {{ job.mensagem_erro }}
+          </p>
+        {% endif %}
+        <form method="post" action="{% url 'processos:iniciar_analise' processo.slug %}">
+          {% csrf_token %}
+          <button type="submit" class="botao botao-primario">Iniciar análise</button>
+        </form>
+      {% else %}
+        <div class="bloco-progresso">
+          <p class="observacao">
+            A análise pode levar alguns minutos. Você pode deixar esta página aberta.
+          </p>
+          <p>Situação: <span id="situacao">{{ job.get_status_display }}</span></p>
+          <p>Etapa: <span id="etapa">{{ job.etapa }}</span></p>
+          <div class="barra-fundo">
+            <div id="barra" class="barra-progresso" style="width: {{ job.percentual }}%;"></div>
+          </div>
+        </div>
+      {% endif %}
+
+      <div id="erro" class="erro" hidden></div>
+    </section>
+  </div>
+  <script src="{% static 'progresso.js' %}" defer></script>
+{% endblock %}
