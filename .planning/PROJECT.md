@@ -21,20 +21,21 @@ Análise técnica e jurídica de documentos de licitação via CLI determinísti
 - ✓ `sysdoc create` gera DOCX determinístico a partir de JSON + template.
 - ✓ `tipo=tr` aplica revisão ETP com substituição exata `de`→`para` e registra pendências.
 
+- ✓ Interface web para pregoeiros (Django em Docker), abstraindo upload, extração, análise e geração do despacho.
+
 ### Active
 
 - [ ] Documentação e validação de integração com agentes de IA.
 
 ### Out of Scope
 
-- Interface GUI — CLI only.
 - Análise em tempo real com múltiplas LLMs — uma por vez.
 - Armazenamento em cloud — local-only.
 - Geração PDF direta no `create` — Word pode exportar PDF por enquanto.
 
 ## Current State
 
-Phase 2 concluída em 2026-05-12. `sysdoc create` está implementado e verificado com 67 testes passando.
+Phase 7 concluída em 2026-08-27. Interface web em Django rodando via docker compose; CLI e motor DVI inalterados.
 
 ## Context
 
@@ -54,12 +55,13 @@ Phase 2 concluída em 2026-05-12. `sysdoc create` está implementado e verificad
 - **Agent-invocável**: CLI deve funcionar via `/sysdoc` em qualquer harness.
 - **Saída múltipla**: JSON, HTML e Word.
 - **Templates de análise imutáveis**: `templates/analise_template.html`, `templates/render_analise.py` e `templates/validate_sysdoc.py` não são alterados durante análises.
+- **Web opcional**: Django é extra (`pip install -e ".[web]"`); a instalação base do SysDoc não depende dele.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| CLI only, sem GUI | Agentes de IA não usam GUI | Accepted |
+| CLI é o caminho canônico para agentes; GUI é o caminho para pregoeiros | Agentes de IA operam por CLI; o pregoeiro precisa de fluxo visual | Accepted (Phase 7) |
 | Output HTML + Word | Word é formato operacional para documentos oficiais | Accepted |
 | Python puro para prepare/render/create | Determinístico, zero LLM needed | Accepted |
 | LLM só no analyze | Harness externo faz análise; CLI prepara e renderiza | Accepted |
@@ -67,4 +69,4 @@ Phase 2 concluída em 2026-05-12. `sysdoc create` está implementado e verificad
 
 ---
 
-*Last updated: 2026-05-12 after Phase 2 completion*
+*Last updated: 2026-08-27 after Phase 7 completion*

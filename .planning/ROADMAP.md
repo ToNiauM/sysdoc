@@ -254,4 +254,4 @@ Plans:
 *Phases: 7 | Requirements: 29*
 *Generated: 2026-05-07 · Updated: 2026-08-27*
 
-> **Nota de sincronia:** SYSD-13 a SYSD-18 existem apenas neste ROADMAP; `REQUIREMENTS.md` ainda para em SYSD-10. Sincronizar quando conveniente.
+> **Nota de sincronia:** SYSD-11 a SYSD-15 passaram a constar em `REQUIREMENTS.md` como referência cruzada na Phase 7 (rodada 2 de Phase 6, ainda não planejada); SYSD-16 a SYSD-29 já estavam ou passaram a estar sincronizados como parte desta mesma fase.
