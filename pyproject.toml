@@ -36,7 +36,13 @@ sysdoc = "sysdoc:main"
 sysdoc-dvi = "sysdoc_dvi.cli:main"
 
 [tool.setuptools]
-packages = ["sysdoc_dvi", "sysdoc_docx", "sysdoc_web", "sysdoc_web.processos"]
+packages = [
+    "sysdoc_dvi",
+    "sysdoc_docx",
+    "sysdoc_web",
+    "sysdoc_web.processos",
+    "sysdoc_web.processos.migrations",
+]
 py-modules = ["sysdoc"]
 
 [tool.pytest.ini_options]
