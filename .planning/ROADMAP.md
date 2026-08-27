@@ -10,7 +10,7 @@
 | 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 | 5 | Motor de análise por checklist com agentes plugáveis | PRD RF1–RF10 | 15/15 |
 | 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 7/7 |
-| 7 | Interface web para pregoeiros | SYSD-19 a SYSD-29 | 6/8 |
+| 7 | Interface web para pregoeiros | SYSD-19 a SYSD-29 | 7/8 |
 
 ---
 
@@ -219,7 +219,7 @@ Plans:
 **Goal:** Abstrair todos os comandos do SysDoc num fluxo visual para pregoeiros: upload dos documentos do processo (PDF único ou peças separadas), extração e carregamento (prepare + fatiador de peças), análise (motor `sysdoc-dvi` com progresso em tempo real) e output com a análise em HTML e DOCX — sem o usuário tocar em terminal, YAML ou JSON.
 **Requirements**: [SYSD-19, SYSD-20, SYSD-21, SYSD-22, SYSD-23, SYSD-24, SYSD-25, SYSD-26, SYSD-27, SYSD-28, SYSD-29]
 **Depends on:** Phase 5 (motor DVI); beneficia-se dos templates da Phase 6 para o output DOCX
-**Plans:** 6/8 plans executed
+**Plans:** 7/8 plans executed
 
 Plans:
 
@@ -243,7 +243,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 07-07-PLAN.md — Tela 4: apontamentos, revisão humana bloqueante, despacho DOCX e downloads (wave 5)
+- [x] 07-07-PLAN.md — Tela 4: apontamentos, revisão humana bloqueante, despacho DOCX e downloads (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 

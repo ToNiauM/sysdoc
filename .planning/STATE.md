@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 07
 status: executing
-stopped_at: Plano 07-06 concluído (6/8 planos da Phase 7, wave 4/6) — pronto para 07-07
-last_updated: "2026-08-27T07:16:00Z"
+stopped_at: Plano 07-07 concluído (7/8 planos da Phase 7, wave 5/6) — pronto para 07-08
+last_updated: "2026-08-27T08:05:00Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 32
-  completed_plans: 29
-  percent: 48
+  completed_plans: 30
+  percent: 50
 ---
 
 # STATE — SysDoc
@@ -36,7 +36,7 @@ See: .planning/PROJECT.md
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
 | 6 | complete | 7/7 | 100% |
-| 7 | in_progress | 6/8 | 75% |
+| 7 | in_progress | 7/8 | 88% |
 
 ## Recent Changes
 
@@ -63,6 +63,7 @@ See: .planning/PROJECT.md
 - 2026-08-27: Plano 07-04 concluído (wave 3/6) — `Dockerfile` de estágio único (`python:3.12-slim`, usuário não-root `sysdoc` UID/GID 10001, `pip install -e ".[web]"`, sem nenhuma chave de API embutida), `docker/entrypoint.sh` executa segredo persistido → `migrate` → `collectstatic` → `sanear_jobs` (D-15) → um único laço de `runworker` → `exec gunicorn --workers 1 --threads 4` (D-14, comentado inline com a justificativa das defesas dos planos 07-02/07-03); `docker-compose.yml` com serviço `web` único, volume nomeado `sysdoc-dados` e montagem `:ro` de `~/.sysdoc` (D-05/D-06), sem broker. Build e subida ponta a ponta verificados manualmente via `docker build`/`docker run` (302 em `/`, restart com segredo e banco persistidos em volume nomeado); `docker compose up -d` ao vivo não pôde ser confirmado neste host compartilhado (pool de redes esgotado por outros projetos + porta 8000 já ocupada por outro serviço), documentado honestamente no SUMMARY como limitação de ambiente, não de configuração. 8 testes novos em `tests/test_web_docker.py`; suíte completa (596 passed, 1 skipped) verde. SYSD-24 completo.
 - 2026-08-27: Plano 07-05 concluído (wave 3/6) — `sysdoc_web/processos/uploads.py` recusa extensão fora da allowlist (`sysdoc.SUPPORTED_REFERENCE_SUFFIXES`), tamanho acima de `SYSDOC_WEB_MAX_UPLOAD_MB`, assinatura binária incompatível (`%PDF-`/`PK\x03\x04`) e `.docx` com entrada de ZIP hostil (caminho absoluto, `..`, ausência de `word/document.xml` ou razão de expansão >200x) antes de qualquer escrita em disco (D-08); `forms.py` traz o par `MultipleFileInput`/`MultipleFileField` — o padrão oficial do Django 5 para upload múltiplo, travando permanentemente a regressão de `ValueError` em tempo de import que bloqueou o plan-checker desta fase. `views.novo_processo`/`views.verificacao` entregam as telas 1 e 2 (D-09): PDF único como caminho principal (D-10), peças separadas em bloco recolhível, tipo de contratação em português de gente (`Contratação em geral`/`Solução de TIC`), autorização por objeto via `get_object_or_404(Processo, slug=slug, criado_por=request.user)`, e remoção de pasta órfã em falha de gravação (D-17). 13 testes novos em `tests/test_web_upload.py`; suíte completa (609 passed, 1 skipped) verde. SYSD-25 completo.
 - 2026-08-27: Plano 07-06 concluído (wave 4/6) — `views.analise`/`iniciar_analise`/`situacao_analise` entregam a tela 3 (D-09): fila cheia converte `FilaOcupada` em `messages.warning` sem nunca gerar 500 (D-14); o endpoint `/processos/<slug>/analise/situacao/` devolve JSON de chave fechada (8 campos), `Cache-Control: no-store` e autorização por objeto, ecoando só `etapa`/`mensagem_erro` já traduzidos pelo worker (D-17). `sysdoc_web/static/progresso.js` é JavaScript puro sem WebSocket/SSE (D-16): escreve só por `textContent`/`style.width`, pausa de verdade com a aba oculta, para após 3 falhas de rede consecutivas e recusa navegar para `url_resultado` que não comece por `/` (T-07-06-03). `url_resultado` aponta para a própria `processos:analise` até `processos:resultado` existir no plano 07-07 — sem link morto. Bug real encontrado e corrigido: `{% load static %}` antes de `{% extends %}` quebrava a renderização de `analise.html` (só exposto pela suíte pytest, não pelos greps estáticos do plano). 10 testes novos em `tests/test_web_progresso.py`; suíte completa (619 passed, 1 skipped) verde. SYSD-26 completo.
+- 2026-08-27: Plano 07-07 concluído (wave 5/6) — `views.resultado`/`gerar_despacho`/`baixar_analise`/`baixar_despacho` entregam a tela 4 (D-09), fechando o fluxo do pregoeiro: `apontamentos.resumo_para_tela()`/`itens_para_tela()` traduzem o `dados_consolidados.json` para rótulos em português sem nunca devolver HTML (D-06), campo ausente vira `"não identificado"`. `views.gerar_despacho` é a única porta de entrada de `sysdoc.criar_documento` em toda a aplicação web (confirmado por grep e por teste): recusa sem análise concluída, recusa sem `confirmo` marcado (D-11), grava os campos institucionais no bloco `despacho:` do `.sysdoc/config.yaml` (D-12) e só então chama `criar_documento(..., "dvi")` contra o template real do repositório — sem mock. `downloads.entregar()` serve os dois downloads sempre como anexo, com `Path.is_relative_to` contido na pasta do processo, `nosniff`/`CSP sandbox`/`no-referrer`/`no-store`; nenhuma rota serve `dados_consolidados.json` (D-13). 13 testes novos em `tests/test_web_resultado.py`; suíte completa (632 passed, 1 skipped) verde. SYSD-27/SYSD-28 completos.
 
 ## Recent Decisions
 
@@ -107,6 +108,9 @@ See: .planning/PROJECT.md
 - `url_resultado` do JSON de situação aponta para `reverse('processos:analise', args=[slug])` enquanto `processos:resultado` (07-07) não existe — a própria `views.analise` já redireciona um job concluído para `processos:inicio` com aviso, então a navegação do JS não produz link morto nem exige placeholder próprio; o plano 07-07 só precisa trocar essa uma linha.
 - `{% extends %}` precisa ser a primeira tag de um template Django quando presente — `{% load static %}` antes dele levanta `TemplateSyntaxError` em tempo de renderização (não detectado por `manage.py check` nem por greps estáticos, só pela suíte pytest de ponta a ponta).
 - Gates de grep sobre arquivos de código (ex.: proibir `innerHTML`/`WebSocket`/`EventSource` em `progresso.js`) inspecionam o arquivo inteiro, inclusive comentários — o texto explicativo de por que uma API não é usada não pode citar o nome literal da API proibida.
+- `views.gerar_despacho` é a única porta de entrada de `sysdoc.criar_documento` na aplicação web (D-11) — o worker (`manage.py runworker`) e o fim da análise nunca chamam essa função; a revisão bloqueante é exercitada de ponta a ponta contra o template DVI real do repositório, sem mock, na suíte do plano 07-07.
+- `RevisaoDespachoForm` constrói os campos institucionais iterando `sysdoc.CAMPOS_DESPACHO` dentro de `__init__` e substituindo `self.fields` por um dict novo — se a tupla da CLI mudar, o formulário acompanha sem precisar de edição na tela.
+- `downloads.entregar()` checa contenção de caminho (`Path.is_relative_to`) antes de checar existência do arquivo — um caminho fora da raiz permitida nunca chega a tocar o disco para saber se existe; o HTML da análise é sempre servido como anexo, nunca para renderização dentro da origem autenticada, mesmo sendo produzido pelo renderizador imutável.
 
 ## Accumulated Context
 
@@ -132,16 +136,16 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T07:16:00Z
-Stopped at: Plano 07-06 concluído (6/8 planos da Phase 7, wave 4/6) — pronto para 07-07
+Last session: 2026-08-27T08:05:00Z
+Stopped at: Plano 07-07 concluído (7/8 planos da Phase 7, wave 5/6) — pronto para 07-08
 Resume file: None
 
 ## Current Focus
 
-Phase 7: Interface web para pregoeiros — em execução (6/8 planos). Próximo passo recomendado: executar `07-07-PLAN.md` (tela 4 — apontamentos, revisão humana bloqueante, despacho DOCX e downloads).
+Phase 7: Interface web para pregoeiros — em execução (7/8 planos). O fluxo do pregoeiro está fechado ponta a ponta (upload → tipo de verificação → análise com progresso → resultado, revisão bloqueante e downloads). Próximo passo recomendado: executar `07-08-PLAN.md` (fechamento da fase, conforme ROADMAP).
 
 Phases 3 e 4 seguem pendentes e não bloqueiam a 7.
 
 ---
 
-*Last updated: 2026-08-27 — Completed 07-06-PLAN.md: views.analise/iniciar_analise/situacao_analise entregam a tela 3 (D-09); fila cheia sem 500 (D-14); JSON de situação em português com chave fechada e Cache-Control: no-store; progresso.js faz polling puro sem WebSocket/SSE (D-16), escrevendo só por textContent e recusando navegação para destino que não comece por / (T-07-06-03); 10 testes novos, suíte completa (619 passed, 1 skipped) verde; Phase 7 wave 4 fechada, pronta para 07-07*
+*Last updated: 2026-08-27 — Completed 07-07-PLAN.md: views.resultado/gerar_despacho/baixar_analise/baixar_despacho fecham o fluxo do pregoeiro (D-09); apontamentos.py traduz o dados_consolidados.json para português sem devolver HTML (D-06); gerar_despacho é a única porta de entrada de sysdoc.criar_documento na web, sob POST com aceite explícito (D-11) e campos institucionais gravados em .sysdoc/config.yaml (D-12); downloads.entregar() serve os dois downloads sempre como anexo com contenção de caminho e cabeçalhos endurecidos, sem rota para o JSON (D-13); 13 testes novos, suíte completa (632 passed, 1 skipped) verde; Phase 7 wave 5 fechada, pronta para 07-08*
