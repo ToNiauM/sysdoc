@@ -36,6 +36,15 @@ IGNORED_DIRS = {".git", ".claude", "backup", "skills", "templates"}
 TEXT_SUFFIXES = {".txt", ".md"}
 SUPPORTED_REFERENCE_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
 RESERVED_TEMPLATE_NAMES = {"dvi": {"dvi.docx", "modelo_dvi.docx", "template_dvi.docx"}}
+RAW_XML_SUFFIX = "_xml"
+# Allowlist fechada das chaves aceitas no canal raw_xml de render_docx_template
+# (D-09, 06-CONTEXT.md). Acrescentar chave aqui é uma decisão de segurança:
+# só XML gerado por um builder do repositório (nunca por dado do JSON) pode
+# entrar sem escape no word/document.xml do DOCX oficial.
+RAW_XML_KEYS = frozenset({"corpo_apontamentos_xml"})
+_RAW_XML_ENVELOPE = (
+    '<w:body xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">{}</w:body>'
+)
 DEFAULT_LLM_MODEL = "openai/gpt-4o-mini"
 MAX_LLM_CONTEXT_CHARS = int(os.environ.get("SYSDOC_MAX_LLM_CONTEXT_CHARS", "700000"))
 
@@ -1266,17 +1275,97 @@ def _assert_safe_zip_entries(source: zipfile.ZipFile, template: Path) -> None:
             )
 
 
-def render_docx_template(template: Path, output: Path, values: dict[str, str]) -> None:
+def _validar_chave_raw(chave: str) -> None:
+    """Valida uma chave de `raw_xml` contra a allowlist fechada `RAW_XML_KEYS`.
+
+    Nunca valida chave de `values` — `values` é sempre escapado, sem exceção.
+    """
+    if chave not in RAW_XML_KEYS or not chave.endswith(RAW_XML_SUFFIX):
+        aceitas = ", ".join(sorted(RAW_XML_KEYS))
+        raise SystemExit(
+            f"Chave de raw_xml não permitida: {chave!r}. Chaves aceitas: {aceitas}."
+        )
+
+
+def _validar_xml_bruto(chave: str, valor: str) -> str:
+    """Garante que `valor` é XML bem formado antes de injetar cru no DOCX.
+
+    Envolve o valor num envelope `w:body` só para o parse — o envelope não
+    entra no documento final. Falha ruidosa antes de abrir qualquer ZIP,
+    evitando DOCX corrompido (T-06-04-04).
+    """
+    try:
+        ElementTree.fromstring(_RAW_XML_ENVELOPE.format(valor))
+    except ElementTree.ParseError as exc:
+        raise SystemExit(f"XML bruto malformado em raw_xml[{chave!r}]: {exc}") from exc
+    return valor
+
+
+def render_docx_template(
+    template: Path,
+    output: Path,
+    values: dict[str, str],
+    raw_xml: dict[str, str] | None = None,
+) -> None:
+    brutos = dict(raw_xml or {})
+    for chave, valor in brutos.items():
+        _validar_chave_raw(chave)
+        _validar_xml_bruto(chave, valor)
+
+    # Invariante de segurança do canal separado (D-09, T-06-04-02): `values`
+    # é escapado integralmente para toda chave, sem NENHUMA comparação de
+    # nome contra RAW_XML_KEYS. Uma chave de `values` homônima a uma chave
+    # da allowlist não concede nada — o único caminho para o canal cru é o
+    # parâmetro `raw_xml`, preenchido apenas por código do repositório.
     replacements = {
         f"{{{{{key}}}}}": xml_escape(value).replace("\n", "<w:br/>")
         for key, value in values.items()
     }
+    # Colisão de nome entre `values` e `raw_xml`: o canal cru vence. A chave
+    # homônima é descartada aqui, e não pela ordem de atribuição no chamador.
+    for chave in brutos:
+        replacements.pop(f"{{{{{chave}}}}}", None)
+
+    padroes_raw = {
+        chave: re.compile(
+            r"<w:p\b[^>]*>(?:(?!</w:p>).)*?" + re.escape("{{" + chave + "}}") + r"(?:(?!</w:p>).)*?</w:p>",
+            re.DOTALL,
+        )
+        for chave in brutos
+    }
+
     with zipfile.ZipFile(template, "r") as source, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
         _assert_safe_zip_entries(source, template)
         for item in source.infolist():
             payload = source.read(item.filename)
             if item.filename.startswith("word/") and item.filename.endswith(".xml"):
                 text = payload.decode("utf-8")
+                for chave, valor in brutos.items():
+                    padrao = padroes_raw[chave]
+                    placeholder = "{{" + chave + "}}"
+
+                    def _substituir_hospedeiro(match, valor=valor, placeholder=placeholder):
+                        # O placeholder `_xml` precisa ser o ÚNICO conteúdo textual
+                        # do seu <w:p> — o parágrafo hospedeiro inteiro é substituído
+                        # pelo XML cru. Verifica isso somando todo texto visível
+                        # (<w:t>...</w:t>) do parágrafo casado antes de trocar.
+                        conteudo_visivel = "".join(
+                            re.findall(r"<w:t[^>]*>(.*?)</w:t>", match.group(0), re.DOTALL)
+                        ).strip()
+                        if conteudo_visivel != placeholder:
+                            raise SystemExit(
+                                f"Placeholder {placeholder!r} precisa ser o único conteúdo "
+                                "do seu <w:p> (parágrafo hospedeiro) para receber XML cru."
+                            )
+                        return valor
+
+                    if padrao.search(text):
+                        text = padrao.sub(_substituir_hospedeiro, text)
+                    elif placeholder in text:
+                        raise SystemExit(
+                            f"Placeholder {placeholder!r} precisa ser o único conteúdo "
+                            "do seu <w:p> (parágrafo hospedeiro) para receber XML cru."
+                        )
                 for placeholder, value in replacements.items():
                     text = text.replace(placeholder, value)
                 payload = text.encode("utf-8")
