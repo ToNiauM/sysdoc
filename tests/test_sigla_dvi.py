@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 
 _SUFIXOS_VARRIDOS = {".md", ".py", ".yaml", ".yml", ".txt"}
 _PREFIXOS_EXCLUIDOS = (".planning/",)
-_ARQUIVOS_EXCLUIDOS = {"CHANGELOG.md"}
+_ARQUIVOS_EXCLUIDOS = {"CHANGELOG.md", "tests/test_sigla_dvi.py"}
 
 _EXPANSOES_ERRADAS = (
     "Documento de Verificação Inicial",
