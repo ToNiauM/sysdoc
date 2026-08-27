@@ -14,7 +14,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
-from . import fila, servicos, uploads
+import sysdoc
+
+from . import apontamentos, fila, servicos, uploads
 from .fila import FilaOcupada
 from .forms import NovoProcessoForm, VerificacaoForm
 from .models import STATUS_FINAIS, Processo
@@ -98,13 +100,7 @@ def analise(request, slug):
     job = processo.jobs.first()
 
     if job is not None and job.status == "concluida":
-        # TODO(07-07): redirecionar para processos:resultado quando a tela
-        # de resultado existir. Até lá, avisa e volta ao início.
-        messages.success(
-            request,
-            "Análise concluída. A tela de resultado ainda será entregue no próximo plano.",
-        )
-        return redirect("processos:inicio")
+        return redirect("processos:resultado", slug=slug)
 
     pode_iniciar = job is None or not job.ativo
     return render(
@@ -159,10 +155,34 @@ def situacao_analise(request, slug):
             "sucesso": sucesso,
             "mensagem": job.mensagem_erro,
             "url_resultado": (
-                reverse("processos:analise", args=[processo.slug]) if sucesso else None
+                reverse("processos:resultado", args=[processo.slug]) if sucesso else None
             ),
         }
 
     resposta = JsonResponse(dados)
     resposta["Cache-Control"] = "no-store"
     return resposta
+
+
+@login_required
+def resultado(request, slug):
+    """Tela 4 do fluxo (D-09): apontamentos e downloads sobre o resultado.
+
+    Quando a análise ainda não produziu `dados_consolidados.json`, a tela
+    mostra a mensagem honesta em vez de tentar montar contagem sobre nada.
+    """
+    processo = get_object_or_404(Processo, slug=slug, criado_por=request.user)
+    dados = servicos.dados_consolidados(slug)
+    if dados is None:
+        return render(
+            request, "processos/resultado.html", {"processo": processo, "sem_resultado": True}
+        )
+    paths = servicos.caminhos(slug)
+    contexto = {
+        "processo": processo,
+        "resumo": apontamentos.resumo_para_tela(dados),
+        "itens": apontamentos.itens_para_tela(dados),
+        "html_disponivel": sysdoc.localizar_html_analise(paths) is not None,
+        "docx_disponivel": sysdoc.localizar_docx_despacho(paths) is not None,
+    }
+    return render(request, "processos/resultado.html", contexto)

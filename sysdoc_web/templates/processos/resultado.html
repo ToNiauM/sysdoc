@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+  <div class="tela-resultado">
+    <h1>Resultado da análise</h1>
+
+    {% if sem_resultado %}
+      <section class="cartao">
+        <p>A análise deste processo ainda não produziu resultado.</p>
+        <a class="botao botao-primario" href="{% url 'processos:analise' processo.slug %}">
+          Voltar para a análise
+        </a>
+      </section>
+    {% else %}
+      <section class="cartao">
+        <p class="resumo-processo"><strong>{{ resumo.objeto }}</strong></p>
+        <p class="observacao">
+          Processo {{ resumo.processo }} — {{ resumo.orgao }} — {{ resumo.data }}
+        </p>
+
+        <div class="painel-contagens">
+          {% for rotulo, quantidade in resumo.por_classificacao.items %}
+            <div class="contagem-item">
+              <span class="contagem-numero">{{ quantidade }}</span>
+              <span class="contagem-rotulo">{{ rotulo }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="cartao">
+        <h2>Apontamentos</h2>
+        {% for item in itens %}
+          <article class="cartao-apontamento">
+            <header class="cabecalho-apontamento">
+              <strong>{{ item.documento }}</strong>
+              <span class="observacao">seção {{ item.secao }}</span>
+              <span class="etiqueta etiqueta-classificacao">{{ item.classificacao_rotulo }}</span>
+              <span class="etiqueta etiqueta-risco">{{ item.risco_rotulo }}</span>
+            </header>
+            <p>{{ item.parecer }}</p>
+            <p class="observacao">{{ item.fundamento }}</p>
+          </article>
+        {% empty %}
+          <p class="observacao">Nenhum apontamento registrado para este processo.</p>
+        {% endfor %}
+      </section>
+
+      <section class="cartao">
+        <h2>Downloads</h2>
+        <ul class="lista-downloads">
+          {% if html_disponivel %}
+            <li>
+              <a href="{% url 'processos:baixar_analise' processo.slug %}">
+                Baixar a análise (HTML)
+              </a>
+            </li>
+          {% endif %}
+          {% if docx_disponivel %}
+            <li>
+              <a href="{% url 'processos:baixar_despacho' processo.slug %}">
+                Baixar o despacho (Word)
+              </a>
+            </li>
+          {% endif %}
+          {% if not html_disponivel and not docx_disponivel %}
+            <li class="observacao">Nenhum arquivo disponível para download ainda.</li>
+          {% endif %}
+        </ul>
+      </section>
+    {% endif %}
+  </div>
+{% endblock %}

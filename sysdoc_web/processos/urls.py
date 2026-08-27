@@ -19,4 +19,5 @@ urlpatterns = [
         views.situacao_analise,
         name="situacao_analise",
     ),
+    path("processos/<slug:slug>/resultado/", views.resultado, name="resultado"),
 ]
