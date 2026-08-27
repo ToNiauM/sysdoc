@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 07
 status: executing
-stopped_at: Plano 07-05 concluído (5/8 planos da Phase 7, wave 3/6) — pronto para 07-06
-last_updated: "2026-08-27T08:15:00Z"
+stopped_at: Plano 07-06 concluído (6/8 planos da Phase 7, wave 4/6) — pronto para 07-07
+last_updated: "2026-08-27T07:16:00Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 32
-  completed_plans: 28
-  percent: 46
+  completed_plans: 29
+  percent: 48
 ---
 
 # STATE — SysDoc
@@ -36,7 +36,7 @@ See: .planning/PROJECT.md
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
 | 6 | complete | 7/7 | 100% |
-| 7 | in_progress | 5/8 | 63% |
+| 7 | in_progress | 6/8 | 75% |
 
 ## Recent Changes
 
@@ -62,6 +62,7 @@ See: .planning/PROJECT.md
 - 2026-08-27: Plano 07-03 concluído (wave 2/6) — `Processo`/`AnaliseJob` persistem estado no SQLite com `UniqueConstraint` condicional `uma_analise_ativa_por_vez` (D-14, trava no banco, não num `if` de view); `sysdoc_web/processos/servicos.py` é a única camada que toca disco, com `criar_pasta_do_processo` usando `sysdoc.ensure_project_structure` (layout canônico, D-18) e `caminho_do_processo` combinando validação de slug por regex com checagem de contenção pós-`resolve()` contra traversal; `fila.py` converte `IntegrityError` **e** `OperationalError` (retry 0.1/0.2/0.4s) em `FilaOcupada`, nunca 500; `manage.py runworker --uma-vez` chama `sysdoc.prepare()`/`sysdoc_dvi.pipeline.executar_run(progresso=...)` como biblioteca, traduz progresso via `progresso.texto_da_etapa` e nunca deixa traceback/nome de provedor chegar a `AnaliseJob.mensagem_erro` (D-16/D-17); `manage.py sanear_jobs` marca jobs órfãos como `interrompida` (D-15). 14 testes novos em `tests/test_web_fila.py`; suíte completa (588 passed, 1 skipped) verde. SYSD-22/SYSD-23 completos.
 - 2026-08-27: Plano 07-04 concluído (wave 3/6) — `Dockerfile` de estágio único (`python:3.12-slim`, usuário não-root `sysdoc` UID/GID 10001, `pip install -e ".[web]"`, sem nenhuma chave de API embutida), `docker/entrypoint.sh` executa segredo persistido → `migrate` → `collectstatic` → `sanear_jobs` (D-15) → um único laço de `runworker` → `exec gunicorn --workers 1 --threads 4` (D-14, comentado inline com a justificativa das defesas dos planos 07-02/07-03); `docker-compose.yml` com serviço `web` único, volume nomeado `sysdoc-dados` e montagem `:ro` de `~/.sysdoc` (D-05/D-06), sem broker. Build e subida ponta a ponta verificados manualmente via `docker build`/`docker run` (302 em `/`, restart com segredo e banco persistidos em volume nomeado); `docker compose up -d` ao vivo não pôde ser confirmado neste host compartilhado (pool de redes esgotado por outros projetos + porta 8000 já ocupada por outro serviço), documentado honestamente no SUMMARY como limitação de ambiente, não de configuração. 8 testes novos em `tests/test_web_docker.py`; suíte completa (596 passed, 1 skipped) verde. SYSD-24 completo.
 - 2026-08-27: Plano 07-05 concluído (wave 3/6) — `sysdoc_web/processos/uploads.py` recusa extensão fora da allowlist (`sysdoc.SUPPORTED_REFERENCE_SUFFIXES`), tamanho acima de `SYSDOC_WEB_MAX_UPLOAD_MB`, assinatura binária incompatível (`%PDF-`/`PK\x03\x04`) e `.docx` com entrada de ZIP hostil (caminho absoluto, `..`, ausência de `word/document.xml` ou razão de expansão >200x) antes de qualquer escrita em disco (D-08); `forms.py` traz o par `MultipleFileInput`/`MultipleFileField` — o padrão oficial do Django 5 para upload múltiplo, travando permanentemente a regressão de `ValueError` em tempo de import que bloqueou o plan-checker desta fase. `views.novo_processo`/`views.verificacao` entregam as telas 1 e 2 (D-09): PDF único como caminho principal (D-10), peças separadas em bloco recolhível, tipo de contratação em português de gente (`Contratação em geral`/`Solução de TIC`), autorização por objeto via `get_object_or_404(Processo, slug=slug, criado_por=request.user)`, e remoção de pasta órfã em falha de gravação (D-17). 13 testes novos em `tests/test_web_upload.py`; suíte completa (609 passed, 1 skipped) verde. SYSD-25 completo.
+- 2026-08-27: Plano 07-06 concluído (wave 4/6) — `views.analise`/`iniciar_analise`/`situacao_analise` entregam a tela 3 (D-09): fila cheia converte `FilaOcupada` em `messages.warning` sem nunca gerar 500 (D-14); o endpoint `/processos/<slug>/analise/situacao/` devolve JSON de chave fechada (8 campos), `Cache-Control: no-store` e autorização por objeto, ecoando só `etapa`/`mensagem_erro` já traduzidos pelo worker (D-17). `sysdoc_web/static/progresso.js` é JavaScript puro sem WebSocket/SSE (D-16): escreve só por `textContent`/`style.width`, pausa de verdade com a aba oculta, para após 3 falhas de rede consecutivas e recusa navegar para `url_resultado` que não comece por `/` (T-07-06-03). `url_resultado` aponta para a própria `processos:analise` até `processos:resultado` existir no plano 07-07 — sem link morto. Bug real encontrado e corrigido: `{% load static %}` antes de `{% extends %}` quebrava a renderização de `analise.html` (só exposto pela suíte pytest, não pelos greps estáticos do plano). 10 testes novos em `tests/test_web_progresso.py`; suíte completa (619 passed, 1 skipped) verde. SYSD-26 completo.
 
 ## Recent Decisions
 
@@ -102,6 +103,10 @@ See: .planning/PROJECT.md
 - O par `MultipleFileInput`(`allow_multiple_selected = True`)/`MultipleFileField` (clean por item, padrão oficial documentado pelo Django) é o único jeito seguro de upload múltiplo sob Django >=5.0 — `ClearableFileInput(attrs={"multiple": True})` levanta `ValueError` na definição da classe do formulário, não na submissão.
 - `views.verificacao` chama `get_object_or_404(Processo, slug=slug, criado_por=request.user)` uma vez em cada ramo (GET e POST) — autorização por objeto redundante por construção em vez de um único ponto compartilhado que um refactor futuro poderia remover sem perceber.
 - Testes que importam módulos dependentes de `.models` do Django (`sysdoc_web.processos.forms`, etc.) não podem fazer esse import no nível de módulo em arquivos de teste: pytest importa todos os módulos de teste na fase de coleta, antes de qualquer fixture rodar, e `django.setup()` só acontece dentro do fixture `django_web` em tempo de execução — o import precisa ficar dentro do corpo do teste.
+- `situacao_analise` devolve `status=sem_analise`/`percentual=0` (não 404) quando o processo ainda não tem `AnaliseJob` — o atributo `data-url-situacao` é sempre renderizado na tela de análise, mesmo antes do primeiro disparo, então o endpoint precisa responder de forma honesta a esse estado transitório sem nunca quebrar o polling.
+- `url_resultado` do JSON de situação aponta para `reverse('processos:analise', args=[slug])` enquanto `processos:resultado` (07-07) não existe — a própria `views.analise` já redireciona um job concluído para `processos:inicio` com aviso, então a navegação do JS não produz link morto nem exige placeholder próprio; o plano 07-07 só precisa trocar essa uma linha.
+- `{% extends %}` precisa ser a primeira tag de um template Django quando presente — `{% load static %}` antes dele levanta `TemplateSyntaxError` em tempo de renderização (não detectado por `manage.py check` nem por greps estáticos, só pela suíte pytest de ponta a ponta).
+- Gates de grep sobre arquivos de código (ex.: proibir `innerHTML`/`WebSocket`/`EventSource` em `progresso.js`) inspecionam o arquivo inteiro, inclusive comentários — o texto explicativo de por que uma API não é usada não pode citar o nome literal da API proibida.
 
 ## Accumulated Context
 
@@ -127,16 +132,16 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T08:15:00Z
-Stopped at: Plano 07-05 concluído (5/8 planos da Phase 7, wave 3/6) — pronto para 07-06
+Last session: 2026-08-27T07:16:00Z
+Stopped at: Plano 07-06 concluído (6/8 planos da Phase 7, wave 4/6) — pronto para 07-07
 Resume file: None
 
 ## Current Focus
 
-Phase 7: Interface web para pregoeiros — em execução (5/8 planos). Próximo passo recomendado: executar `07-06-PLAN.md` (tela de progresso da análise).
+Phase 7: Interface web para pregoeiros — em execução (6/8 planos). Próximo passo recomendado: executar `07-07-PLAN.md` (tela 4 — apontamentos, revisão humana bloqueante, despacho DOCX e downloads).
 
 Phases 3 e 4 seguem pendentes e não bloqueiam a 7.
 
 ---
 
-*Last updated: 2026-08-27 — Completed 07-05-PLAN.md: uploads.py valida extensão/tamanho/assinatura/ZIP interno antes de tocar disco (D-08); forms.py traz o par MultipleFileInput/MultipleFileField travando a regressão de ValueError em import time do Django 5; telas de novo processo (PDF único como caminho principal, D-10) e tipo de contratação (rótulos em português, D-09) entregues com autorização por objeto; 13 testes novos, suíte completa (609 passed, 1 skipped) verde; Phase 7 wave 3 segue em 07-05*
+*Last updated: 2026-08-27 — Completed 07-06-PLAN.md: views.analise/iniciar_analise/situacao_analise entregam a tela 3 (D-09); fila cheia sem 500 (D-14); JSON de situação em português com chave fechada e Cache-Control: no-store; progresso.js faz polling puro sem WebSocket/SSE (D-16), escrevendo só por textContent e recusando navegação para destino que não comece por / (T-07-06-03); 10 testes novos, suíte completa (619 passed, 1 skipped) verde; Phase 7 wave 4 fechada, pronta para 07-07*
