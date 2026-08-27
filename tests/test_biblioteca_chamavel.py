@@ -20,7 +20,9 @@ Nenhum teste aqui chama modelo real.
 from __future__ import annotations
 
 import json
+import os
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -124,3 +126,46 @@ class TestCriarDocumento:
         assert rc == 0
         assert "DOCX gerado: " in saida
         assert "Template DVI: " in saida
+
+
+# ---------------------------------------------------------------------------
+# Task 2 — localizar_html_analise() / localizar_docx_despacho()
+# ---------------------------------------------------------------------------
+
+class TestLocalizarHtmlAnalise:
+    def test_devolve_o_html_mais_recente(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        sysdoc.init_command("ProjetoHtml")
+        project_dir = tmp_path / "ProjetoHtml"
+        paths = sysdoc.project_paths(project_dir)
+        paths.output.mkdir(parents=True, exist_ok=True)
+
+        antigo = paths.output / "analise_gpt-5_2026-01-01.html"
+        recente = paths.output / "analise_gpt-5_2026-01-02.html"
+        antigo.write_text("<html>antigo</html>", encoding="utf-8")
+        os.utime(antigo, (time.time() - 100, time.time() - 100))
+        recente.write_text("<html>recente</html>", encoding="utf-8")
+
+        encontrado = sysdoc.localizar_html_analise(paths)
+
+        assert encontrado == recente
+
+    def test_devolve_none_sem_nenhum_html(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        sysdoc.init_command("ProjetoSemHtml")
+        paths = sysdoc.project_paths(tmp_path / "ProjetoSemHtml")
+
+        assert sysdoc.localizar_html_analise(paths) is None
+
+    def test_localizar_docx_despacho_ignora_docx_de_nome_nao_padrao(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        sysdoc.init_command("ProjetoDocx")
+        project_dir = tmp_path / "ProjetoDocx"
+        paths = sysdoc.project_paths(project_dir)
+
+        (project_dir / "modelo_tr.docx").write_text("x", encoding="utf-8")
+        assert sysdoc.localizar_docx_despacho(paths) is None
+
+        despacho = project_dir / "01_projetodocx_dvi_2026-08-27.docx"
+        despacho.write_text("x", encoding="utf-8")
+        assert sysdoc.localizar_docx_despacho(paths) == despacho

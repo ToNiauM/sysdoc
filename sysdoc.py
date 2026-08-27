@@ -1218,20 +1218,36 @@ def publish(project: str, json_arg: str | None = None) -> int:
     return render(project, str(json_path))
 
 
-def deploy(project: str) -> int:
-    """Envia o último HTML gerado para a VPS garantindo índice único (index{X}.html)."""
-    paths = project_paths(project)
+def localizar_html_analise(paths: ProjectPaths) -> Path | None:
     htmls = sorted(
         list(paths.output.glob("analise_*.html")) + list(paths.root.glob("analise_*.html"))
         + list(paths.output.glob("*_analise_*.html")) + list(paths.root.glob("*_analise_*.html")),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
-    if not htmls:
+    return htmls[0] if htmls else None
+
+
+_PADRAO_DOCX_DESPACHO = re.compile(r"^\d{2}_.*_dvi_\d{4}-\d{2}-\d{2}\.docx$")
+
+
+def localizar_docx_despacho(paths: ProjectPaths) -> Path | None:
+    candidatos = sorted(
+        (p for p in paths.root.glob("*.docx") if _PADRAO_DOCX_DESPACHO.match(p.name)),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return candidatos[0] if candidatos else None
+
+
+def deploy(project: str) -> int:
+    """Envia o último HTML gerado para a VPS garantindo índice único (index{X}.html)."""
+    paths = project_paths(project)
+    latest_html = localizar_html_analise(paths)
+    if latest_html is None:
         print(f"Nenhum HTML encontrado em {rel(paths.output)}. Rode 'sysdoc publish' primeiro.")
         return 1
 
-    latest_html = htmls[0]
     print(f"Iniciando deploy do arquivo: {rel(latest_html)}")
 
     config = load_config(paths)
