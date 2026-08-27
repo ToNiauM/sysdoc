@@ -21,4 +21,14 @@ urlpatterns = [
     ),
     path("processos/<slug:slug>/resultado/", views.resultado, name="resultado"),
     path("processos/<slug:slug>/despacho/", views.gerar_despacho, name="gerar_despacho"),
+    path(
+        "processos/<slug:slug>/baixar/analise/",
+        views.baixar_analise,
+        name="baixar_analise",
+    ),
+    path(
+        "processos/<slug:slug>/baixar/despacho/",
+        views.baixar_despacho,
+        name="baixar_despacho",
+    ),
 ]

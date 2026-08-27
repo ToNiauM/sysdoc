@@ -9,14 +9,14 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 import sysdoc
 
-from . import apontamentos, fila, servicos, uploads
+from . import apontamentos, downloads, fila, servicos, uploads
 from .fila import FilaOcupada
 from .forms import NovoProcessoForm, RevisaoDespachoForm, VerificacaoForm
 from .models import STATUS_FINAIS, Processo
@@ -230,3 +230,35 @@ def gerar_despacho(request, slug):
 
     messages.success(request, "Despacho gerado. Use o botão de download abaixo.")
     return redirect("processos:resultado", slug=slug)
+
+
+@login_required
+@require_GET
+def baixar_analise(request, slug):
+    get_object_or_404(Processo, slug=slug, criado_por=request.user)
+    paths = servicos.caminhos(slug)
+    caminho = sysdoc.localizar_html_analise(paths)
+    if caminho is None:
+        raise Http404("Nenhuma análise disponível para download neste processo.")
+    return downloads.entregar(
+        caminho,
+        servicos.caminho_do_processo(slug),
+        caminho.name,
+        "text/html; charset=utf-8",
+    )
+
+
+@login_required
+@require_GET
+def baixar_despacho(request, slug):
+    get_object_or_404(Processo, slug=slug, criado_por=request.user)
+    paths = servicos.caminhos(slug)
+    caminho = sysdoc.localizar_docx_despacho(paths)
+    if caminho is None:
+        raise Http404("Nenhum despacho disponível para download neste processo.")
+    return downloads.entregar(
+        caminho,
+        servicos.caminho_do_processo(slug),
+        caminho.name,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
