@@ -99,9 +99,28 @@ com configuração pela metade.
 ## 5. Subir a aplicação
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-docker compose logs -f web
+./prod.sh up
+./prod.sh logs
 ```
+
+> ### Por que o atalho, e não `docker compose up`
+>
+> Em produção o compose precisa **sempre dos dois arquivos**. Rodar
+> `docker compose up` sozinho usa apenas o `docker-compose.yml`, que é o
+> modo local — e o estrago é silencioso: a porta 8000 é publicada em
+> `0.0.0.0`, o que colide com outro projeto do servidor **e** deixa a
+> aplicação acessível direto da internet, sem passar pelo nginx. Como as
+> flags de HTTPS também vêm do arquivo de produção, os cookies de sessão
+> deixam de ser `Secure` na mesma tacada.
+>
+> O `prod.sh` sempre passa os dois `-f`. Ele também recusa `down -v`, que
+> apaga o volume — ou seja, banco, contas e processos analisados.
+>
+> Equivalente explícito, se preferir digitar:
+>
+> ```bash
+> docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+> ```
 
 Você deve ver, nesta ordem: migrações aplicadas, arquivos estáticos
 copiados, `N análise(s) órfã(s) marcada(s) como interrompida(s)` e o
