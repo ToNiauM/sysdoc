@@ -1,0 +1,133 @@
+:root {
+  --cor-fundo: #f4f5f7;
+  --cor-texto: #1f2933;
+  --cor-primaria: #1d4ed8;
+  --cor-primaria-escura: #1e3a8a;
+  --cor-borda: #d2d6dc;
+  --cor-erro: #b91c1c;
+  --cor-erro-fundo: #fef2f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.marca {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.conta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.usuario {
+  color: #52606d;
+}
+
+.botao-link {
+  background: none;
+  border: none;
+  color: var(--cor-primaria);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.conteudo-principal {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.cartao {
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.cartao-login {
+  max-width: 360px;
+  margin: 3rem auto;
+}
+
+.campo {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.campo input {
+  padding: 0.5rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.botao {
+  display: inline-block;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.botao-primario {
+  background: var(--cor-primaria);
+  color: #fff;
+}
+
+.botao-primario:hover {
+  background: var(--cor-primaria-escura);
+}
+
+.erro {
+  color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+}
+
+.observacao {
+  color: #52606d;
+  font-size: 0.9rem;
+}
+
+.mensagens {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+}
+
+.mensagem {
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  background: #e0f2fe;
+}
+
+.mensagem-error {
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
