@@ -29,6 +29,8 @@ from typing import Iterable
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape as xml_escape
 
+from sysdoc_docx.corpo_dvi import build_corpo_despacho_xml
+
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATES = ROOT / "templates"
@@ -36,6 +38,13 @@ IGNORED_DIRS = {".git", ".claude", "backup", "skills", "templates"}
 TEXT_SUFFIXES = {".txt", ".md"}
 SUPPORTED_REFERENCE_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
 RESERVED_TEMPLATE_NAMES = {"dvi": {"dvi.docx", "modelo_dvi.docx", "template_dvi.docx"}}
+# D-13 (06-CONTEXT.md): tipos de verificação suportados pelo despacho DVI,
+# mesma tupla fechada que sysdoc_dvi/pipeline.py valida para --tipo.
+TIPOS_VERIFICACAO = ("geral", "tic")
+DVI_TEMPLATES_DIR = TEMPLATES / "dvi"
+# Usado apenas na semeadura do `init`, quando o usuário ainda não escolheu
+# `tipo` — `init` nunca pode falhar por causa de `tipo` não escolhido (D-14).
+TIPO_VERIFICACAO_PADRAO = "geral"
 RAW_XML_SUFFIX = "_xml"
 # Allowlist fechada das chaves aceitas no canal raw_xml de render_docx_template
 # (D-09, 06-CONTEXT.md). Acrescentar chave aqui é uma decisão de segurança:
@@ -371,6 +380,108 @@ def valores_despacho(config: dict) -> dict[str, str]:
     return valores
 
 
+def resolver_tipo_verificacao(paths: ProjectPaths, obrigatorio: bool = True) -> str | None:
+    """Resolve `tipo: geral|tic` de `.sysdoc/config.yaml` (D-13, 06-CONTEXT.md).
+
+    Mesma fonte que `sysdoc_dvi/pipeline.py` já usa para `sysdoc-dvi run`
+    (`tipo_efetivo = --tipo or config_projeto["tipo"]`), mas `create` não tem
+    flag `--tipo` — o config é a única fonte. A redação de erro espelha
+    `pipeline.py:285-293`, trocando a referência a `--tipo` pelo caminho do
+    config, já que essa flag não existe neste comando.
+
+    `tipo` ausente/vazio: levanta `SystemExit` se `obrigatorio`; devolve
+    `None` caso contrário. `tipo` presente mas fora de `TIPOS_VERIFICACAO`:
+    sempre levanta `SystemExit`, independente de `obrigatorio` — um valor
+    inválido nunca deve ser tolerado silenciosamente.
+    """
+    config = load_config(paths)
+    tipo = str(config.get("tipo") or "").strip()
+    if not tipo:
+        if obrigatorio:
+            raise SystemExit(
+                "aplicabilidade não declarada: defina 'tipo: geral' (ou 'tic') em "
+                f"{rel(paths.config)}."
+            )
+        return None
+    if tipo not in TIPOS_VERIFICACAO:
+        raise SystemExit(
+            f"aplicabilidade inválida: '{tipo}' (esperado 'geral' ou 'tic'); "
+            f"corrija o campo 'tipo' em {rel(paths.config)}."
+        )
+    return tipo
+
+
+def caminho_template_dvi(tipo: str) -> Path:
+    """Caminho do template do repositório para a variante `tipo` (D-12)."""
+    caminho = DVI_TEMPLATES_DIR / f"despacho_{tipo}.docx"
+    if not caminho.is_file():
+        raise SystemExit(
+            f"Template de despacho '{rel(caminho)}' não encontrado; rode "
+            "python3 templates/build_despacho_templates.py para gerá-lo."
+        )
+    return caminho
+
+
+def _e_semente_do_repo(caminho: Path) -> bool:
+    """True quando `caminho` é byte-idêntico a alguma variante de `templates/dvi/`.
+
+    Distingue uma semente do repo intocada (copiada por `seed_dvi_template`
+    e nunca editada pelo órgão) de um template realmente customizado — só
+    o segundo caso vence a variante do `tipo` (D-14).
+    """
+    if not caminho.is_file():
+        return False
+    hash_caminho = sha256(caminho)
+    for variante in TIPOS_VERIFICACAO:
+        candidato = DVI_TEMPLATES_DIR / f"despacho_{variante}.docx"
+        if candidato.is_file() and sha256(candidato) == hash_caminho:
+            return True
+    return False
+
+
+def selecionar_template_dvi(
+    paths: ProjectPaths, template_arg: str | None, tipo_config: str | None,
+) -> tuple[Path, str]:
+    """Escada de precedência combinada de D-13+D-14 (06-CONTEXT.md).
+
+    Ordem: (1) `--template` explícito; (2) `.docx` DVI em `referencias/` que
+    seja customizado (SHA-256 diferente de toda variante de `templates/dvi/`)
+    vence, mesmo sem `tipo` no config; (3) semente intocada do repo em
+    `referencias/` cede lugar à variante do `tipo`; (4) sem `.docx` em
+    `referencias/`, usa a variante do `tipo` diretamente. `tipo` só é exigido
+    nos caminhos 3 e 4. Devolve `(caminho, origem)`, `origem` em
+    `{"argumento", "projeto", "repo"}` — impressa pelo `create` para o
+    usuário saber qual template foi usado (T-06-05-06).
+    """
+    if template_arg:
+        candidate = Path(template_arg)
+        caminho = candidate if candidate.is_absolute() else (Path.cwd() / candidate).resolve()
+        return caminho, "argumento"
+
+    try:
+        projeto_template = _select_reference_template(paths, "dvi", "", None)
+    except SystemExit:
+        projeto_template = None
+
+    if projeto_template is not None and not _e_semente_do_repo(projeto_template):
+        return projeto_template, "projeto"
+
+    tipo = tipo_config
+    if tipo is None:
+        if paths.config.is_file():
+            tipo = resolver_tipo_verificacao(paths, obrigatorio=True)
+        else:
+            # Compatibilidade com projetos que nunca rodaram `sysdoc init`
+            # (sem `.sysdoc/config.yaml`): sem config nenhum, orientar sobre
+            # `tipo` seria confuso — a causa real é a ausência de template.
+            raise SystemExit(
+                f"Nenhum template DVI (.docx) encontrado em {rel(paths.referencias)}. "
+                "Adicione o modelo institucional como 'dvi.docx' (ou 'modelo_dvi.docx', "
+                "'template_dvi.docx') nessa pasta, ou use --template caminho.docx."
+            )
+    return caminho_template_dvi(tipo), "repo"
+
+
 def seed_dvi_template(paths: ProjectPaths) -> Path | None:
     reservados = RESERVED_TEMPLATE_NAMES["dvi"]
     if paths.referencias.is_dir():
@@ -378,7 +489,8 @@ def seed_dvi_template(paths: ProjectPaths) -> Path | None:
             if existente.name.lower() in reservados or "dvi" in existente.stem.lower():
                 return None
 
-    origem = TEMPLATES / "dvi_base.docx"
+    tipo = _tipo_efetivo_para_semeadura(paths)
+    origem = DVI_TEMPLATES_DIR / f"despacho_{tipo}.docx"
     if not origem.is_file():
         return None
 
@@ -386,6 +498,20 @@ def seed_dvi_template(paths: ProjectPaths) -> Path | None:
     paths.referencias.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(origem, destino)
     return destino
+
+
+def _tipo_efetivo_para_semeadura(paths: ProjectPaths) -> str:
+    """Tipo usado por `seed_dvi_template`/`init_command` (D-14).
+
+    Tolerante por natureza: `tipo` ausente ou inválido cai em
+    `TIPO_VERIFICACAO_PADRAO` — `init` nunca pode falhar por causa de `tipo`
+    ainda não escolhido pelo usuário.
+    """
+    try:
+        tipo = resolver_tipo_verificacao(paths, obrigatorio=False)
+    except SystemExit:
+        tipo = None
+    return tipo if tipo in TIPOS_VERIFICACAO else TIPO_VERIFICACAO_PADRAO
 
 
 def sha256(path: Path) -> str:
@@ -1483,6 +1609,10 @@ def create(project: str, tipo: str, json_arg: str | None = None, template_arg: s
     paths = project_paths(project)
     json_path = find_analysis_json(paths, json_arg)
     data = json.loads(json_path.read_text(encoding="utf-8"))
+    # Canal cru separado de `values` (D-08/D-09, T-06-05-02): fica vazio para
+    # `tr` e para os demais tipos — só o ramo `dvi` preenche a chave
+    # `corpo_apontamentos_xml`, e sempre aqui, nunca em `values`.
+    raw_xml: dict[str, str] = {}
 
     if tipo.lower() == "tr":
         category = _detect_procurement_category(data)
@@ -1506,19 +1636,18 @@ def create(project: str, tipo: str, json_arg: str | None = None, template_arg: s
         values["corpo_etp"] = revised_etp or etp_text
         values["substituicoes_pendentes"] = build_pending_text(pending)
     elif tipo.lower() == "dvi":
-        try:
-            template = _select_reference_template(paths, tipo, "", template_arg)
-        except SystemExit:
-            raise SystemExit(
-                f"Nenhum template DVI (.docx) encontrado em {rel(paths.referencias)}. "
-                "Adicione o modelo institucional como 'dvi.docx' (ou 'modelo_dvi.docx', "
-                "'template_dvi.docx') nessa pasta, ou use --template caminho.docx."
-            )
+        config = load_config(paths)
+        tipo_config = resolver_tipo_verificacao(paths, obrigatorio=False)
+        template, origem = selecionar_template_dvi(paths, template_arg, tipo_config)
         itens = data.get("itens", [])
         values = flatten_json(data)
+        values.update(valores_despacho(config))
         values["tipo"] = tipo
         values["json"] = rel(json_path)
         values["template"] = rel(template)
+        # Mantidos para não quebrar templates institucionais legados que
+        # ainda leem `{{tabela_itens}}`/`{{total_*}}` (formato relatório
+        # aposentado por esta rodada, mas ainda suportado).
         values["tabela_itens"] = build_tabela_itens(itens)
         values["total_itens"] = str(len(itens))
         values["total_bloqueantes"] = str(
@@ -1527,6 +1656,14 @@ def create(project: str, tipo: str, json_arg: str | None = None, template_arg: s
         values["total_pendentes"] = str(
             sum(1 for item in itens if item.get("classificação") == "pendente")
         )
+        # Canal raw_xml (D-08/D-09, T-06-05-02): o corpo dos apontamentos
+        # NUNCA entra em `values` — só assim uma chave `corpo_apontamentos_xml`
+        # vinda do dados_consolidados.json não pode conquistar o canal cru. A
+        # ordem desta atribuição em relação a `flatten_json`/`values.update`
+        # acima é irrelevante por construção: `render_docx_template` descarta
+        # a versão escapada de `values` em caso de colisão de nome com
+        # `raw_xml`.
+        raw_xml["corpo_apontamentos_xml"] = build_corpo_despacho_xml(data)
     else:
         template = _select_reference_template(paths, tipo, "", template_arg)
         values = flatten_json(data)
@@ -1537,8 +1674,10 @@ def create(project: str, tipo: str, json_arg: str | None = None, template_arg: s
     date = extract_date(data.get("data_análise", data.get("data_analise", "")))
     paths.output.mkdir(parents=True, exist_ok=True)
     output = proximo_nome_artefato(paths.root, paths.root.name, slug(tipo), date, ".docx")
-    render_docx_template(template, output, values)
+    render_docx_template(template, output, values, raw_xml=raw_xml)
     print(f"DOCX gerado: {rel(output)}")
+    if tipo.lower() == "dvi":
+        print(f"Template DVI: {rel(template)} (origem: {origem})")
     if tipo.lower() == "tr" and pending:
         print(f"Substituições pendentes: {len(pending)}")
     return 0
@@ -1595,7 +1734,8 @@ def init_command(project: str) -> int:
     print(f"  Referencias: {rel(paths.referencias)}")
     print(f"  Output: {rel(paths.output)}")
     if template_dvi is not None:
-        print(f"  Template DVI: {rel(template_dvi)}")
+        variante = _tipo_efetivo_para_semeadura(paths)
+        print(f"  Template DVI: {rel(template_dvi)} (variante: {variante})")
     print(f"  Proximo passo: copie os arquivos a analisar para {paths.documentos}")
     return 0
 
