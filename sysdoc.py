@@ -1349,9 +1349,10 @@ def render_docx_template(
 
     # Invariante de segurança do canal separado (D-09, T-06-04-02): `values`
     # é escapado integralmente para toda chave, sem NENHUMA comparação de
-    # nome contra RAW_XML_KEYS. Uma chave de `values` homônima a uma chave
-    # da allowlist não concede nada — o único caminho para o canal cru é o
-    # parâmetro `raw_xml`, preenchido apenas por código do repositório.
+    # nome de chave contra a allowlist do canal cru. Uma chave de `values`
+    # homônima a uma chave aceita em `raw_xml` não concede nada — o único
+    # caminho para o canal cru é o parâmetro `raw_xml`, preenchido apenas
+    # por código do repositório.
     replacements = {
         f"{{{{{key}}}}}": xml_escape(value).replace("\n", "<w:br/>")
         for key, value in values.items()
