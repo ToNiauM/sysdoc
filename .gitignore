@@ -10,3 +10,8 @@ referencias/prompts-dvi/
 /.sysdoc/
 /Processo-Teste/
 .env
+
+# CSS compilado pelo Tailwind. Artefato de build: gerado pelo estágio node
+# do Dockerfile no servidor, e pelo comando do docs/RODAR_LOCAL.md na
+# máquina. Versionar traria CSS obsoleto sem ninguém perceber.
+core/static/dist/
