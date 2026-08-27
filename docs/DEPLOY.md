@@ -133,6 +133,30 @@ certbot --nginx -d sysdoc.sistemascfc.org
 
 ---
 
+> ### Armadilha: vhost sem TLS serve o site errado, em silêncio
+>
+> Se o Cloudflare estiver em modo **Full**, ele conversa com a origem por
+> **HTTPS na 443** — mesmo quando o visitante chega por HTTP. Um vhost novo
+> que só tenha `listen 80` nunca é alcançado: o nginx cai no **primeiro
+> bloco `listen 443` em ordem alfabética de `conf.d/`**, que passa a agir
+> como default server, e entrega **o site de outro domínio** com status 200.
+> Não há erro em log nenhum.
+>
+> Foi exatamente o que aconteceu na primeira subida de
+> `sysdoc.sistemascfc.org`: o domínio respondia com o conteúdo de
+> `analisedados.conf`. O passo 6 (certbot criando o bloco 443) é o que
+> corrige. Sintoma para reconhecer: `curl -I https://SEU.DOMINIO` devolve
+> 200 com um `last-modified` que não é seu.
+>
+> Diagnóstico rápido, comparando as duas portas da origem:
+>
+> ```bash
+> curl -sS -o /dev/null -w "80:  %{http_code}\n" -H "Host: SEU.DOMINIO" http://127.0.0.1:80/
+> curl -sSk -o /dev/null -w "443: %{http_code}\n" --resolve SEU.DOMINIO:443:127.0.0.1 https://SEU.DOMINIO/
+> ```
+>
+> Respostas diferentes entre as duas = o bloco 443 do seu vhost não existe.
+
 ## 7. Contas dos pregoeiros
 
 Não existe auto-cadastro — as contas são criadas pelo administrador, de
@@ -141,6 +165,31 @@ propósito: cada análise gasta crédito real de API.
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   exec web python manage.py createsuperuser
+```
+
+O comando acima é interativo e exige um terminal de verdade. Em canal sem
+TTY (execução por agente, CI, `ssh host 'comando'`) ele não lê as respostas
+e **não cria nada** — sem mensagem de erro clara. Nesse caso, use a forma
+não-interativa, que mantém a senha fora do histórico do shell:
+
+```bash
+read -p "Usuário: " USUARIO
+read -s -p "Senha: " SENHA; echo
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T \
+  -e DJANGO_SUPERUSER_USERNAME="$USUARIO" \
+  -e DJANGO_SUPERUSER_EMAIL="$USUARIO@sistemascfc.org" \
+  -e DJANGO_SUPERUSER_PASSWORD="$SENHA" \
+  web python manage.py createsuperuser --noinput
+unset SENHA
+```
+
+Confira depois que a conta existe mesmo:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web \
+  python manage.py shell -c "
+from django.contrib.auth import get_user_model
+print(get_user_model().objects.count(), 'usuário(s)')"
 ```
 
 Para os demais pregoeiros, use o Django admin em `/admin/` (contas comuns,
