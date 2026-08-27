@@ -9,7 +9,7 @@
 | 3 | Documentar integração com agentes | SYSD-06, SYSD-07 | 2/2 |
 | 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 | 5 | Motor de análise por checklist com agentes plugáveis | PRD RF1–RF10 | 15/15 |
-| 6 | Templates TR a partir dos modelos Lei 14.133 | SYSD-13 a SYSD-15 | 0/3 |
+| 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 0/4 |
 | 7 | Interface web para pregoeiros | TBD | 0/0 |
 
 ---
@@ -144,28 +144,52 @@ Plans:
 
 ---
 
-### Phase 6: Templates TR a partir dos modelos Lei 14.133
+### Phase 6: Templates DOCX institucionais
 
-**Goal:** Criar 4 templates DOCX determinísticos derivados dos modelos Lei 14.133 em `Referencias/` (compras, serviços-e-obras, serviços-e-obras v2, contrato sem MDO exclusiva), com `{{placeholders}}` SysDoc mapeados para todos os campos do `dados_consolidados.json`, e ajustar `_select_reference_template` para preferir os novos templates.
+**Goal:** Entregar os templates DOCX determinísticos dos documentos institucionais do SysDoc, por rodadas. **Rodada 1 (ativa): Despacho de Verificação Inicial (DVI)** — template fiel ao modelo institucional real, alimentado pelo `dados_consolidados.json` do `sysdoc-dvi run`, contendo tão somente o que a Unidade Demandante precisa corrigir. **Rodada 2: TR** (modelos Lei 14.133). **Rodada 3: ETP**. A fase permanece aberta entre as rodadas.
 
 **Mode:** standard
 
-**Depends on:** Phase 2
+**Depends on:** Phase 2 (motor de geração DOCX), Phase 5 (motor DVI e contrato de dados)
+
+**Context:** `.planning/phases/06-templates-tr-a-partir-dos-modelos-lei-14-133/06-CONTEXT.md` — decisões travadas D-01 a D-14. Leitura obrigatória antes de planejar; o escopo foi repactuado pelo dono do produto em 2026-08-26.
+
+#### Rodada 1 — Despacho de Verificação Inicial (ativa)
 
 **Success Criteria:**
-1. 4 templates DOCX em `templates/tr/` derivados dos 4 modelos Lei 14.133, com placeholders SysDoc anotados nas seções corretas
+1. `templates/dvi/despacho_geral.docx` e `templates/dvi/despacho_tic.docx` gerados por script determinístico, fiéis a `processo-teste/referencias/dvi.md` (título, vocativo, contextualização, seções por peça, Observações, assinatura e "De acordo")
+2. Corpo montado por builder que emite XML de parágrafo com estilos nomeados, contendo apenas `ajuste_necessário` e `risco` em seções dinâmicas por peça, com pendências de documento ausente em seção própria ao final e referência cruzada automática entre peças
+3. `sysdoc create <pasta> dvi` resolve a variante por `tipo: geral|tic` do `.sysdoc/config.yaml`, mantendo a precedência do `referencias/dvi.docx` do projeto
+4. Sigla DVI expandida como **Despacho de Verificação Inicial** em todo o repo (9 arquivos + 2 fixtures de teste)
+5. Testes E2E em `processo-teste` sem placeholders `{{` remanescentes, cobrindo as duas variantes, o override do projeto e a exclusão de itens `conforme`
+
+**Requirements:**
+- [ ] **SYSD-16**: Gerador determinístico dos templates `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados e ZIP byte-estável
+- [ ] **SYSD-17**: Builder do corpo do despacho (filtro, numeração dinâmica por peça, alíneas `parecer`+`fundamento`, referência cruzada) e placeholder raw com allowlist explícita em `render_docx_template`
+- [ ] **SYSD-18**: Resolução de variante por `tipo` no `create`/`seed_dvi_template`, correção da sigla no repo e testes E2E
+
+#### Rodada 2 — Templates TR (pendente)
+
+**Success Criteria:**
+1. Templates DOCX em `templates/tr/` derivados dos modelos Lei 14.133 em `Referencias/`, com placeholders SysDoc anotados nas seções corretas
 2. Mapeamento JSON → seção documentado, cobrindo 100% dos campos do `dados_consolidados.json` aplicáveis a cada categoria
 3. `_select_reference_template` prefere `templates/tr/` antes de `referencias/` (fallback mantido)
-4. `sysdoc create tr` em projeto-teste gera DOCX sem placeholders `{{` remanescentes para cada uma das 4 categorias
+4. `sysdoc create tr` gera DOCX sem placeholders `{{` remanescentes para cada categoria
 5. Testes cobrindo cada caminho de categoria + fallback + presença de todos os campos esperados
 
 **Requirements:**
-- [ ] **SYSD-13**: Derivar e anotar 4 templates DOCX (compras, serviços-e-obras, serviços-e-obras-v2, contrato-sem-MDO) em `templates/tr/` com placeholders SysDoc
+- [ ] **SYSD-13**: Derivar e anotar os templates DOCX de TR em `templates/tr/` com placeholders SysDoc
 - [ ] **SYSD-14**: Atualizar `_select_reference_template` para preferir `templates/tr/` antes de `referencias/` com fallback documentado
 - [ ] **SYSD-15**: Testes E2E cobrindo cada categoria, ausência de placeholders não substituídos e fallback para `referencias/`
 
+> **Achado do scout (2026-08-26):** existem **3 modelos distintos**, não 4 — `…servicos-e-obras…(1).docx` é byte-idêntico ao `…servicos-e-obras….docx` (md5 `a226e3c7b43485df18e7358153792131`) e o terceiro é um **Termo de Contrato**, não um TR. `_detect_procurement_category()` devolve 4 categorias contra 3 modelos reais; resolver esse descasamento é pré-requisito da rodada 2.
+
+#### Rodada 3 — Template ETP (pendente)
+
+Escopo a definir após a rodada 2.
+
 **Plans:**
-- [ ] TBD (run /gsd-plan-phase 6 to break down)
+- [ ] TBD (run /gsd-plan-phase 6 to break down — rodada 1)
 
 ### Phase 7: Interface web para pregoeiros
 
@@ -179,5 +203,7 @@ Plans:
 
 ---
 
-*Phases: 7 | Requirements: 15*
+*Phases: 7 | Requirements: 18*
 *Generated: 2026-05-07 · Updated: 2026-08-26*
+
+> **Nota de sincronia:** SYSD-13 a SYSD-18 existem apenas neste ROADMAP; `REQUIREMENTS.md` ainda para em SYSD-10. Sincronizar quando conveniente.
