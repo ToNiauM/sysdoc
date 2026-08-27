@@ -9,7 +9,7 @@
 | 3 | Documentar integração com agentes | SYSD-06, SYSD-07 | 2/2 |
 | 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 | 5 | Motor de análise por checklist com agentes plugáveis | PRD RF1–RF10 | 15/15 |
-| 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 5/7 |
+| 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 6/7 |
 | 7 | Interface web para pregoeiros | TBD | 0/0 |
 
 ---
