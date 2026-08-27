@@ -49,6 +49,7 @@ from sysdoc_dvi.despacho import executar_checklist
 from sysdoc_dvi.montagem import SCHEMA_VERSION, ErroMontagem, montar_json
 from sysdoc_dvi.normas import ErroVigencia, carregar_vigencia
 from sysdoc_dvi.pecas import ErroMapeamentoPeca, mapear_pecas
+from sysdoc_dvi.progresso import EventoProgresso, SinkProgresso
 from sysdoc_dvi.provedores import chamar_modelo
 from sysdoc_dvi.relatorio import montar_relatorio, renderizar_relatorio
 from sysdoc_dvi.sintese import AgenteSintese, ErroSintese, sintetizar
@@ -73,6 +74,22 @@ _ERROS_CONHECIDOS = (
 
 class ErroPipeline(Exception):
     """Erro conhecido do orquestrador (aplicabilidade ausente/inválida, checklist vazio etc.), com o remédio na própria mensagem."""
+
+
+def _emitir(
+    progresso: SinkProgresso | None,
+    etapa: str,
+    mensagem: str,
+    atual: int | None = None,
+    total: int | None = None,
+) -> None:
+    print(mensagem)
+    if progresso is None:
+        return
+    try:
+        progresso(EventoProgresso(etapa=etapa, mensagem=mensagem, atual=atual, total=total))
+    except Exception as exc:  # noqa: BLE001 - callback de terceiro nunca derruba a análise (RF9)
+        print(f"AVISO: callback de progresso falhou: {exc}")
 
 
 def _contar_palavras(texto: object) -> int:
@@ -245,10 +262,11 @@ def executar_run(
     forte: str | None = None,
     retomar: bool = True,
     agente: AnalysisAgent | None = None,
+    progresso: SinkProgresso | None = None,
 ) -> int:
     inicio = time.monotonic()
     try:
-        return _executar_run(projeto, tipo, checklist, economico, forte, retomar, agente, inicio)
+        return _executar_run(projeto, tipo, checklist, economico, forte, retomar, agente, inicio, progresso)
     except provedores.ErroProvedor as exc:
         print(
             f"{exc} O checkpoint desta execução foi preservado; rode 'sysdoc-dvi run' "
@@ -272,10 +290,11 @@ def _executar_run(
     retomar: bool,
     agente: AnalysisAgent | None,
     inicio: float,
+    progresso: SinkProgresso | None = None,
 ) -> int:
     provedores.limpar_registro_chamadas()
 
-    print("1) Carregando configuração de modelos...")
+    _emitir(progresso, "config", "1) Carregando configuração de modelos...")
     config = carregar_config_dvi(economico=economico, forte=forte)
 
     paths = sysdoc.project_paths(projeto)
@@ -294,7 +313,7 @@ def _executar_run(
         )
 
     checklist_path = Path(checklist) if checklist else _CHECKLIST_PADRAO
-    print(f"2) Carregando checklist {sysdoc.rel(checklist_path)}...")
+    _emitir(progresso, "checklist", f"2) Carregando checklist {sysdoc.rel(checklist_path)}...")
     _meta, todos_itens = carregar_checklist(checklist_path)
     itens = filtrar_itens(todos_itens, tipo_efetivo)
     if not itens:
@@ -303,22 +322,26 @@ def _executar_run(
             f"{sysdoc.rel(checklist_path)}; ative itens ou ajuste --tipo."
         )
     checklist_hash_atual = hash_checklist(checklist_path)
-    print(f"   {len(itens)} item(ns) ativo(s) para '{tipo_efetivo}'.")
+    _emitir(progresso, "checklist", f"   {len(itens)} item(ns) ativo(s) para '{tipo_efetivo}'.")
 
     if not paths.manifest.is_file():
-        print("3) Preparando cache do projeto (sysdoc prepare)...")
+        _emitir(progresso, "prepare", "3) Preparando cache do projeto (sysdoc prepare)...")
         resultado_prepare = sysdoc.prepare(projeto)
         if resultado_prepare != 0:
             return resultado_prepare
     else:
-        print("3) Cache já preparado; reaproveitando.")
+        _emitir(progresso, "prepare", "3) Cache já preparado; reaproveitando.")
 
     pecas_exigidas = {item.peca for item in itens}
-    print(f"4) Mapeando peças exigidas: {', '.join(sorted(pecas_exigidas)) or 'nenhuma'}...")
+    _emitir(
+        progresso,
+        "pecas",
+        f"4) Mapeando peças exigidas: {', '.join(sorted(pecas_exigidas)) or 'nenhuma'}...",
+    )
     pecas_mapeadas = mapear_pecas(paths.root, pecas_exigidas)
     for peca in sorted(pecas_mapeadas):
         mapeada = pecas_mapeadas[peca]
-        print(f"   {peca}: {mapeada.label} (origem={mapeada.origem})")
+        _emitir(progresso, "pecas", f"   {peca}: {mapeada.label} (origem={mapeada.origem})")
     textos = {
         peca: mapeada.caminho.read_text(encoding="utf-8") for peca, mapeada in pecas_mapeadas.items()
     }
@@ -330,16 +353,32 @@ def _executar_run(
     checkpoint_resolvido = carregar_checkpoint(paths.root, checklist_hash_atual) if retomar else {}
     itens_pendentes = [item for item in itens if item.id not in checkpoint_resolvido]
     if checkpoint_resolvido:
-        print(f"   Retomando: {len(checkpoint_resolvido)} item(ns) já resolvido(s) no checkpoint.")
-    print(f"5) Executando checklist ({len(itens_pendentes)} item(ns) pendente(s))...")
-
+        _emitir(
+            progresso,
+            "itens",
+            f"   Retomando: {len(checkpoint_resolvido)} item(ns) já resolvido(s) no checkpoint.",
+        )
     total_pendentes = len(itens_pendentes)
+    _emitir(
+        progresso,
+        "itens",
+        f"5) Executando checklist ({total_pendentes} item(ns) pendente(s))...",
+        atual=0,
+        total=total_pendentes,
+    )
+
     contador_progresso = itertools.count(1)
 
     def _ao_concluir(resultado: ResultadoItem) -> None:
         registrar_item(paths.root, checklist_hash_atual, resultado)
         numero = next(contador_progresso)
-        print(f"   [{numero}/{total_pendentes}] {resultado.checklist_id}: {resultado.classificação}")
+        _emitir(
+            progresso,
+            "itens",
+            f"   [{numero}/{total_pendentes}] {resultado.checklist_id}: {resultado.classificação}",
+            atual=numero,
+            total=total_pendentes,
+        )
 
     novos_resultados = executar_checklist(
         itens_pendentes,
@@ -357,7 +396,7 @@ def _executar_run(
         [_degradar_incoerente(resultados_por_id[item.id]) for item in itens]
     )
 
-    print("6) Sintetizando pareceres (modelo forte)...")
+    _emitir(progresso, "sintese", "6) Sintetizando pareceres (modelo forte)...")
     agente_sintese = _resolver_agente_sintese(agente_execucao, config)
     projeto_info = _montar_projeto_info(config_projeto, textos)
     pareceres = sintetizar(
@@ -372,7 +411,7 @@ def _executar_run(
     modelo_ia = derivar_modelo_ia(config.forte) or config.forte
     data_analise = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    print("7) Montando dados_consolidados.json...")
+    _emitir(progresso, "montagem", "7) Montando dados_consolidados.json...")
     dados = montar_json(
         resultados,
         pareceres,
@@ -385,17 +424,19 @@ def _executar_run(
 
     dados_path = paths.root / "dados_consolidados.json"
     dados_path.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"   JSON gravado: {sysdoc.rel(dados_path)}")
+    _emitir(progresso, "montagem", f"   JSON gravado: {sysdoc.rel(dados_path)}")
 
-    print("8) Validando (sysdoc validate)...")
+    _emitir(progresso, "validacao", "8) Validando (sysdoc validate)...")
     rc_validate = sysdoc.validate(projeto, str(dados_path))
     correcoes: list[str] = []
     if rc_validate != 0:
         correcoes = autocorrigir_json(paths.root, dados_path)
         if correcoes:
-            print(
+            _emitir(
+                progresso,
+                "validacao",
                 f"   Autocorreção determinística: {len(correcoes)} termo(s) sem "
-                "acentuação corrigido(s); revalidando..."
+                "acentuação corrigido(s); revalidando...",
             )
             rc_validate = sysdoc.validate(projeto, str(dados_path))
 
@@ -415,7 +456,7 @@ def _executar_run(
         )
         return rc_validate
 
-    print("9) Renderizando HTML (sysdoc render)...")
+    _emitir(progresso, "render", "9) Renderizando HTML (sysdoc render)...")
     rc_render = sysdoc.render(projeto, str(dados_path))
     if rc_render != 0:
         return rc_render
