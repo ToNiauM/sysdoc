@@ -1651,7 +1651,17 @@ def _select_reference_template(
     return candidatos_finais[0]
 
 
-def create(project: str, tipo: str, json_arg: str | None = None, template_arg: str | None = None) -> int:
+@dataclass(frozen=True)
+class ResultadoCreate:
+    saida: Path
+    template: Path
+    origem_template: str | None
+    substituicoes_pendentes: int
+
+
+def criar_documento(
+    project: str, tipo: str, json_arg: str | None = None, template_arg: str | None = None
+) -> ResultadoCreate:
     paths = project_paths(project)
     json_path = find_analysis_json(paths, json_arg)
     data = json.loads(json_path.read_text(encoding="utf-8"))
@@ -1721,11 +1731,21 @@ def create(project: str, tipo: str, json_arg: str | None = None, template_arg: s
     paths.output.mkdir(parents=True, exist_ok=True)
     output = proximo_nome_artefato(paths.root, paths.root.name, slug(tipo), date, ".docx")
     render_docx_template(template, output, values, raw_xml=raw_xml)
-    print(f"DOCX gerado: {rel(output)}")
+    return ResultadoCreate(
+        saida=output,
+        template=template,
+        origem_template=origem if tipo.lower() == "dvi" else None,
+        substituicoes_pendentes=len(pending) if tipo.lower() == "tr" else 0,
+    )
+
+
+def create(project: str, tipo: str, json_arg: str | None = None, template_arg: str | None = None) -> int:
+    resultado = criar_documento(project, tipo, json_arg, template_arg)
+    print(f"DOCX gerado: {rel(resultado.saida)}")
     if tipo.lower() == "dvi":
-        print(f"Template DVI: {rel(template)} (origem: {origem})")
-    if tipo.lower() == "tr" and pending:
-        print(f"Substituições pendentes: {len(pending)}")
+        print(f"Template DVI: {rel(resultado.template)} (origem: {resultado.origem_template})")
+    if tipo.lower() == "tr" and resultado.substituicoes_pendentes:
+        print(f"Substituições pendentes: {resultado.substituicoes_pendentes}")
     return 0
 
 
