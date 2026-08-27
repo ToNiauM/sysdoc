@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 07
 status: executing
-stopped_at: Plano 07-03 concluído (3/8 planos da Phase 7, wave 2/6) — pronto para 07-04
-last_updated: "2026-08-27T07:15:00Z"
+stopped_at: Plano 07-04 concluído (4/8 planos da Phase 7, wave 3/6) — pronto para 07-05
+last_updated: "2026-08-27T07:45:00Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 32
-  completed_plans: 26
-  percent: 43
+  completed_plans: 27
+  percent: 44
 ---
 
 # STATE — SysDoc
@@ -36,7 +36,7 @@ See: .planning/PROJECT.md
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
 | 6 | complete | 7/7 | 100% |
-| 7 | in_progress | 3/8 | 38% |
+| 7 | in_progress | 4/8 | 50% |
 
 ## Recent Changes
 
@@ -60,6 +60,7 @@ See: .planning/PROJECT.md
 - 2026-08-27: Plano 07-01 concluído (wave 1/6) — `sysdoc.criar_documento()` (dataclass `ResultadoCreate`) e `sysdoc.localizar_html_analise()`/`localizar_docx_despacho()` tornam `create()`/`deploy()` chamáveis como biblioteca sem imprimir nem `subprocess`; `sysdoc_dvi/progresso.py` (`EventoProgresso`/`ETAPAS`/`SinkProgresso`, sem dependência de Django) e `_emitir()` em `pipeline.py` dão a `executar_run(..., progresso=callback)` um canal de eventos por etapa, blindado contra callback que lança exceção (RF9). Nenhuma string impressa pela CLI mudou; 11 testes novos em `tests/test_biblioteca_chamavel.py`; suíte completa (568 passed, 1 skipped) verde. SYSD-19 completo.
 - 2026-08-27: Plano 07-02 concluído (wave 1/6) — pacote Django `sysdoc_web` criado como extra opcional (`pip install -e ".[web]"`, `django>=5.0,<6.0`/`gunicorn>=22.0`), sem tocar em `dependencies` base; `sysdoc_web/settings.py` endurecido (`SECRET_KEY` obrigatória fora de `DEBUG`, `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` por env, cookies `HttpOnly`/`SameSite`, `SECURE_CONTENT_TYPE_NOSNIFF`/`X_FRAME_OPTIONS=DENY`, limites de upload já parametrizados, SQLite com `timeout=20` — primeira metade da defesa de D-14 — e nenhuma menção a chave de LLM). Login obrigatório em `/entrar/`, `/sair/` só por POST, sem nenhuma rota de auto-cadastro (`django.contrib.auth.urls` deliberadamente fora). `tests/conftest.py` traz o fixture `django_web` (bootstrap condicional via `DiscoverRunner`, Django só importado dentro do fixture); suíte completa: 574 passed/1 skipped com Django, 570 passed/2 skipped sem Django (nunca erro). SYSD-20/SYSD-21 completos.
 - 2026-08-27: Plano 07-03 concluído (wave 2/6) — `Processo`/`AnaliseJob` persistem estado no SQLite com `UniqueConstraint` condicional `uma_analise_ativa_por_vez` (D-14, trava no banco, não num `if` de view); `sysdoc_web/processos/servicos.py` é a única camada que toca disco, com `criar_pasta_do_processo` usando `sysdoc.ensure_project_structure` (layout canônico, D-18) e `caminho_do_processo` combinando validação de slug por regex com checagem de contenção pós-`resolve()` contra traversal; `fila.py` converte `IntegrityError` **e** `OperationalError` (retry 0.1/0.2/0.4s) em `FilaOcupada`, nunca 500; `manage.py runworker --uma-vez` chama `sysdoc.prepare()`/`sysdoc_dvi.pipeline.executar_run(progresso=...)` como biblioteca, traduz progresso via `progresso.texto_da_etapa` e nunca deixa traceback/nome de provedor chegar a `AnaliseJob.mensagem_erro` (D-16/D-17); `manage.py sanear_jobs` marca jobs órfãos como `interrompida` (D-15). 14 testes novos em `tests/test_web_fila.py`; suíte completa (588 passed, 1 skipped) verde. SYSD-22/SYSD-23 completos.
+- 2026-08-27: Plano 07-04 concluído (wave 3/6) — `Dockerfile` de estágio único (`python:3.12-slim`, usuário não-root `sysdoc` UID/GID 10001, `pip install -e ".[web]"`, sem nenhuma chave de API embutida), `docker/entrypoint.sh` executa segredo persistido → `migrate` → `collectstatic` → `sanear_jobs` (D-15) → um único laço de `runworker` → `exec gunicorn --workers 1 --threads 4` (D-14, comentado inline com a justificativa das defesas dos planos 07-02/07-03); `docker-compose.yml` com serviço `web` único, volume nomeado `sysdoc-dados` e montagem `:ro` de `~/.sysdoc` (D-05/D-06), sem broker. Build e subida ponta a ponta verificados manualmente via `docker build`/`docker run` (302 em `/`, restart com segredo e banco persistidos em volume nomeado); `docker compose up -d` ao vivo não pôde ser confirmado neste host compartilhado (pool de redes esgotado por outros projetos + porta 8000 já ocupada por outro serviço), documentado honestamente no SUMMARY como limitação de ambiente, não de configuração. 8 testes novos em `tests/test_web_docker.py`; suíte completa (596 passed, 1 skipped) verde. SYSD-24 completo.
 
 ## Recent Decisions
 
@@ -92,6 +93,10 @@ See: .planning/PROJECT.md
 - `servicos.caminho_do_processo` valida o slug por regex (mesmo padrão do `SlugField`, `^[-a-zA-Z0-9_]+\Z`) antes de montar qualquer `Path`, além da checagem de contenção pós-`resolve()` — necessário porque um valor como `"..%2Ffora"` não contém separador de caminho e não seria pego só pela checagem de contenção.
 - `MENSAGEM_FALHA` em `runworker.py` é a única string que chega a `AnaliseJob.mensagem_erro` em caso de falha do pipeline; qualquer exceção (conhecida ou não) é capturada, o traceback real vai só para `logger.exception` (log do servidor), nunca para o banco/tela (D-17).
 - `pyproject.toml` ganhou `sysdoc_web.processos.migrations`/`management`/`management.commands` em `[tool.setuptools].packages` — sem isso uma instalação real via `pip install -e ".[web]"` (fora do editable finder de desenvolvimento deste ambiente) não incluiria a migração nem os management commands em produção/Docker.
+- Dados vivem em **volume Docker nomeado**, não em bind mount do host: testado manualmente que um named volume vazio herda a ownership `sysdoc:sysdoc` do `/dados` criado no build (cópia do conteúdo inicial da imagem na primeira montagem), enquanto um bind mount de diretório do host preserva o UID do host e quebra a escrita do UID 10001 do container.
+- `~/.sysdoc` precisa de permissão de leitura para "outros" (`chmod o+rx`) para que a montagem `:ro` no container seja de fato legível pelo UID 10001 — documentado em `.env.exemplo`; permissão `700` (padrão comum) bloqueia até `ls` dentro do container, mesmo com a montagem tecnicamente correta.
+- Segredo Django (`DJANGO_SECRET_KEY`) é gerado uma única vez pelo `entrypoint.sh` e persistido em `${SYSDOC_WEB_DATA_DIR}/secret_key` (permissão 600) — nunca regenerado a cada subida, para não invalidar sessões/CSRF silenciosamente.
+- `docker compose up` ao vivo (rede + porta 8000) não pôde ser exercitado neste host de execução compartilhado — comportamento equivalente confirmado via `docker run` direto da mesma imagem com o mesmo `entrypoint.sh`, volume nomeado e bind mount `:ro`; ver `07-04-SUMMARY.md` § Issues Encountered.
 
 ## Accumulated Context
 
@@ -117,16 +122,16 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T07:15:00Z
-Stopped at: Plano 07-03 concluído (3/8 planos da Phase 7, wave 2/6) — pronto para 07-04
+Last session: 2026-08-27T07:45:00Z
+Stopped at: Plano 07-04 concluído (4/8 planos da Phase 7, wave 3/6) — pronto para 07-05
 Resume file: None
 
 ## Current Focus
 
-Phase 7: Interface web para pregoeiros — em execução (3/8 planos). Próximo passo recomendado: executar `07-04-PLAN.md` (Docker: um serviço, `docker compose up` como único comando de subida).
+Phase 7: Interface web para pregoeiros — em execução (4/8 planos). Próximo passo recomendado: executar `07-05-PLAN.md` (upload de processo).
 
 Phases 3 e 4 seguem pendentes e não bloqueiam a 7.
 
 ---
 
-*Last updated: 2026-08-27 — Completed 07-03-PLAN.md: modelos Processo/AnaliseJob com UniqueConstraint condicional (D-14), fila single-slot com retry contra lock do SQLite, servicos.py como única camada de disco (D-18) e worker `manage.py runworker` chamando sysdoc/sysdoc_dvi como biblioteca com progresso traduzido e falha sem detalhe técnico (D-03/D-16/D-17); Phase 7 wave 2 fechada (07-03)*
+*Last updated: 2026-08-27 — Completed 07-04-PLAN.md: Dockerfile de estágio único com usuário não-root, docker/entrypoint.sh (segredo persistido + migrate + collectstatic + sanear_jobs + worker single-slot + gunicorn --workers 1 --threads 4) e docker-compose.yml de um serviço só com volume nomeado e montagem :ro de ~/.sysdoc; build e subida ponta a ponta verificados via docker run (docker compose up ao vivo limitado pelo host compartilhado, documentado no SUMMARY); Phase 7 wave 3 fechada (07-04)*
