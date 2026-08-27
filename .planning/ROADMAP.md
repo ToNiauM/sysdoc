@@ -194,7 +194,7 @@ Plans:
 - [ ] 06-01-PLAN.md — Gerador determinístico de `templates/dvi/despacho_{geral,tic}.docx` com estilos nomeados (wave 1)
 - [ ] 06-02-PLAN.md — Builder `sysdoc_docx/corpo_dvi.py`: filtro, numeração dinâmica por peça, alíneas e referência cruzada (wave 1)
 - [ ] 06-03-PLAN.md — Sigla DVI = Despacho de Verificação Inicial em todo o repo, com teste de regressão (wave 1)
-- [ ] 06-04-PLAN.md — Allowlist `RAW_XML_KEYS` em `render_docx_template` e bloco `despacho:` no config (wave 1)
+- [ ] 06-04-PLAN.md — Canal `raw_xml` separado (allowlist `RAW_XML_KEYS`) em `render_docx_template` e bloco `despacho:` no config (wave 1)
 - [ ] 06-05-PLAN.md — Resolução de variante por `tipo` em `create`/`seed_dvi_template`, com precedência do projeto (wave 2)
 - [ ] 06-06-PLAN.md — E2E sobre `processo-teste` nas duas variantes, documentação e CHANGELOG (wave 3)
 - [ ] 06-07-PLAN.md — Checkpoint: destino de `templates/dvi_base.docx` (formato relatório) (wave 4)
