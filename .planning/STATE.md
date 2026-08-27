@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 07
 status: executing
-stopped_at: Plano 07-04 concluído (4/8 planos da Phase 7, wave 3/6) — pronto para 07-05
-last_updated: "2026-08-27T07:45:00Z"
+stopped_at: Plano 07-05 concluído (5/8 planos da Phase 7, wave 3/6) — pronto para 07-06
+last_updated: "2026-08-27T08:15:00Z"
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 32
-  completed_plans: 27
-  percent: 44
+  completed_plans: 28
+  percent: 46
 ---
 
 # STATE — SysDoc
@@ -36,7 +36,7 @@ See: .planning/PROJECT.md
 | 4 | pending | 0/1 | 0% |
 | 5 | pending | 0/0 | 0% |
 | 6 | complete | 7/7 | 100% |
-| 7 | in_progress | 4/8 | 50% |
+| 7 | in_progress | 5/8 | 63% |
 
 ## Recent Changes
 
@@ -61,6 +61,7 @@ See: .planning/PROJECT.md
 - 2026-08-27: Plano 07-02 concluído (wave 1/6) — pacote Django `sysdoc_web` criado como extra opcional (`pip install -e ".[web]"`, `django>=5.0,<6.0`/`gunicorn>=22.0`), sem tocar em `dependencies` base; `sysdoc_web/settings.py` endurecido (`SECRET_KEY` obrigatória fora de `DEBUG`, `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` por env, cookies `HttpOnly`/`SameSite`, `SECURE_CONTENT_TYPE_NOSNIFF`/`X_FRAME_OPTIONS=DENY`, limites de upload já parametrizados, SQLite com `timeout=20` — primeira metade da defesa de D-14 — e nenhuma menção a chave de LLM). Login obrigatório em `/entrar/`, `/sair/` só por POST, sem nenhuma rota de auto-cadastro (`django.contrib.auth.urls` deliberadamente fora). `tests/conftest.py` traz o fixture `django_web` (bootstrap condicional via `DiscoverRunner`, Django só importado dentro do fixture); suíte completa: 574 passed/1 skipped com Django, 570 passed/2 skipped sem Django (nunca erro). SYSD-20/SYSD-21 completos.
 - 2026-08-27: Plano 07-03 concluído (wave 2/6) — `Processo`/`AnaliseJob` persistem estado no SQLite com `UniqueConstraint` condicional `uma_analise_ativa_por_vez` (D-14, trava no banco, não num `if` de view); `sysdoc_web/processos/servicos.py` é a única camada que toca disco, com `criar_pasta_do_processo` usando `sysdoc.ensure_project_structure` (layout canônico, D-18) e `caminho_do_processo` combinando validação de slug por regex com checagem de contenção pós-`resolve()` contra traversal; `fila.py` converte `IntegrityError` **e** `OperationalError` (retry 0.1/0.2/0.4s) em `FilaOcupada`, nunca 500; `manage.py runworker --uma-vez` chama `sysdoc.prepare()`/`sysdoc_dvi.pipeline.executar_run(progresso=...)` como biblioteca, traduz progresso via `progresso.texto_da_etapa` e nunca deixa traceback/nome de provedor chegar a `AnaliseJob.mensagem_erro` (D-16/D-17); `manage.py sanear_jobs` marca jobs órfãos como `interrompida` (D-15). 14 testes novos em `tests/test_web_fila.py`; suíte completa (588 passed, 1 skipped) verde. SYSD-22/SYSD-23 completos.
 - 2026-08-27: Plano 07-04 concluído (wave 3/6) — `Dockerfile` de estágio único (`python:3.12-slim`, usuário não-root `sysdoc` UID/GID 10001, `pip install -e ".[web]"`, sem nenhuma chave de API embutida), `docker/entrypoint.sh` executa segredo persistido → `migrate` → `collectstatic` → `sanear_jobs` (D-15) → um único laço de `runworker` → `exec gunicorn --workers 1 --threads 4` (D-14, comentado inline com a justificativa das defesas dos planos 07-02/07-03); `docker-compose.yml` com serviço `web` único, volume nomeado `sysdoc-dados` e montagem `:ro` de `~/.sysdoc` (D-05/D-06), sem broker. Build e subida ponta a ponta verificados manualmente via `docker build`/`docker run` (302 em `/`, restart com segredo e banco persistidos em volume nomeado); `docker compose up -d` ao vivo não pôde ser confirmado neste host compartilhado (pool de redes esgotado por outros projetos + porta 8000 já ocupada por outro serviço), documentado honestamente no SUMMARY como limitação de ambiente, não de configuração. 8 testes novos em `tests/test_web_docker.py`; suíte completa (596 passed, 1 skipped) verde. SYSD-24 completo.
+- 2026-08-27: Plano 07-05 concluído (wave 3/6) — `sysdoc_web/processos/uploads.py` recusa extensão fora da allowlist (`sysdoc.SUPPORTED_REFERENCE_SUFFIXES`), tamanho acima de `SYSDOC_WEB_MAX_UPLOAD_MB`, assinatura binária incompatível (`%PDF-`/`PK\x03\x04`) e `.docx` com entrada de ZIP hostil (caminho absoluto, `..`, ausência de `word/document.xml` ou razão de expansão >200x) antes de qualquer escrita em disco (D-08); `forms.py` traz o par `MultipleFileInput`/`MultipleFileField` — o padrão oficial do Django 5 para upload múltiplo, travando permanentemente a regressão de `ValueError` em tempo de import que bloqueou o plan-checker desta fase. `views.novo_processo`/`views.verificacao` entregam as telas 1 e 2 (D-09): PDF único como caminho principal (D-10), peças separadas em bloco recolhível, tipo de contratação em português de gente (`Contratação em geral`/`Solução de TIC`), autorização por objeto via `get_object_or_404(Processo, slug=slug, criado_por=request.user)`, e remoção de pasta órfã em falha de gravação (D-17). 13 testes novos em `tests/test_web_upload.py`; suíte completa (609 passed, 1 skipped) verde. SYSD-25 completo.
 
 ## Recent Decisions
 
@@ -97,6 +98,10 @@ See: .planning/PROJECT.md
 - `~/.sysdoc` precisa de permissão de leitura para "outros" (`chmod o+rx`) para que a montagem `:ro` no container seja de fato legível pelo UID 10001 — documentado em `.env.exemplo`; permissão `700` (padrão comum) bloqueia até `ls` dentro do container, mesmo com a montagem tecnicamente correta.
 - Segredo Django (`DJANGO_SECRET_KEY`) é gerado uma única vez pelo `entrypoint.sh` e persistido em `${SYSDOC_WEB_DATA_DIR}/secret_key` (permissão 600) — nunca regenerado a cada subida, para não invalidar sessões/CSRF silenciosamente.
 - `docker compose up` ao vivo (rede + porta 8000) não pôde ser exercitado neste host de execução compartilhado — comportamento equivalente confirmado via `docker run` direto da mesma imagem com o mesmo `entrypoint.sh`, volume nomeado e bind mount `:ro`; ver `07-04-SUMMARY.md` § Issues Encountered.
+- `uploads.py` verifica assinatura binária com `if sufixo in ASSINATURAS:` (dicionário), nunca uma tupla literal `(".pdf", ".docx")` — evita colidir com o próprio acceptance criteria do plano 07-05 que proíbe listas literais de extensão no arquivo.
+- O par `MultipleFileInput`(`allow_multiple_selected = True`)/`MultipleFileField` (clean por item, padrão oficial documentado pelo Django) é o único jeito seguro de upload múltiplo sob Django >=5.0 — `ClearableFileInput(attrs={"multiple": True})` levanta `ValueError` na definição da classe do formulário, não na submissão.
+- `views.verificacao` chama `get_object_or_404(Processo, slug=slug, criado_por=request.user)` uma vez em cada ramo (GET e POST) — autorização por objeto redundante por construção em vez de um único ponto compartilhado que um refactor futuro poderia remover sem perceber.
+- Testes que importam módulos dependentes de `.models` do Django (`sysdoc_web.processos.forms`, etc.) não podem fazer esse import no nível de módulo em arquivos de teste: pytest importa todos os módulos de teste na fase de coleta, antes de qualquer fixture rodar, e `django.setup()` só acontece dentro do fixture `django_web` em tempo de execução — o import precisa ficar dentro do corpo do teste.
 
 ## Accumulated Context
 
@@ -122,16 +127,16 @@ See: .planning/PROJECT.md
 
 ## Session Continuity
 
-Last session: 2026-08-27T07:45:00Z
-Stopped at: Plano 07-04 concluído (4/8 planos da Phase 7, wave 3/6) — pronto para 07-05
+Last session: 2026-08-27T08:15:00Z
+Stopped at: Plano 07-05 concluído (5/8 planos da Phase 7, wave 3/6) — pronto para 07-06
 Resume file: None
 
 ## Current Focus
 
-Phase 7: Interface web para pregoeiros — em execução (4/8 planos). Próximo passo recomendado: executar `07-05-PLAN.md` (upload de processo).
+Phase 7: Interface web para pregoeiros — em execução (5/8 planos). Próximo passo recomendado: executar `07-06-PLAN.md` (tela de progresso da análise).
 
 Phases 3 e 4 seguem pendentes e não bloqueiam a 7.
 
 ---
 
-*Last updated: 2026-08-27 — Completed 07-04-PLAN.md: Dockerfile de estágio único com usuário não-root, docker/entrypoint.sh (segredo persistido + migrate + collectstatic + sanear_jobs + worker single-slot + gunicorn --workers 1 --threads 4) e docker-compose.yml de um serviço só com volume nomeado e montagem :ro de ~/.sysdoc; build e subida ponta a ponta verificados via docker run (docker compose up ao vivo limitado pelo host compartilhado, documentado no SUMMARY); Phase 7 wave 3 fechada (07-04)*
+*Last updated: 2026-08-27 — Completed 07-05-PLAN.md: uploads.py valida extensão/tamanho/assinatura/ZIP interno antes de tocar disco (D-08); forms.py traz o par MultipleFileInput/MultipleFileField travando a regressão de ValueError em import time do Django 5; telas de novo processo (PDF único como caminho principal, D-10) e tipo de contratação (rótulos em português, D-09) entregues com autorização por objeto; 13 testes novos, suíte completa (609 passed, 1 skipped) verde; Phase 7 wave 3 segue em 07-05*
