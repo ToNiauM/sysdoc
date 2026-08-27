@@ -422,6 +422,17 @@ sysdoc deploy [pasta]
 
 `sysdoc create dvi` gera o DVI em DOCX (minuta para assinatura, nunca documento final automático). Os artefatos gerados a partir da 1.5.0 seguem o padrão de nomes `xx_nome_tipo_data.extensao`, onde `xx` é o contador de produção daquele tipo de artefato no projeto (nunca reutilizado) — exemplo canônico: `01_processo-042_dvi_2026-08-26.docx`.
 
+### Template do despacho e configuração institucional
+
+`sysdoc create <pasta> dvi` produz o **Despacho de Verificação Inicial** propriamente dito: um documento que aponta, para a Unidade Demandante, apenas o que precisa de ajuste — itens `conforme` nunca aparecem, itens `pendente` (documento ausente/ilegível) viram uma seção própria ao final, e apontamentos equivalentes entre ETP e TR são resolvidos automaticamente como referência cruzada.
+
+Duas chaves novas em `.sysdoc/config.yaml` (semeadas vazias por `sysdoc init`) controlam a geração:
+
+- **`tipo: geral|tic`** — mesma aplicabilidade usada por `sysdoc-dvi run --tipo`. Sem template customizado do órgão em `referencias/`, `create` usa essa chave para escolher entre `templates/dvi/despacho_geral.docx` e `templates/dvi/despacho_tic.docx`.
+- **`despacho:`** — bloco com os sete campos institucionais que não existem no `dados_consolidados.json` (são dado de órgão, não de análise): `vocativo`, `unidade`, `destinatario`, `signatario`, `cargo_signatario`, `autoridade`, `cargo_autoridade`. Campo vazio vira o marcador `[PREENCHER: <campo>]` visível no Word — nunca é inventado.
+
+Um `referencias/dvi.docx` (ou `modelo_dvi.docx`/`template_dvi.docx`) próprio do projeto sempre tem precedência sobre a variante do repositório, preservando a customização por órgão sem exigir mudança no SysDoc.
+
 ---
 
 ## Documentação adicional

@@ -38,6 +38,18 @@ O usuário acionará você (o Agente de IA) através de "Macro Comandos". Quando
   - Rode `sysdoc create [pasta] [tipo]` para gerar `.docx` a partir de `dados_consolidados.json` e um template em `referencias/`.
   - Quando omitido, `tipo=tr`.
   - Para `tipo=tr`: aplica revisão ETP (substituição literal `de`→`para` em itens problemáticos), seleciona template por categoria de contratação (compras, serviços com/sem dedicação, obras) e grava na raiz como `tr_[modelo]_[data].docx`.
+  - Para `tipo=dvi`: gera o despacho institucional (DVI — Despacho de Verificação Inicial). Quando o projeto não tem template customizado em `referencias/` (ex.: `dvi.docx`), exige `tipo: geral` ou `tipo: tic` em `.sysdoc/config.yaml` para escolher a variante certa em `templates/dvi/` — a mesma chave `tipo` que `sysdoc-dvi run --tipo` já usa. Os campos institucionais do despacho (vocativo, unidade, destinatário, signatário, cargo do signatário, autoridade do "De acordo" e cargo da autoridade) vêm do bloco `despacho:` do mesmo arquivo; campo ausente vira o marcador `[PREENCHER: <campo>]` no DOCX gerado — **nunca é inventado**. Exemplo do bloco:
+    ```yaml
+    tipo: geral
+    despacho:
+      vocativo: "Senhora Coordenadora Administrativa,"
+      unidade: DELIC
+      destinatario: "À COLOG, para análise e manifestação acerca dos apontamentos acima."
+      signatario: ""
+      cargo_signatario: "Gerente do DELIC - substituto"
+      autoridade: ""
+      cargo_autoridade: "Coordenadora Administrativa"
+    ```
   - Aceita `--template` para template explícito e `--json` para JSON específico.
 
 ## Análise DVI por checklist

@@ -49,7 +49,13 @@ Quando o usuário digitar uma macro, você (Agente) orquestra:
 3. **`/sysdoc all [pasta]`** — orquestre: analyze → gerar JSON → publish → deploy.
 4. **`/sysdoc render [pasta]`** — rode `sysdoc render [pasta]`.
 5. **`/sysdoc deploy [pasta]`** — rode `sysdoc deploy [pasta]`.
-6. **`/sysdoc create [pasta] [tipo]`** — rode `sysdoc create [pasta] [tipo]`; quando omitido, `tipo=tr`. Para `tipo=tr`, aplica revisão ETP com substituição `de`→`para`, seleciona template por categoria de contratação em `referencias/` e grava como `tr_[modelo]_[data].docx` na raiz do projeto.
+6. **`/sysdoc create [pasta] [tipo]`** — rode `sysdoc create [pasta] [tipo]`; quando omitido, `tipo=tr`. Para `tipo=tr`, aplica revisão ETP com substituição `de`→`para`, seleciona template por categoria de contratação em `referencias/` e grava como `tr_[modelo]_[data].docx` na raiz do projeto. Para `tipo=dvi` (despacho DVI), veja "Template do despacho DVI" abaixo.
+
+### Template do despacho DVI (`sysdoc create <pasta> dvi`)
+
+- Sem template customizado em `referencias/`, `create` exige `tipo: geral` ou `tipo: tic` em `.sysdoc/config.yaml` para escolher a variante certa (`templates/dvi/despacho_geral.docx` ou `despacho_tic.docx`); template customizado do projeto sempre vence, independente de `tipo`.
+- Campos institucionais (vocativo, unidade, destinatário, signatário, cargo do signatário, autoridade, cargo da autoridade) vêm do bloco `despacho:` em `.sysdoc/config.yaml`.
+- Campo institucional ausente vira o marcador `[PREENCHER: <campo>]` no DOCX — **nunca é inventado**, mesma regra de "não invente" aplicada a dado institucional, não só a dado da análise.
 
 ## Key Rules
 
@@ -62,7 +68,7 @@ Quando o usuário digitar uma macro, você (Agente) orquestra:
   - `classificação=risco` → `risco_jurídico ∈ {relevante, bloqueante}`
   - `classificação=conforme` → `risco_jurídico=informativo`
   - `risco_jurídico=bloqueante` → `severidade ∈ {crítica, alta}`
-- **`.sysdoc/config.yaml`** (criado por `sysdoc init`) tem `vps_host`, `vps_path`, `modelo_ia_padrao`. O `deploy` lê daqui se preenchido.
+- **`.sysdoc/config.yaml`** (criado por `sysdoc init`) tem `vps_host`, `vps_path`, `modelo_ia_padrao`, `tipo` (`geral`/`tic`, aplicabilidade do DVI) e o bloco `despacho:` (campos institucionais do despacho). O `deploy` lê `vps_host`/`vps_path` daqui se preenchido; `create <pasta> dvi` lê `tipo` e `despacho:`.
 
 ## Before Any Edit
 
@@ -97,7 +103,7 @@ Quando o usuário digitar uma macro, você (Agente) orquestra:
     ├── referencias/
     ├── output/
     └── .sysdoc/
-        ├── config.yaml                # projeto, vps_host, vps_path, modelo_ia_padrao
+        ├── config.yaml                # projeto, vps_host, vps_path, modelo_ia_padrao, tipo, despacho:
         └── cache/
             ├── manifest.json
             ├── contexto_sysdoc.md
