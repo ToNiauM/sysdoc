@@ -10,7 +10,7 @@
 | 4 | Clareza de UX: fim da ambiguidade `sysdoc analyze` | SYSD-08 a SYSD-12 | 5/5 |
 | 5 | Motor de análise por checklist com agentes plugáveis | PRD RF1–RF10 | 15/15 |
 | 6 | Templates DOCX institucionais (aberta, por rodadas) | SYSD-16 a SYSD-18 (r1) · SYSD-13 a SYSD-15 (r2) | 7/7 |
-| 7 | Interface web para pregoeiros | TBD | 0/0 |
+| 7 | Interface web para pregoeiros | SYSD-19 a SYSD-29 | 0/8 |
 
 ---
 
@@ -217,17 +217,24 @@ Plans:
 ### Phase 7: Interface web para pregoeiros
 
 **Goal:** Abstrair todos os comandos do SysDoc num fluxo visual para pregoeiros: upload dos documentos do processo (PDF único ou peças separadas), extração e carregamento (prepare + fatiador de peças), análise (motor `sysdoc-dvi` com progresso em tempo real) e output com a análise em HTML e DOCX — sem o usuário tocar em terminal, YAML ou JSON.
-**Requirements**: TBD
+**Requirements**: [SYSD-19, SYSD-20, SYSD-21, SYSD-22, SYSD-23, SYSD-24, SYSD-25, SYSD-26, SYSD-27, SYSD-28, SYSD-29]
 **Depends on:** Phase 5 (motor DVI); beneficia-se dos templates da Phase 6 para o output DOCX
-**Plans:** 0 plans
+**Plans:** 8 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 7 to break down)
+- [ ] 07-01-PLAN.md — Tornar `sysdoc`/`sysdoc_dvi` chamáveis como biblioteca (caminhos de retorno + progresso) (wave 1)
+- [ ] 07-02-PLAN.md — Esqueleto Django `sysdoc_web` como extra opcional, settings endurecidas e auth sem auto-cadastro (wave 1)
+- [ ] 07-03-PLAN.md — Modelos Processo/AnaliseJob, fila single-slot e worker que chama o pipeline DVI (wave 2)
+- [ ] 07-04-PLAN.md — Docker: um serviço, `docker compose up` como único comando de subida (wave 3)
+- [ ] 07-05-PLAN.md — Telas 1 e 2: novo processo com upload validado (PDF único) e tipo de contratação (wave 3)
+- [ ] 07-06-PLAN.md — Tela 3: disparo da análise e progresso em tempo real por polling (wave 4)
+- [ ] 07-07-PLAN.md — Tela 4: apontamentos, revisão humana bloqueante, despacho DOCX e downloads (wave 5)
+- [ ] 07-08-PLAN.md — Documentação de produto, guarda do contrato IA-agnóstico e verificação humana (wave 6)
 
 ---
 
-*Phases: 7 | Requirements: 18*
-*Generated: 2026-05-07 · Updated: 2026-08-26*
+*Phases: 7 | Requirements: 29*
+*Generated: 2026-05-07 · Updated: 2026-08-27*
 
 > **Nota de sincronia:** SYSD-13 a SYSD-18 existem apenas neste ROADMAP; `REQUIREMENTS.md` ainda para em SYSD-10. Sincronizar quando conveniente.
